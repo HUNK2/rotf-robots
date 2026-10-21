@@ -43,7 +43,7 @@ fn check(pack: &str, label: &str, object: &ObjectDef, library: &Library) {
 
 #[test]
 fn every_robot_has_complete_mesh_sets_and_materials() {
-    let dir = std::path::PathBuf::from(std::env::var("TF2_GAME_DIR").unwrap_or_else(|_| "C:/Games2".into()));
+    let dir = std::path::PathBuf::from(tf2_core::install::dir_string());
     if !dir.join("characters/bumblebee.str").exists() {
         return;
     }

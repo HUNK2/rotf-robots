@@ -7,7 +7,7 @@ use tf2_core::formats::hash::crc32;
 use tf2_core::tuning::Actions;
 
 fn main() {
-    let dir = std::env::var("TF2_GAME_DIR").unwrap_or_else(|_| "C:/Games2".into());
+    let dir = tf2_core::install::dir_string();
     let mut args: Vec<String> = std::env::args().skip(1).collect();
     if args.is_empty() {
         args = ["bumblebee", "optimus", "ironhide", "ratchet", "megatron", "longhaul", "audir8", "jetfire", "firestorm", "starscream", "blackout", "optimusflight", "megatronflight"].map(str::to_owned).to_vec();

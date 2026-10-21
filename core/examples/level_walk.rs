@@ -10,7 +10,7 @@ use tf2_core::tuning;
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
-    let dir = std::env::var("TF2_GAME_DIR").unwrap_or_else(|_| "C:/Games2".into());
+    let dir = tf2_core::install::dir_string();
     let dir = std::path::Path::new(&dir);
     let zone = args.get(1).map(String::as_str).unwrap_or("levels/shanghai_01/zone.str");
     let mut t = tuning::load(dir, "Bumblebee").unwrap();

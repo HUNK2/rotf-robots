@@ -585,7 +585,7 @@ mod tests {
 
     #[test]
     fn the_escort_barriers_stage_pieces_carry_their_debris() {
-        let pack = PathBuf::from(r"C:\Games2\levels\us_test\missions\usa_east_ltrain_a_escort\mission.str");
+        let pack = crate::install::dir().join("levels/us_test/missions/usa_east_ltrain_a_escort/mission.str");
         if !pack.exists() {
             return;
         }
@@ -603,7 +603,7 @@ mod tests {
 
     #[test]
     fn the_escorts_truck_is_its_base_poses_models() {
-        let pack = PathBuf::from(r"C:\Games2\levels\us_test\missions\usa_east_ltrain_a_escort\mission.str");
+        let pack = crate::install::dir().join("levels/us_test/missions/usa_east_ltrain_a_escort/mission.str");
         if !pack.exists() {
             return;
         }
@@ -656,7 +656,7 @@ mod tests {
 
     /// The install, when it is there. The tests skip (pass) when it is not.
     fn install_path(relative: &str) -> Option<PathBuf> {
-        let dir = PathBuf::from(std::env::var("TF2_GAME_DIR").unwrap_or_else(|_| r"C:\Games2".into()));
+        let dir = PathBuf::from(crate::install::dir_string());
         let path = dir.join(relative);
         path.is_file().then_some(path)
     }
@@ -763,7 +763,7 @@ mod tests {
         use crate::formats::hash::crc32;
         use crate::formats::missionlist::MissionList;
         use std::collections::{BTreeMap, BTreeSet};
-        let dir = PathBuf::from(std::env::var("TF2_GAME_DIR").unwrap_or_else(|_| r"C:\Games2".into()));
+        let dir = PathBuf::from(crate::install::dir_string());
         if !dir.join("levels").is_dir() {
             return;
         }

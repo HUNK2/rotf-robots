@@ -1787,7 +1787,7 @@ mod tests {
     #[test]
     fn the_hud_takes_its_fonts_from_the_font_movie_and_writes_the_timer() {
         // Needs the install.
-        let dir = std::path::Path::new(r"C:\Games2\UI\Flash");
+        let dir = &crate::install::dir().join("UI/Flash");
         let (Ok(hud), Ok(fonts), Ok(glyphs)) = (std::fs::read(dir.join("hud.gfx")), std::fs::read(dir.join("font.gfx")), std::fs::read(dir.join("font_glyphs.gfx"))) else { return };
         let mut movie = Movie::parse(&hud).unwrap();
         let mut fonts = Movie::parse(&fonts).unwrap();
@@ -1818,7 +1818,7 @@ mod tests {
     #[test]
     fn the_games_hud_reads_as_the_dump_has_it() {
         // Needs the install.
-        let Ok(file) = std::fs::read(r"C:\Games2\UI\Flash\hud.gfx") else { return };
+        let Ok(file) = std::fs::read(crate::install::dir().join("UI/Flash/hud.gfx")) else { return };
         let movie = Movie::parse(&file).unwrap();
         assert_eq!((movie.stage, movie.rate), ([1280.0, 720.0], 30.0));
         let health = movie.sprite(movie.exports["Health_Meter Class"]).unwrap();

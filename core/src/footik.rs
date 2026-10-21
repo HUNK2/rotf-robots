@@ -348,7 +348,7 @@ mod roster_survey {
             if node.len() > 0 { for child in node.items() { walk(child, depth + 1, seen, foot, spine); } }
         }
         for pack in ["bumblebee", "optimus", "ratchet", "ironhide", "megatron", "longhaul", "audir8", "jetfire", "firestorm", "starscream", "blackout", "optimusflight", "megatronflight"] {
-            let Ok(p) = crate::formats::pack::Pack::open(&std::path::Path::new("C:/Games2/characters").join(format!("{pack}.str"))) else { continue };
+            let Ok(p) = crate::formats::pack::Pack::open(&crate::install::dir().join("characters").join(format!("{pack}.str"))) else { continue };
             let (mut foot, mut spine) = (0, 0);
             for chunk in p.of_type(crate::formats::pack::DATA) {
                 let file = crate::formats::lxb::DataFile::parse(p.data(chunk).to_vec()).unwrap();
@@ -369,11 +369,11 @@ mod tests {
         terrain::Ramp,
     };
     use glam::Vec2;
-    use std::{path::Path, sync::OnceLock};
+    use std::sync::OnceLock;
 
     fn data() -> &'static character::CharacterData {
         static DATA: OnceLock<character::CharacterData> = OnceLock::new();
-        DATA.get_or_init(|| character::load(Path::new(r"C:\Games2"), "bumblebee").unwrap())
+        DATA.get_or_init(|| character::load(crate::install::dir(), "bumblebee").unwrap())
     }
     fn fixture() -> (FootRig, Vec<Affine3A>, Vec<Option<usize>>) {
         let data = data();
@@ -438,6 +438,7 @@ mod tests {
     }
     #[test]
     fn real_feet_clear_slopes_and_banks_at_different_character_yaws() {
+        if crate::install::missing() { return; }
         let (rig, base, parents) = fixture();
         for slope in [
             Vec2::new(0.0, 0.28),
@@ -480,6 +481,7 @@ mod tests {
     }
     #[test]
     fn uneven_support_solves_each_leg_without_stretching() {
+        if crate::install::missing() { return; }
         let (rig, base, parents) = fixture();
         let arena = Arena {
             boxes: vec![Box3 {
@@ -503,6 +505,7 @@ mod tests {
     }
     #[test]
     fn inactive_and_missing_support_leave_animation_unchanged() {
+        if crate::install::missing() { return; }
         let (rig, base, parents) = fixture();
         let mut ik = FootIk::default();
         for active in [true, false] {
@@ -542,6 +545,7 @@ mod tests {
     }
     #[test]
     fn flat_support_preserves_pose_except_contact_bias_and_render_cadence_agrees() {
+        if crate::install::missing() { return; }
         let (rig, base, parents) = fixture();
         let slow = settled(
             &rig,
@@ -573,6 +577,7 @@ mod tests {
     }
     #[test]
     fn raised_toe_corner_at_a_ramp_join_is_not_missed_by_the_centre_probe() {
+        if crate::install::missing() { return; }
         let (rig, base, parents) = fixture();
         let rest = accumulate(&base, &parents);
         let points = rig.legs[0]
@@ -612,6 +617,7 @@ mod tests {
     }
     #[test]
     fn walking_retains_animated_swing_height_and_toe_keys() {
+        if crate::install::missing() { return; }
         let (rig, _, parents) = fixture();
         let data = data();
         let clip = data
@@ -658,6 +664,7 @@ mod tests {
     }
     #[test]
     fn teleport_and_lost_probe_do_not_carry_previous_slope_offsets() {
+        if crate::install::missing() { return; }
         let (rig, base, parents) = fixture();
         let ramp = Ramp {
             min: Vec2::splat(-10.0),

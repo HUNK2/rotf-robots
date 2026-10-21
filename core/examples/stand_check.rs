@@ -8,7 +8,7 @@ use tf2_core::sim::{self, Arena, Input, State};
 use tf2_core::tuning::{self, Actions, Locomotion, RuleSet};
 
 fn main() {
-    let dir = std::env::var("TF2_GAME_DIR").unwrap_or_else(|_| "C:/Games2".into());
+    let dir = tf2_core::install::dir_string();
     for arg in std::env::args().skip(1) {
         let (pack, name) = arg.split_once(':').expect("pack:Name");
         let mut t = tuning::load(Path::new(&dir), name).expect("tuning");

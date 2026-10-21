@@ -829,7 +829,7 @@ mod tests {
     }
 
     fn level() -> Option<LevelWorld> {
-        let dir = PathBuf::from(std::env::var("TF2_GAME_DIR").unwrap_or_else(|_| "C:/Games2".into()));
+        let dir = PathBuf::from(crate::install::dir_string());
         dir.join("levels/shanghai_01/zone.str").is_file().then(|| LevelWorld::load(&dir, "levels/shanghai_01/zone.str").expect("level"))
     }
 
@@ -842,7 +842,7 @@ mod tests {
         use crate::formats::missionlist::MissionList;
         use crate::formats::hash::crc32;
         use std::collections::{BTreeMap, BTreeSet};
-        let dir = PathBuf::from(std::env::var("TF2_GAME_DIR").unwrap_or_else(|_| "C:/Games2".into()));
+        let dir = PathBuf::from(crate::install::dir_string());
         if !dir.join("levels").is_dir() {
             return;
         }
@@ -1028,7 +1028,7 @@ mod tests {
     #[test]
     fn escort_ledge_walk_does_not_reenter_a_visited_low_triangle() {
         use crate::formats::{hash::crc32, missionlist::MissionList};
-        let game = PathBuf::from(std::env::var("TF2_GAME_DIR").unwrap_or_else(|_| "C:/Games2".into()));
+        let game = PathBuf::from(crate::install::dir_string());
         if !game.join("levels").is_dir() {return;}
         let list = MissionList::load(&game).expect("missions");
         let mission = list.by_hash(crc32(b"USA_East_LTrain_A_Escort")).expect("escort");

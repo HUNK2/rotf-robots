@@ -10,7 +10,7 @@
 //! radius `characterAttributesDComScout.avatarDescArray[robot].radius` [data], read through
 //! `tuning::load` (`tuning.rs` line 834), the same call `Scout::load` makes.
 //! The data is `characterAttributesDComScout.tacticsData` (`[data]`). Writes nothing.
-//! Reads `C:\Games2` (or `TF2_GAME_DIR`).
+//! Reads the install.
 
 use std::collections::HashSet;
 use std::path::PathBuf;
@@ -21,7 +21,7 @@ use tf2_core::navmesh::{self, NavMesh};
 use tf2_core::tuning;
 
 fn main() {
-    let dir = PathBuf::from(std::env::var("TF2_GAME_DIR").unwrap_or_else(|_| "C:/Games2".into()));
+    let dir = PathBuf::from(tf2_core::install::dir_string());
     let data = match tactics::load(&dir, "DComScout") {
         Ok(d) => d,
         Err(e) => {

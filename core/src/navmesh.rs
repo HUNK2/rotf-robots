@@ -1497,9 +1497,9 @@ mod tests {
 
     /// The us_test counts for the notes (reads the install; run with --ignored --nocapture).
     #[test]
-    #[ignore = "reads C:/Games2/levels/us_test; prints the counts for notes/status.md"]
+    #[ignore = "reads the install's levels/us_test; prints the counts for notes/status.md"]
     fn us_test_counts() {
-        let (sils, _) = load(Path::new("C:/Games2/levels/us_test/zone.str")).unwrap();
+        let (sils, _) = load(crate::install::dir().join("levels/us_test/zone.str").as_path()).unwrap();
         let m = NavMesh::build(None, &sils).unwrap();
         eprintln!(
             "us_test: vertices {} triangles {} marked sides {} short pairs {} not inserted {} snapped {} tight fallbacks {}",
@@ -1702,7 +1702,7 @@ mod tests {
     /// height is 16 m, placed 0.056 m up. Its attachment bind is also 16 m up.
     #[test]
     fn installed_escort_platform_keeps_its_authored_height() {
-        let path = Path::new(r"C:\Games2\levels\us_test\zone.str");
+        let path = &crate::install::dir().join("levels/us_test/zone.str");
         if !path.is_file() {
             return;
         }

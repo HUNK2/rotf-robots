@@ -791,7 +791,8 @@ mod tests {
     /// and a rule edit shows through (the walk is not the two names).
     #[test]
     fn the_catch_clip_comes_from_the_climb_sets_entry_walk_on_the_real_data() {
-        let dir = std::path::Path::new(r"C:\Games2");
+        if crate::install::missing() { return; }
+        let dir = crate::install::dir();
         if !dir.exists() {
             return;
         }
@@ -824,7 +825,8 @@ mod tests {
     /// enter in `sim.rs` takes that tuning); only a bare `Tuning` (unit tests, examples) reaches it.
     #[test]
     fn the_catch_clip_fallback_is_never_taken_for_a_robot_with_the_set() {
-        let dir = std::path::Path::new(r"C:\Games2");
+        if crate::install::missing() { return; }
+        let dir = crate::install::dir();
         if !dir.exists() {
             return;
         }

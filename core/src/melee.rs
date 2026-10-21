@@ -908,7 +908,7 @@ mod blade_tests {
     ];
 
     fn load(pack: &str) -> CharacterData {
-        character::load(std::path::Path::new("C:/Games2"), pack).unwrap()
+        character::load(crate::install::dir(), pack).unwrap()
     }
 
     fn close(a: Vec3, b: Vec3) -> bool {
@@ -941,6 +941,7 @@ mod blade_tests {
 
     #[test]
     fn optimus_loads_two_melee_weapons_each_with_its_blade_box() {
+        if crate::install::missing() { return; }
         let data = load("optimus");
         let w = &data.melee_weapons;
         assert_eq!(w.iter().map(|w| w.name).collect::<Vec<_>>(), [0x651a_966e, 0xe182_4b9d]);
@@ -963,6 +964,7 @@ mod blade_tests {
 
     #[test]
     fn the_other_packs_blades_are_as_the_data_has_them() {
+        if crate::install::missing() { return; }
         let audi = load("audir8");
         assert_eq!(audi.melee_weapons.iter().map(|w| w.start_node).collect::<Vec<_>>(), [0xa215_ccee, 0x581a_f18d]);
         for w in &audi.melee_weapons {
@@ -991,6 +993,7 @@ mod blade_tests {
     /// weapon to two nodes. [data]
     #[test]
     fn each_melee_weapon_links_to_one_node() {
+        if crate::install::missing() { return; }
         let expect: [(&str, &[&str]); 9] = [
             ("optimus", &["WeaponAttachment_Arm_R", "WeaponAttachment_Arm_L"]),
             ("optimusflight", &["WeaponAttachment_Arm_L", "WeaponAttachment_Arm_L"]),
@@ -1018,6 +1021,7 @@ mod blade_tests {
     /// never move one. [data]
     #[test]
     fn no_weapon_set_clip_moves_a_melee_weapon() {
+        if crate::install::missing() { return; }
         for pack in ROSTER {
             let data = load(pack);
             let names: Vec<u32> = data.melee_weapons.iter().map(|w| w.name).collect();
@@ -1031,6 +1035,7 @@ mod blade_tests {
 
     #[test]
     fn each_of_optimus_blades_follows_its_own_events() {
+        if crate::install::missing() { return; }
         let data = load("optimus");
         let w = &data.melee_weapons;
         let mut axes = vec![Axe::default(); 2];
@@ -1103,6 +1108,7 @@ mod blade_tests {
 
     #[test]
     fn blades_are_live_in_the_clips_that_switch_their_node() {
+        if crate::install::missing() { return; }
         let optimus = pack("optimus");
         for tick in [21.0, 24.0, 27.0] {
             assert_eq!(live_blades(&optimus, "AttackFast_2", tick), [1], "AttackFast_2 at {tick}");
@@ -1126,6 +1132,7 @@ mod blade_tests {
 
     #[test]
     fn a_blade_at_rest_sits_on_its_handle_node() {
+        if crate::install::missing() { return; }
         let data = load("optimus");
         let w = &data.melee_weapons[0];
         let object = w.object.as_ref().unwrap();

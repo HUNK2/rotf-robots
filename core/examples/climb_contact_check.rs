@@ -110,7 +110,7 @@ fn lost_ledge_path(level: &LevelWorld, mesh: &NavMesh, from: Vec3, dir: Vec2, re
 
 fn main() {
     let pencil_trial = std::env::args().any(|a| a == "--pencil");
-    let game = PathBuf::from(std::env::var("TF2_GAME_DIR").unwrap_or_else(|_| "C:/Games2".into()));
+    let game = PathBuf::from(tf2_core::install::dir_string());
     let list = MissionList::load(&game).expect("missions");
     let mission = list
         .by_hash(crc32(b"USA_East_LTrain_A_Escort"))

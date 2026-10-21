@@ -110,7 +110,7 @@ fn survey(label: &str, refs: &[AnimRef], object: Option<&ObjectDef>) {
 }
 
 fn main() {
-    let game = std::env::var("TF2_GAME_DIR").unwrap_or_else(|_| r"C:\Games2".into());
+    let game = tf2_core::install::dir_string();
     let mut packs: Vec<String> = std::env::args().skip(1).collect();
     if packs.is_empty() {
         packs = ROSTER.map(str::to_owned).to_vec();

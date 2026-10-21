@@ -3,7 +3,7 @@
 //! mission with the climb's own test (`climb::find` on `LevelWorld::ledge_from_mesh`) and lists test spots near
 //! the spawn. Writes nothing.
 //! `cargo run --manifest-path C:/Bumblebee/Cargo.toml -p tf2-core --example ledge_check -- [MissionName]`
-//! Default: `USA_East_LTrain_A_Escort`. Reads `C:\Games2` (or `TF2_GAME_DIR`).
+//! Default: `USA_East_LTrain_A_Escort`. Reads the install.
 //!
 //! The mesh is built as `game/src/main.rs` `build_nav` builds it: every pack's silhouettes, one `NavMesh::build`.
 //! The collision is `LevelWorld::load_packs` on the same packs, with the mesh given by `with_nav`.
@@ -47,7 +47,7 @@ fn stats(name: &str, errs: &mut Vec<f32>) {
 }
 
 fn main() {
-    let game = PathBuf::from(std::env::var("TF2_GAME_DIR").unwrap_or_else(|_| "C:/Games2".into()));
+    let game = PathBuf::from(tf2_core::install::dir_string());
     let name = std::env::args().nth(1).unwrap_or_else(|| "USA_East_LTrain_A_Escort".into());
     let list = MissionList::load(&game).expect("mission list");
     let mission = list.by_hash(crc32(name.as_bytes())).unwrap_or_else(|| panic!("no mission {name}"));

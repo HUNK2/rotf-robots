@@ -1631,7 +1631,8 @@ mod tests {
 
     #[test]
     fn gearbox_replays_recorded_vehicle_updates() {
-        let dir=std::env::var("TF2_GAME_DIR").unwrap_or_else(|_|"C:/Games2".into());
+        if crate::install::missing() { return; }
+        let dir=crate::install::dir_string();
         let gears=load_gears(Path::new(&dir),"Bumblebee").expect("installed gears");
         let mut errors=Vec::new();
         // Offline comparison against a new user capture; default regression stays fixed.
@@ -1691,7 +1692,7 @@ mod tests {
     }
 
     fn game_dir() -> PathBuf {
-        PathBuf::from(std::env::var("TF2_GAME_DIR").unwrap_or_else(|_| r"C:\Games2".into()))
+        PathBuf::from(crate::install::dir_string())
     }
 
     fn bumblebee() -> Library {
@@ -1706,6 +1707,7 @@ mod tests {
 
     #[test]
     fn bumblebees_events_are_found_by_the_ids_his_data_uses() {
+        if crate::install::missing() { return; }
         let library = bumblebee();
         assert_eq!(library.event_count(), 38);
         // Ids as they appear in his animation events and sound table.
@@ -1716,6 +1718,7 @@ mod tests {
 
     #[test]
     fn installed_chatter_table_binds_decodable_radio_samples() {
+        if crate::install::missing() { return; }
         let game = game_dir();
         let data = crate::character::load(&game, "bumblebee").unwrap();
         let (mut library, errors) = Library::load(&[game.join(r"audio\eng\global_streaming.fev")]);
@@ -1745,6 +1748,7 @@ mod tests {
 
     #[test]
     fn category_tree_gains_and_runtime_options_multiply_without_touching_other_buses() {
+        if crate::install::missing() { return; }
         let mut library = bumblebee();
         let id = event_id("VEH_BUMBLEBEE_CAMARO_RPM");
         let (file, event) = library.event(id).unwrap();
@@ -1771,6 +1775,7 @@ mod tests {
 
     #[test]
     fn player_engine_spatial_envelope_keeps_its_authored_2d_share() {
+        if crate::install::missing() { return; }
         let library = bumblebee();
         let (_, event) = library.event(event_id("VEH_BUMBLEBEE_CAMARO_RPM")).unwrap();
         let pan = event.parameters.iter().position(|p| p.name == "2dPanLevel").unwrap();
@@ -1881,6 +1886,7 @@ mod tests {
 
     #[test]
     fn event_heads_carry_the_speaker_mix_and_doppler_level() {
+        if crate::install::missing() { return; }
         let (library, problems) = Library::load(&[game_dir().join(r"characters\eng\optimus.fev")]);
         assert!(problems.is_empty(), "{problems:?}");
         // [data] his left and right gun shots are 2D events panned hard to one side.
@@ -1897,6 +1903,7 @@ mod tests {
 
     #[test]
     fn a_hard_left_2d_shot_is_heard_only_on_the_left() {
+        if crate::install::missing() { return; }
         let (library, problems) = Library::load(&[game_dir().join(r"characters\eng\optimus.fev")]);
         assert!(problems.is_empty(), "{problems:?}");
         let id = event_id("WPN_OPTIMUS_LASER_FIRE_L");
@@ -1911,6 +1918,7 @@ mod tests {
 
     #[test]
     fn authored_pitch_and_random_radius_preserve_four_octave_units() {
+        if crate::install::missing() { return; }
         // Original 004bf110/004c1330: .25 is one octave; randomness is a
         // symmetric radius, not the earlier half-width approximation.
         assert_eq!(pitch_multiplier(0.25, 0.0, 0.5), 2.0);
@@ -1969,6 +1977,7 @@ mod tests {
 
     #[test]
     fn event_fades_keep_their_duration_across_device_callback_sizes() {
+        if crate::install::missing() { return; }
         let mut library = bumblebee();
         let id = event_id("ANIM_BUMB_TRANS_ROB_B");
         let (file, index) = library.index[&id];
@@ -2006,6 +2015,7 @@ mod tests {
 
     #[test]
     fn a_one_shot_plays_its_sample_and_ends() {
+        if crate::install::missing() { return; }
         let library = bumblebee();
         let id = event_id("ANIM_BUMB_TRANS_ROB_B");
         assert_eq!(library.prepare(id), 1);
@@ -2026,6 +2036,7 @@ mod tests {
 
     #[test]
     fn the_engine_moves_between_its_three_samples_with_the_revolutions() {
+        if crate::install::missing() { return; }
         let library = bumblebee();
         let id = event_id("VEH_BUMBLEBEE_CAMARO_RPM");
         assert_eq!(library.prepare(id), 3);
@@ -2083,6 +2094,7 @@ mod tests {
     /// pinned the output at full scale as he changed form.
     #[test]
     fn fine_tune_is_hertz_and_the_tank_engine_stays_centred() {
+        if crate::install::missing() { return; }
         let (library, problems) = Library::load(&[game_dir().join(r"characters\eng\megatron.fev")]);
         assert!(problems.is_empty(), "{problems:?}");
         let id = event_id("VEH_MEGA_TANK_RPM");
@@ -2109,6 +2121,7 @@ mod tests {
 
     #[test]
     fn the_engines_layer_is_duller_at_no_load() {
+        if crate::install::missing() { return; }
         let library = bumblebee();
         let id = event_id("VEH_BUMBLEBEE_CAMARO_RPM");
         let (_, event) = library.event(id).unwrap();
@@ -2133,6 +2146,7 @@ mod tests {
 
     #[test]
     fn engine_crossfades_use_the_authored_overlap_not_the_whole_rpm_range() {
+        if crate::install::missing() { return; }
         let library = bumblebee();
         let (_, event) = library.event(event_id("VEH_BUMBLEBEE_CAMARO_RPM")).unwrap();
         let sounds = &event.layers[0].sounds;
@@ -2184,6 +2198,7 @@ mod tests {
 
     #[test]
     fn an_audible_engine_loop_wrap_does_not_drop_an_output_frame() {
+        if crate::install::missing() { return; }
         let library = bumblebee();
         let id = event_id("VEH_BUMBLEBEE_CAMARO_RPM");
         library.prepare(id);
@@ -2202,6 +2217,7 @@ mod tests {
 
     #[test]
     fn a_placed_sound_leans_to_its_side_and_an_interface_sound_does_not() {
+        if crate::install::missing() { return; }
         let library = bumblebee();
         let id = event_id("ANIM_BUMB_TRANS_ROB_B");
         library.prepare(id);
@@ -2234,6 +2250,7 @@ mod tests {
 
     #[test]
     fn a_change_of_gear_glides_at_the_events_seek_speed() {
+        if crate::install::missing() { return; }
         let library = bumblebee();
         let id = event_id("VEH_BUMBLEBEE_CAMARO_RPM");
         library.prepare(id);
@@ -2257,6 +2274,7 @@ mod tests {
 
     #[test]
     fn an_event_makes_room_for_itself() {
+        if crate::install::missing() { return; }
         let library = bumblebee();
         let id = event_id("VEH_BUMBLEBEE_CAMARO_REVS");
         let mut mixer = Mixer::new(48000);
@@ -2269,6 +2287,7 @@ mod tests {
 
     #[test]
     fn gears_carry_the_revolutions_up_through_the_speed_range() {
+        if crate::install::missing() { return; }
         let gears = load_gears(&game_dir(), "Bumblebee").unwrap();
         assert_eq!(gears.len(), 6);
         assert_eq!((gears[0].min_rpm, gears[0].max_rpm, gears[5].max_rpm), (1000.0, 6000.0, 8800.0));
@@ -2360,6 +2379,7 @@ mod tests {
     /// (velocity 5), sustain at 0.40915.
     #[test]
     fn a_sustain_loop_holds_until_its_key_off_then_plays_its_tail() {
+        if crate::install::missing() { return; }
         let (library, problems) = Library::load(&[game_dir().join(r"characters\eng\blackout.fev")]);
         assert!(problems.is_empty(), "{problems:?}");
         let id = event_id("WPN_BLAC_GAT_FIRE_LP");
@@ -2395,6 +2415,7 @@ mod tests {
 
     #[test]
     fn the_flame_holds_its_loop_at_its_sustain_point() {
+        if crate::install::missing() { return; }
         let (library, problems) = Library::load(&[game_dir().join(r"characters\eng\longhaul.fev")]);
         assert!(problems.is_empty(), "{problems:?}");
         let id = event_id("WPN_FIRE_FLAME");
@@ -2422,6 +2443,7 @@ mod tests {
     /// and a stop fades it over its fade-out (`ANIM_BUMB_CHARGE_LP`: 650 ms).
     #[test]
     fn a_key_off_leaves_an_event_without_parameters_and_a_stop_fades_it() {
+        if crate::install::missing() { return; }
         let (library, problems) = Library::load(&[game_dir().join(r"audio\eng\global.fev")]);
         assert!(problems.is_empty(), "{problems:?}");
         let id = event_id("ANIM_BUMB_CHARGE_LP");
@@ -2450,6 +2472,7 @@ mod tests {
     /// loop and an un-keyed loop stay (the other tests here). [data; end rule assumed]
     #[test]
     fn a_keyed_off_charge_loop_left_silent_inside_its_span_ends() {
+        if crate::install::missing() { return; }
         let dir = game_dir();
         for (pack, name) in [("ratchet", "ANIM_RATC_GRE_CHARG_LP"), ("longhaul", "ANIM_LONG_GRE_CHRG_LP")] {
             let (library, problems) = Library::load(&[dir.join(format!(r"characters\eng\{pack}.fev"))]);
@@ -2483,6 +2506,7 @@ mod tests {
     /// One-shots are untouched: the gun's shot has no sustain and ends by itself.
     #[test]
     fn a_one_shot_fire_sound_is_not_infinite_and_ends_alone() {
+        if crate::install::missing() { return; }
         let library = bumblebee();
         let id = event_id("WPN_BUMB_GUN_FIRE");
         assert_eq!(event_id("heat"), 0xba44_e6f8, "the fire sound's parameter [game 007a9b40]");

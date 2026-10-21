@@ -14,7 +14,7 @@ const ROSTER: [&str; 13] = [
 ];
 
 fn main() {
-    let game_dir = PathBuf::from(std::env::args().nth(1).unwrap_or_else(|| r"C:\Games2".to_owned()));
+    let game_dir = PathBuf::from(std::env::args().nth(1).unwrap_or_else(tf2_core::install::dir_string));
     let mut t = tuning::load(&game_dir, "Bumblebee").expect("tuning");
     let basics: Vec<_> = t.control.states.iter().filter(|s| s.class == "StateBasic" && s.anim != 0).cloned().collect();
     println!("{} StateBasic states with a clip (of {} states)", basics.len(), t.control.states.len());

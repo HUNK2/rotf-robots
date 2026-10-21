@@ -93,7 +93,7 @@ mod tests {
     /// [data] shanghai_01: the placed models under a Colorizer's Instance get its colour. PRINTS the counts.
     #[test]
     fn shanghai_taxis_are_tinted() {
-        let zone = std::path::PathBuf::from(std::env::var("TF2_GAME_DIR").unwrap_or_else(|_| r"C:\Games2".into())).join(r"levels\shanghai_01\zone.str");
+        let zone = std::path::PathBuf::from(crate::install::dir_string()).join(r"levels\shanghai_01\zone.str");
         if !zone.is_file() {
             return;
         }

@@ -376,7 +376,7 @@ mod tests {
 
     fn movie() -> Option<Movie> {
         // Needs the install.
-        Movie::parse(&std::fs::read(r"C:\Games2\UI\Flash\hud.gfx").ok()?).ok()
+        Movie::parse(&std::fs::read(crate::install::dir().join("UI/Flash/hud.gfx")).ok()?).ok()
     }
 
     /// The colour the bars are filled with.
@@ -399,7 +399,7 @@ mod tests {
     #[test]
     fn the_timer_draws_its_time_in_the_huds_font() {
         let Some(mut movie) = movie() else { return };
-        assert_eq!(load_fonts(&mut movie, std::path::Path::new(r"C:\Games2\UI\Flash")), Ok(2));
+        assert_eq!(load_fonts(&mut movie, crate::install::dir().join("UI/Flash").as_path()), Ok(2));
         let mut timer = MissionTimer::default();
         timer.step(None);
         assert!(!timer.is_shown());

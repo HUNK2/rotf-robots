@@ -37,7 +37,7 @@ fn write_wav(path: &Path, samples: &[i16]) {
 }
 
 fn main() {
-    let game = PathBuf::from(std::env::var("TF2_GAME_DIR").unwrap_or_else(|_| r"C:\Games2".into()));
+    let game = PathBuf::from(tf2_core::install::dir_string());
     let mut args: Vec<String> = std::env::args().skip(1).collect();
     if args.is_empty() {
         args = FLYERS.map(str::to_owned).to_vec();

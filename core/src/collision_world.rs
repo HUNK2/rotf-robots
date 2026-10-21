@@ -1109,7 +1109,7 @@ mod tests {
 
     /// The install, when it is there. The tests skip (pass) when it is not.
     fn install_path(relative: &str) -> Option<PathBuf> {
-        let dir = PathBuf::from(std::env::var("TF2_GAME_DIR").unwrap_or_else(|_| r"C:\Games2".into()));
+        let dir = PathBuf::from(crate::install::dir_string());
         let path = dir.join(relative);
         path.is_file().then_some(path)
     }
@@ -1207,7 +1207,7 @@ mod tests {
             }
         }
         println!("placed centres: x {:.1}..{:.1}  y {:.1}..{:.1}  z {:.2}..{:.2}", lo[0], hi[0], lo[1], hi[1], lo[2], hi[2]);
-        let missions = crate::formats::missionlist::MissionList::load(Path::new(&std::env::var("TF2_GAME_DIR").unwrap_or_else(|_| r"C:\Games2".into()))).unwrap();
+        let missions = crate::formats::missionlist::MissionList::load(Path::new(&crate::install::dir_string())).unwrap();
         let m = missions
             .missions
             .iter()

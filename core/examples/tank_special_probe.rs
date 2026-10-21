@@ -2,7 +2,6 @@
 //! action clip and its tick, `I_SPECIAL_ON`'s timer and the car mode, update by update.
 //! `cargo run -p tf2-core --example tank_special_probe -- [pack:AttributesName]`
 
-use std::path::Path;
 
 use tf2_core::control::button;
 use tf2_core::sim::{self, Arena, Input, State};
@@ -11,7 +10,7 @@ use tf2_core::tuning::{self, Actions, Locomotion, RuleSet};
 fn main() {
     let arg = std::env::args().nth(1).unwrap_or_else(|| "megatron:Megatron".into());
     let (pack, name) = arg.split_once(':').expect("pack:Name");
-    let dir = Path::new("C:/Games2");
+    let dir = tf2_core::install::dir();
     let mut t = tuning::load(dir, name).expect("tuning");
     let data = tf2_core::character::load(dir, pack).expect("character");
     t.locomotion = Locomotion::from_animations(&data.animations, &mut t.missing);

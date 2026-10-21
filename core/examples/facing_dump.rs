@@ -10,7 +10,7 @@ use tf2_core::pose::Rig;
 
 fn main() {
     let set = std::env::args().nth(1).unwrap_or_else(|| "WeaponSet".into());
-    let dir = std::env::var("TF2_GAME_DIR").unwrap_or_else(|_| "C:/Games2".into());
+    let dir = tf2_core::install::dir_string();
     let data = tf2_core::character::load(Path::new(&dir), "bumblebee").expect("load");
     let Some(refs) = data.animations.sets.get(&set) else {
         println!("no set {set}");

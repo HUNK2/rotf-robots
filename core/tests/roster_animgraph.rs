@@ -3,7 +3,7 @@
 //! file), every `AlternateModelEvent` starts a car-model clip that exists, and every control state
 //! finds its clip. The example is included as a module, so the example and the test cannot drift
 //! apart; run it for the dynamic half (what a scripted session reaches). Needs the install;
-//! returns at once without `C:\Games2` (or `TF2_GAME_DIR`).
+//! returns at once without the install.
 //!
 //! What holds today is asserted; the rest is printed (`cargo test -p tf2-core --test
 //! roster_animgraph -- --nocapture`).
@@ -36,7 +36,7 @@ const KNOWN_STATE_ERRORS: [(&str, &[&str]); 13] = [
 
 #[test]
 fn every_rule_target_model_event_and_state_clip_resolves() {
-    let dir = PathBuf::from(std::env::var("TF2_GAME_DIR").unwrap_or_else(|_| "C:/Games2".into()));
+    let dir = PathBuf::from(tf2_core::install::dir_string());
     if !dir.join("characters/bumblebee.str").exists() {
         return;
     }

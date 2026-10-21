@@ -1,5 +1,5 @@
 //! The entry rules of one animation set and the exit rules of each of its clips, with the
-//! names resolved. `cargo run -p tf2-core --example rules_dump -- <Set>` (reads `C:\Games2`).
+//! names resolved. `cargo run -p tf2-core --example rules_dump -- <Set>` (reads the install).
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -18,7 +18,7 @@ const LOGIC: [&str; 6] = ["==", "!=", ">", ">=", "<", "<="];
 
 fn main() {
     let set = std::env::args().nth(1).unwrap_or_else(|| "WeaponSet".into());
-    let dir = std::env::var("TF2_GAME_DIR").unwrap_or_else(|_| "C:/Games2".into());
+    let dir = tf2_core::install::dir_string();
     // A second argument names another character's pack.
     let pack = std::env::args().nth(2).unwrap_or_else(|| "bumblebee".into());
     let data = tf2_core::character::load(Path::new(&dir), &pack).expect("load");

@@ -575,7 +575,7 @@ mod tests {
     #[test]
     fn installed_megatron_flight_shockwave() {
         use crate::formats::{lxb::DataFile, pack::{self, Pack}};
-        let Ok(pack) = Pack::open(std::path::Path::new("C:/Games2/characters/megatronflight.str")) else {
+        let Ok(pack) = Pack::open(crate::install::dir().join("characters/megatronflight.str").as_path()) else {
             return;
         };
         let chunk = pack.of_type(pack::DATA).next().unwrap();

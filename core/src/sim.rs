@@ -6379,7 +6379,7 @@ mod tests {
     }
 
     fn installed_animation_tuning() -> Tuning {
-        let dir = std::path::Path::new("C:/Games2");
+        let dir = crate::install::dir();
         let mut t = crate::tuning::load(dir, "Bumblebee").unwrap();
         let data = crate::character::load(dir, "bumblebee").unwrap();
         t.actions = crate::tuning::Actions::from_animations(&data.animations, &data.robot, &mut t.missing);
@@ -6391,6 +6391,7 @@ mod tests {
 
     #[test]
     fn installed_partial_hit_plays_above_movement_and_does_not_interrupt_fire() {
+        if crate::install::missing() { return; }
         let t = installed_animation_tuning();
         let mut s = State::new(&t);
         let input = Input { stick: Vec2::Y, aim: Some(Vec2::Y), buttons_down: 1 << button::WEAPON_FIRE, ..Input::default() };
@@ -6408,6 +6409,7 @@ mod tests {
 
     #[test]
     fn installed_flybacks_recover_and_release_the_control_state() {
+        if crate::install::missing() { return; }
         let t = installed_animation_tuning();
         for (flag, fly, recover) in [(melee::damage::BY_FAST_FLAIL, "Flyback_Fast", "Recover_Fast"),
             (melee::damage::BY_STRONG_FLAIL, "Flyback_Slow", "Recover_Slow")] {
@@ -6430,6 +6432,7 @@ mod tests {
 
     #[test]
     fn installed_air_death_and_vehicle_death_follow_their_exit_rules() {
+        if crate::install::missing() { return; }
         let t = installed_animation_tuning();
         let mut s = State::new(&t);
         s.pos.z = 10.0;
@@ -6451,6 +6454,7 @@ mod tests {
 
     #[test]
     fn installed_weapon_landings_hand_their_overrun_to_running_clips() {
+        if crate::install::missing() { return; }
         let t=installed_animation_tuning();
         let land=t.weapon_set.clips.iter().find(|c|c.continue_time).unwrap();
         let mut s=State::new(&t);
@@ -6469,6 +6473,7 @@ mod tests {
 
     #[test]
     fn installed_hit_reaction_fall_permission_obeys_the_drop_and_clip_gate() {
+        if crate::install::missing() { return; }
         let t = installed_animation_tuning();
         for (flag, early_fall) in [(melee::damage::BY_FAST_FLAIL, true), (melee::damage::BY_KNOCKBACK, false)] {
             let mut s = State::new(&t);
@@ -6490,6 +6495,7 @@ mod tests {
     /// let go (`FUN_0087a820`, owner `+0x3f8`). [game]
     #[test]
     fn installed_a_climb_left_with_climb_held_is_not_taken_up_until_it_is_let_go() {
+        if crate::install::missing() { return; }
         let t = installed_animation_tuning();
         let arena = Arena { boxes: vec![Box3 { min: Vec3::new(-10.0, 10.0, 0.0), max: Vec3::new(10.0, 30.0, 40.0) }], ..Default::default() };
         let climb = Input { buttons_down: 1 << button::CLIMB, buttons_hit: 1 << button::CLIMB, ..Default::default() };
@@ -7943,7 +7949,8 @@ mod tests {
     /// nothing meanwhile, and the [0, 0, 0] last key ends it. [game 00866900, 006db490] [data]
     #[test]
     fn a_jets_roll_follows_its_clip_and_ends_on_its_last_key() {
-        let dir = std::path::Path::new("C:/Games2");
+        if crate::install::missing() { return; }
+        let dir = crate::install::dir();
         if !dir.exists() {
             return;
         }
@@ -8198,7 +8205,7 @@ mod blade_hit_tests {
     use super::*;
 
     fn optimus() -> Tuning {
-        let dir = std::path::Path::new("C:/Games2");
+        let dir = crate::install::dir();
         let mut t = crate::tuning::load(dir, "Optimus").unwrap();
         let data = crate::character::load(dir, "optimus").unwrap();
         t.locomotion = crate::tuning::Locomotion::from_animations(&data.animations, &mut t.missing);
@@ -8232,6 +8239,7 @@ mod blade_hit_tests {
 
     #[test]
     fn optimus_hits_with_his_left_blade_once_per_attack_state() {
+        if crate::install::missing() { return; }
         let t = optimus();
         let mut s = in_swing_two(&t);
         let arm_l = crc32(b"WeaponAttachment_Arm_L");
@@ -8271,7 +8279,7 @@ mod rule_variable_tests {
     use super::*;
 
     fn installed(pack: &str, name: &str) -> Option<Tuning> {
-        let dir = std::path::Path::new("C:/Games2");
+        let dir = crate::install::dir();
         if !dir.exists() {
             return None;
         }
@@ -8292,6 +8300,7 @@ mod rule_variable_tests {
     /// object. Before it was answered, every update read 0 and StunStart left at once.
     #[test]
     fn stun_set_stays_while_the_stun_runs_and_exits_under_half_a_second() {
+        if crate::install::missing() { return; }
         for (pack, name) in [("bumblebee", "Bumblebee"), ("optimusflight", "OptimusFlight"), ("starscream", "Starscream")] {
             let Some(t) = installed(pack, name) else { return };
             let mut s = State::new(&t);
@@ -8314,6 +8323,7 @@ mod rule_variable_tests {
     /// A stun that runs out during the opening clip leaves it at any time (`StunStart`'s exit).
     #[test]
     fn stun_start_leaves_at_any_time_once_the_clock_is_under_half_a_second() {
+        if crate::install::missing() { return; }
         let Some(t) = installed("bumblebee", "Bumblebee") else { return };
         let mut s = State::new(&t);
         let input = Input::default();
@@ -8331,6 +8341,7 @@ mod rule_variable_tests {
     /// the first update (the ground speed is the clip's), and a stun taken in the air keeps falling.
     #[test]
     fn a_stun_drops_the_ground_speed_for_the_clips_and_keeps_falling() {
+        if crate::install::missing() { return; }
         const DT: f32 = 0.032;
         let Some(t) = installed("bumblebee", "Bumblebee") else { return };
         let arena = Arena::default();
@@ -8366,6 +8377,7 @@ mod rule_variable_tests {
     /// the wall, and, since 2026-10-20, out of flight. [data] [game 00856cc0: BasicMotionMode's (1,1,1)]
     #[test]
     fn the_jets_punch_out_of_flight_is_lifted_by_its_clip() {
+        if crate::install::missing() { return; }
         let Some((t, mut s)) = flying_jet("jetfire", "Jetfire") else { return };
         let punch = t.control.find("stateFlyTransAirPunch").unwrap();
         let rise = t.actions.clips.get(&t.control.states[punch].anim)
@@ -8401,6 +8413,7 @@ mod rule_variable_tests {
     /// state that runs on the strafe mode here. On the ground the ordinary dodge plays.
     #[test]
     fn a_flyers_dodge_is_the_hover_dodge_only_while_it_hovers() {
+        if crate::install::missing() { return; }
         for (pack, name) in [("starscream", "Starscream"), ("jetfire", "Jetfire"), ("optimusflight", "OptimusFlight"), ("blackout", "Blackout")] {
             let Some(t) = installed(pack, name) else { return };
             let mut s = State::new(&t);
@@ -8422,6 +8435,7 @@ mod rule_variable_tests {
     /// 25 or more, the fall's below, and no launch either way, even with the fall state's FallSet.
     #[test]
     fn jump_mode_out_of_flight_takes_the_long_type_when_fast_and_never_launches() {
+        if crate::install::missing() { return; }
         let Some((t, flying)) = flying_jet("starscream", "Starscream") else { return };
         for (speed, want) in [(10.0, JumpType::Long), (4.0, JumpType::Fall)] {
             let mut s = flying.clone();
@@ -8455,6 +8469,7 @@ mod rule_variable_tests {
     /// does not fall (before 2026-10-20 the state ran on StrafeMode and dropped to the ground).
     #[test]
     fn the_weapon_hover_hangs_in_the_air_with_the_gun() {
+        if crate::install::missing() { return; }
         let Some((t, mut s)) = flying_jet("starscream", "Starscream") else { return };
         let arena = Arena::default();
         let climb = Input {
@@ -8495,6 +8510,7 @@ mod rule_variable_tests {
     /// about a metre, not the 14 m he rose in the standing mode before. Grindor and a jet.
     #[test]
     fn leaving_flight_puts_him_back_on_foot_without_a_leap() {
+        if crate::install::missing() { return; }
         for (pack, name) in [("blackout", "Blackout"), ("starscream", "Starscream")] {
             let Some((t, mut s)) = flying_jet(pack, name) else { return };
             assert!(s.car_mode, "{pack}");
@@ -8530,6 +8546,7 @@ mod rule_variable_tests {
     /// clip's place, as the controller does for every clip it plays.
     #[test]
     fn a_jets_stunt_clip_leaves_by_its_exit_rule_and_the_hub_takes_over() {
+        if crate::install::missing() { return; }
         for (pack, name, message, state, clip) in [
             ("starscream", "Starscream", 0xec31_dce8u32, "stateFlyStuntLeft", "Vehicle_RollLeft"),
             ("starscream", "Starscream", 0xd512_ac49, "stateFlyStuntUp", "Vehicle_LoopFull"),
@@ -8588,6 +8605,7 @@ mod rule_variable_tests {
     /// A stunt ends when the machine is back at the hub, before the hub's walks read it.
     #[test]
     fn re_entering_the_fly_hub_ends_the_stunt() {
+        if crate::install::missing() { return; }
         let Some((t, mut s)) = flying_jet("starscream", "Starscream") else { return };
         s.fly.as_mut().unwrap().stunt = crate::flight::Stunt::Left;
         let hub = t.control.find("stateFly").unwrap();
@@ -8604,6 +8622,7 @@ mod rule_variable_tests {
     /// walks run through `animrules::Base` on the real data.
     #[test]
     fn hover_states_play_their_named_clips_and_the_sets_rules_are_the_graphs() {
+        if crate::install::missing() { return; }
         for (pack, name) in [("starscream", "Starscream"), ("jetfire", "Jetfire"), ("blackout", "Blackout"), ("optimusflight", "OptimusFlight"),
             ("megatronflight", "MegatronFlight"), ("firestorm", "Firestorm")] {
             let Some(t) = installed(pack, name) else { return };
@@ -8651,6 +8670,7 @@ mod rule_variable_tests {
     /// the same two entries, but their machines have no `StateDrive`, so nothing starts it.
     #[test]
     fn the_robot_flyers_hub_enters_flyset_by_the_entry_rules() {
+        if crate::install::missing() { return; }
         for (pack, name) in [("optimusflight", "OptimusFlight"), ("megatronflight", "MegatronFlight")] {
             let Some(t) = installed(pack, name) else { return };
             assert!(t.control.states.iter().all(|state| state.class != "StateDrive"), "{pack} has no drive state");
@@ -8689,6 +8709,7 @@ mod rule_variable_tests {
     /// so the layer never plays in the shipped game's data.
     #[test]
     fn the_v2r_partial_layer_plays_only_where_the_flag_is_set() {
+        if crate::install::missing() { return; }
         let Some(mut t) = installed("megatronflight", "MegatronFlight") else { return };
         let flagged: Vec<&str> = [("audir8", "Audi"), ("blackout", "Blackout"), ("ironhide", "Ironhide"), ("megatron", "Megatron"),
             ("megatronflight", "MegatronFlight"), ("optimusflight", "OptimusFlight"), ("starscream", "Starscream"), ("bumblebee", "Bumblebee")]
@@ -8735,6 +8756,7 @@ mod rule_variable_tests {
     /// `SpecialAnimSet`) must walk, and their targets must be clips the player can start.
     #[test]
     fn the_rosters_named_clips_with_exit_rules_are_the_jets_stunts_and_the_specials() {
+        if crate::install::missing() { return; }
         let mut with_exits: Vec<String> = Vec::new();
         for (pack, name) in [("bumblebee", "Bumblebee"), ("optimus", "Optimus"), ("ironhide", "Ironhide"), ("ratchet", "Ratchet"),
             ("megatron", "Megatron"), ("longhaul", "LongHaul"), ("audir8", "Audi"), ("jetfire", "Jetfire"), ("firestorm", "Firestorm"),
@@ -8771,6 +8793,7 @@ mod rule_variable_tests {
     /// WeaponSet's `Hover_Weapon_Idle` entry holds only while hovering.
     #[test]
     fn the_weapon_set_starts_its_hover_idle_only_while_hovering() {
+        if crate::install::missing() { return; }
         let Some(t) = installed("starscream", "Starscream") else { return };
         let mut s = State::new(&t);
         let input = Input::default();
@@ -8792,6 +8815,7 @@ mod rule_variable_tests {
     /// game's FlyMode writes it, so the clip stays.
     #[test]
     fn the_jets_vehicle_idle_does_not_bank_or_roll_on_its_own() {
+        if crate::install::missing() { return; }
         for (pack, name) in [("jetfire", "Jetfire"), ("firestorm", "Firestorm"), ("starscream", "Starscream")] {
             let Some(t) = installed(pack, name) else { return };
             let mut s = State::new(&t);
@@ -8813,6 +8837,7 @@ mod rule_variable_tests {
     /// `I_SPECIAL_ON` through `rule_value` is the ability timer above 0.
     #[test]
     fn the_special_variable_follows_the_ability_timer() {
+        if crate::install::missing() { return; }
         let Some(t) = installed("megatron", "Megatron") else { return };
         let mut s = State::new(&t);
         let input = Input::default();
@@ -8839,7 +8864,7 @@ mod clip_event_tests {
     use super::*;
 
     fn installed(pack: &str, name: &str) -> Option<Tuning> {
-        let dir = std::path::Path::new("C:/Games2");
+        let dir = crate::install::dir();
         if !dir.exists() {
             return None;
         }
@@ -8861,6 +8886,7 @@ mod clip_event_tests {
     /// stunt's dash clock, the flyers' upright, Ratchet's charging arm. [data]
     #[test]
     fn the_motion_events_are_read_from_the_installed_clips() {
+        if crate::install::missing() { return; }
         let Some(bee) = installed("bumblebee", "Bumblebee") else { return };
         assert!(motion_of(&bee, "DeathSet", "Death_Explode_Fall").iter().any(|e| e.action == ClipAction::Traction([1.0, 1.0, 0.0])));
         let strafe = bee.weapon_set.clips.iter().filter(|c| c.motion.iter().any(|e| e.action == ClipAction::MotionMode(STRAFE_MODE))).count();
@@ -8872,7 +8898,7 @@ mod clip_event_tests {
         let up = jet.rule_sets.values().flat_map(|set| &set.clips).flat_map(|c| &c.motion).filter(|e| e.action == ClipAction::ForceUp([0.0, 0.0, 1.0])).count();
         assert_eq!(up, 1, "Jetfire's one ForceUpEvent");
         // `PlayCharPartialAnim` is on the weapon object's clips, not his own (`gun::Gun::step`).
-        let Some(data) = crate::character::load(std::path::Path::new("C:/Games2"), "longhaul").ok() else { return };
+        let Some(data) = crate::character::load(crate::install::dir(), "longhaul").ok() else { return };
         let charging = ClipAction::PartialAnim { set: crc32(b"WeaponPartialSet"), id: crc32(b"Weapon_Charging") };
         let keys: Vec<f32> = data.weapon_animations.iter().flatten().filter_map(|r| r.clip.as_ref())
             .flat_map(|c| &c.action_events).filter(|e| e.action == charging).map(|e| e.time).collect();
@@ -8883,6 +8909,7 @@ mod clip_event_tests {
     /// the death no longer follows the root's height there. [game] [data]
     #[test]
     fn the_explosion_fall_takes_its_height_from_gravity() {
+        if crate::install::missing() { return; }
         let Some(t) = installed("bumblebee", "Bumblebee") else { return };
         let mut s = State::new(&t);
         let input = Input::default();
@@ -8904,6 +8931,7 @@ mod clip_event_tests {
     /// 007baa00, 00712a20]
     #[test]
     fn dash_upright_partial_and_mode_events_act_on_him() {
+        if crate::install::missing() { return; }
         let Some(t) = installed("bumblebee", "Bumblebee") else { return };
         let mut s = State::new(&t);
         let input = Input::default();
@@ -8938,6 +8966,7 @@ mod clip_event_tests {
     /// holds the always-on `connectionIsFinished`, 00879990). [game] [data]
     #[test]
     fn megatrons_tank_special_runs_its_chain_in_the_tank() {
+        if crate::install::missing() { return; }
         let Some(t) = installed("megatron", "Megatron") else { return };
         let mut s = State::new(&t);
         let arena = Arena::default();
@@ -8966,6 +8995,7 @@ mod clip_event_tests {
     /// [game 0087ba10 -> 0084ddb0] [data]
     #[test]
     fn the_drive_hub_plays_the_drive_sets_entry_clip() {
+        if crate::install::missing() { return; }
         let Some(t) = installed("bumblebee", "Bumblebee") else { return };
         let mut s = State::new(&t);
         let arena = Arena::default();
@@ -8982,6 +9012,7 @@ mod clip_event_tests {
     /// (0071f4d0 / 00748dc0). [game]
     #[test]
     fn the_animation_rate_slows_the_base_layer() {
+        if crate::install::missing() { return; }
         let Some(t) = installed("bumblebee", "Bumblebee") else { return };
         let input = Input::default();
         let ticks = |rate: f32| {
@@ -9002,6 +9033,7 @@ mod clip_event_tests {
     /// 0072dfd0). [game]
     #[test]
     fn the_slam_finisher_picks_a_weak_enemy_ahead_and_kills_it() {
+        if crate::install::missing() { return; }
         let Some(t) = installed("bumblebee", "Bumblebee") else { return };
         let slam = crc32(b"Trans_Vehicle2RobotSlam");
         let Some(state) = t.control.states.iter().position(|d| d.anim == slam) else { return };
@@ -9033,6 +9065,7 @@ mod clip_event_tests {
     /// `F_STRAFE_ANG`, and `SpecialAttack_Idle` hands over to `IdleTurnL` past 45. [game 00875ef0]
     #[test]
     fn megatrons_special_turns_with_his_aim() {
+        if crate::install::missing() { return; }
         let Some(t) = installed("megatron", "Megatron") else { return };
         let mut s = State::new(&t);
         let arena = Arena::default();
@@ -9058,6 +9091,7 @@ mod clip_event_tests {
     /// The dodge's enter sets the dash clock to half a second (0087a960). [game]
     #[test]
     fn the_dodge_sets_the_dash_clock() {
+        if crate::install::missing() { return; }
         let Some(t) = installed("bumblebee", "Bumblebee") else { return };
         let mut s = State::new(&t);
         let dash = t.control.states.iter().position(|d| d.class == "StateDash").unwrap();

@@ -10,7 +10,7 @@ fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let out = args.first().cloned().unwrap_or_else(|| r"C:\Bumblebee\work\shots\hud_text_peek.png".into());
     let export = args.get(1).cloned().unwrap_or_else(|| "Timer Class".into());
-    let dir = std::path::Path::new(r"C:\Games2\UI\Flash");
+    let dir = &tf2_core::install::dir().join("UI/Flash");
     let read = |name: &str| Movie::parse(&std::fs::read(dir.join(name)).expect(name)).expect(name);
     let movie_file = std::env::var("PEEK_MOVIE").unwrap_or_else(|_| "hud.gfx".into());
     let mut hud = read(&movie_file);

@@ -7,7 +7,7 @@ use tf2_core::{character, weapons};
 
 fn main() {
     let mut args = std::env::args().skip(1);
-    let game_dir = PathBuf::from(args.next().unwrap_or_else(|| r"C:\Games2".to_owned()));
+    let game_dir = PathBuf::from(args.next().unwrap_or_else(tf2_core::install::dir_string));
     let pack = args.next().unwrap_or_else(|| "bumblebee".to_owned());
     let data = character::load(&game_dir, &pack).expect("the character pack");
     let tunings = weapons::load(&game_dir, &data.weapons).expect("the weapon attributes");

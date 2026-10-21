@@ -3,7 +3,7 @@
 //! attachments (auto-start or not), and the sound players waiting for a trigger -- each message name
 //! resolved through `export\data\names.tsv`. Shows which names a form's effects wait for, to set
 //! against what the port sends (`fxstate::kept`, the clips' triggers).
-//! `cargo run -p tf2-core --example form_fx_names [pack...]` (reads `C:\Games2`).
+//! `cargo run -p tf2-core --example form_fx_names [pack...]` (reads the install).
 
 use std::collections::{BTreeMap, HashMap};
 use std::path::Path;
@@ -36,7 +36,7 @@ fn object(label: &str, o: &ObjectDef, names: &HashMap<u32, String>) {
 }
 
 fn main() {
-    let dir = std::env::var("TF2_GAME_DIR").unwrap_or_else(|_| "C:/Games2".into());
+    let dir = tf2_core::install::dir_string();
     let mut names = HashMap::new();
     if let Ok(text) = std::fs::read_to_string("C:/Bumblebee/export/data/names.tsv") {
         for line in text.lines() {

@@ -325,7 +325,8 @@ mod tests {
     }
     #[test]
     fn installed_melee_trails_resolve_nodes_and_stop_on_timed_or_interrupted_exit() {
-        let data = crate::character::load(std::path::Path::new("C:/Games2"), "bumblebee").unwrap();
+        if crate::install::missing() { return; }
+        let data = crate::character::load(crate::install::dir(), "bumblebee").unwrap();
         assert!(!data.robot.ribbons.is_empty());
         let axe = data.melee_weapons[0].object.as_ref().unwrap();
         assert_eq!(axe.ribbons.len(), 1);

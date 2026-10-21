@@ -12,7 +12,7 @@ use tf2_core::pose::Rig;
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
-    let dir = std::env::var("TF2_GAME_DIR").unwrap_or_else(|_| "C:/Games2".into());
+    let dir = tf2_core::install::dir_string();
     let pack = args.first().map_or("megatron", String::as_str);
     let data = tf2_core::character::load(Path::new(&dir), pack).expect("load");
     let vehicle = data.vehicle.as_ref().expect("no vehicle object");

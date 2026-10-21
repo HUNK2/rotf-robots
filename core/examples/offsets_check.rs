@@ -9,7 +9,7 @@ use tf2_core::pose::Rig;
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
-    let dir = std::env::var("TF2_GAME_DIR").unwrap_or_else(|_| "C:/Games2".into());
+    let dir = tf2_core::install::dir_string();
     let data = tf2_core::character::load(Path::new(&dir), "bumblebee").expect("load");
     let base = data.animations.find(&args[0], &args[1]).expect("clip");
     let over = data.animations.find(&args[3], &args[4]).expect("clip over");

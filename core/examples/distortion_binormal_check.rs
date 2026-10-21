@@ -16,7 +16,7 @@ const ROSTER: [&str; 13] = [
 const DISTORTION: u32 = 0x787f_26b8;
 
 fn main() {
-    let game_dir = PathBuf::from(std::env::args().nth(1).unwrap_or_else(|| r"C:\Games2".to_owned()));
+    let game_dir = PathBuf::from(std::env::args().nth(1).unwrap_or_else(tf2_core::install::dir_string));
     let (mut parts, mut verts, mut differ, mut no_stream, mut worst) = (0, 0, 0, 0, 0.0f32);
     for pack in ROSTER {
         let data = character::load(&game_dir, pack).expect("the character pack");

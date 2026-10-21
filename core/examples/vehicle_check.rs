@@ -2,7 +2,7 @@
 use glam::{Vec2,Vec3};
 use tf2_core::{sim::{self,Arena,Input,State,Box3},terrain::Ramp,tuning};
 fn main() {
-    let dir=std::env::var("TF2_GAME_DIR").unwrap_or_else(|_|"C:/Games2".into());
+    let dir=tf2_core::install::dir_string();
     let t=tuning::load(std::path::Path::new(&dir),"Bumblebee").unwrap();
     let flat=Arena::default();
     let ramp=Arena {ramps:vec![Ramp {min:Vec2::new(-106.0,-90.0),max:Vec2::new(-84.0,-40.0),

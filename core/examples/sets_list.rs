@@ -1,10 +1,10 @@
 //! The animation sets of one character's pack and the clips each holds.
-//! `cargo run -p tf2-core --example sets_list -- <pack>...` (reads `C:\Games2`).
+//! `cargo run -p tf2-core --example sets_list -- <pack>...` (reads the install).
 
 use std::path::Path;
 
 fn main() {
-    let dir = std::env::var("TF2_GAME_DIR").unwrap_or_else(|_| "C:/Games2".into());
+    let dir = tf2_core::install::dir_string();
     for pack in std::env::args().skip(1) {
         let data = match tf2_core::character::load(Path::new(&dir), &pack) {
             Ok(data) => data,

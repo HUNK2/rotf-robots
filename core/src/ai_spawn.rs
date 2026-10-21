@@ -2,7 +2,7 @@
 //! chunk 0 and run as the game's update rules say.
 //!
 //! Data and runtime in one module. Everything is read in place from the user's install at
-//! runtime (`C:\Games2` or `TF2_GAME_DIR`); nothing from the game is bundled. Sources:
+//! runtime (the install; nothing from the game is bundled. Sources:
 //! `notes\ai-spawning.md` (the first read, and the second read whose corrections win) and
 //! `notes\ai-level-data.md` section A2 (the spawner's fields as the data writes them).
 //! [game] is read in code, [data] is read from a mission pack, [assumed] and [stand-in] are
@@ -1438,7 +1438,7 @@ mod tests {
     }
 
     fn install_dir() -> Option<PathBuf> {
-        let dir = PathBuf::from(std::env::var("TF2_GAME_DIR").unwrap_or_else(|_| "C:/Games2".into()));
+        let dir = PathBuf::from(crate::install::dir_string());
         dir.join("levels").is_dir().then_some(dir)
     }
 

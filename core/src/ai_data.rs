@@ -1,7 +1,7 @@
 //! The game's AI data: the brains, goals, perceptions and behaviours that `bnxglobal.str` data
 //! chunk 16 holds, and the attribute blocks that name a brain (`brainList`).
 //!
-//! Data only. Everything is read in place from the user's install (`C:\Games2`) at runtime;
+//! Data only. Everything is read in place from the user's install at runtime;
 //! nothing from the game is bundled and no behaviour is run here. [data] Field names are the
 //! data's own names, in snake_case. A hash is the CRC-32 of a data name, kept as a `u32` (the
 //! data's `#xxxxxxxx`); the doc comment gives the data name it stands for where known. [data]
@@ -1140,7 +1140,7 @@ mod tests {
     use std::path::PathBuf;
 
     fn install() -> Option<PathBuf> {
-        let dir = PathBuf::from(std::env::var("TF2_GAME_DIR").unwrap_or_else(|_| "C:/Games2".into()));
+        let dir = PathBuf::from(crate::install::dir_string());
         dir.join("bnxglobal.str").is_file().then_some(dir)
     }
 

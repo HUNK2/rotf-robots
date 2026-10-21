@@ -5,9 +5,7 @@ use tf2_core::{
     formats::{hash::lower33, model::Library, pack::Pack},
 };
 fn main() -> Result<(), String> {
-    let dir = std::env::var_os("TF2_GAME_DIR")
-        .map(std::path::PathBuf::from)
-        .unwrap_or_else(|| "C:/Games2".into());
+    let dir = tf2_core::install::dir();
     let data = character::load(&dir, "bumblebee")?;
     let noise = tf2_core::formats::texture::parse(
         &std::fs::read(dir.join("Textures/NoiseVolume.apk")).map_err(|e| e.to_string())?,

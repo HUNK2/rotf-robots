@@ -14,7 +14,7 @@ const RUN1_UP_DISTANCE: (f32, f32) = (7.1, 7.3); // per ~0.775 s [trace]
 const RUN1_PULLUP_SECONDS: (f32, f32) = (0.90, 0.98); // 56 clip ticks [trace]
 
 fn main() {
-    let dir = std::env::var("TF2_GAME_DIR").unwrap_or_else(|_| "C:/Games2".into());
+    let dir = tf2_core::install::dir_string();
     let mut t = tuning::load(Path::new(&dir), "Bumblebee").expect("tuning");
     let data = character::load(Path::new(&dir), "bumblebee").expect("character");
     t.locomotion = Locomotion::from_animations(&data.animations, &mut t.missing);

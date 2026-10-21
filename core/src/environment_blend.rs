@@ -382,7 +382,8 @@ mod tests {
     /// EnvironmentTrigger lists (0x13b09e14 = crc32 of the name).
     #[test]
     fn shanghai_has_the_barrier_collide_environment() {
-        let specs = zone_specs(Path::new(r"C:\Games2\levels\shanghai_01\zone.str")).unwrap();
+        if crate::install::missing() { return; }
+        let specs = zone_specs(crate::install::dir().join("levels/shanghai_01/zone.str").as_path()).unwrap();
         let barrier = specs.iter().find(|s| s.label == "Environment_BarrierCollide").expect("BarrierCollide");
         assert_eq!(barrier.name, 0x13b0_9e14);
         assert_eq!(barrier.name, crate::formats::hash::crc32(b"Environment_BarrierCollide"));

@@ -1084,7 +1084,7 @@ mod tests {
             if node.len() > 0 { for child in node.items() { walk(child, depth + 1, seen, out, file, owner); } }
         }
         for pack in ["bumblebee", "optimus", "ratchet", "ironhide", "megatron", "longhaul", "audir8", "jetfire", "firestorm", "starscream", "blackout", "optimusflight", "megatronflight"] {
-            let p = crate::formats::pack::Pack::open(&std::path::Path::new("C:/Games2/characters").join(format!("{pack}.str"))).unwrap();
+            let p = crate::formats::pack::Pack::open(&crate::install::dir().join("characters").join(format!("{pack}.str"))).unwrap();
             let mut out = BTreeMap::new();
             for chunk in p.of_type(crate::formats::pack::DATA) {
                 let file = crate::formats::lxb::DataFile::parse(p.data(chunk).to_vec()).unwrap();
@@ -1390,7 +1390,8 @@ mod tests {
 
     #[test]
     fn installed_exhaust_keeps_both_tailpipes_at_different_render_rates() {
-        let data = crate::character::load(std::path::Path::new("C:/Games2"), "bumblebee").unwrap();
+        if crate::install::missing() { return; }
+        let data = crate::character::load(crate::install::dir(), "bumblebee").unwrap();
         let def = data.vehicle.as_ref().unwrap().effects.iter()
             .find(|def| def.script_name == crate::fxstate::EXHAUST).unwrap();
         assert!(!def.upright, "the installed exhaust uses its node rotation");
@@ -1432,7 +1433,8 @@ mod tests {
 
     #[test]
     fn installed_muzzle_smoke_follows_the_guns_frame_and_drains() {
-        let data = crate::character::load(std::path::Path::new("C:/Games2"), "bumblebee").unwrap();
+        if crate::install::missing() { return; }
+        let data = crate::character::load(crate::install::dir(), "bumblebee").unwrap();
         let template = data.weapon_effects[0].muzzle_flash.as_ref().unwrap();
         assert!(template.elements[0].local_space);
         let mut effect = Effect::new(template);

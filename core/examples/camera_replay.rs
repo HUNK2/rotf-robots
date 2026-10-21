@@ -14,7 +14,7 @@ fn main() {
     let mut args = std::env::args().skip(1);
     let path = args.next().expect("a replay file");
     let level: usize = args.next().and_then(|v| v.parse().ok()).unwrap_or(0);
-    let dir = std::env::var("TF2_GAME_DIR").unwrap_or_else(|_| "C:/Games2".into());
+    let dir = tf2_core::install::dir_string();
     let mut tuning = tf2_core::tuning::load(Path::new(&dir), "Bumblebee").expect("tuning");
     if let Some(camera) = tuning.drive_camera_levels.get(level) {
         tuning.drive_camera = camera.clone();

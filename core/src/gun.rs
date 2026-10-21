@@ -1158,7 +1158,7 @@ mod tests {
     /// recoil clip (`WeaponPartialSet`'s entries on it were refused before the rules were
     /// evaluated through `animrules::holds`).
     fn installed_arm(pack: &str) -> Option<crate::character::CharacterData> {
-        let dir = std::path::Path::new("C:/Games2");
+        let dir = crate::install::dir();
         dir.exists().then(|| crate::character::load(dir, pack).unwrap())
     }
 
@@ -1171,6 +1171,7 @@ mod tests {
 
     #[test]
     fn optimus_recoils_with_the_arm_of_the_weapon_that_fired() {
+        if crate::install::missing() { return; }
         let Some(data) = installed_arm("optimus") else { return };
         let (arm, entries) = (&data.animations.sets["WeaponPartialSet"], &data.animations.incoming["WeaponPartialSet"]);
         // Slot 0 is the rifle, slot 2 its alternating left-hand child (`weapons.rs` test).
@@ -1186,6 +1187,7 @@ mod tests {
 
     #[test]
     fn ironhide_recoils_by_all_four_slots() {
+        if crate::install::missing() { return; }
         let Some(data) = installed_arm("ironhide") else { return };
         let (arm, entries) = (&data.animations.sets["WeaponPartialSet"], &data.animations.incoming["WeaponPartialSet"]);
         let at = |slot| recoil_of(arm, entries, Hand { name: 1, slot, child: None }, false);
@@ -1197,6 +1199,7 @@ mod tests {
 
     #[test]
     fn the_exit_rules_of_the_arm_clips_still_wait_on_the_action() {
+        if crate::install::missing() { return; }
         let Some(data) = installed_arm("optimus") else { return };
         let (arm, entries) = (&data.animations.sets["WeaponPartialSet"], &data.animations.incoming["WeaponPartialSet"]);
         let clips = Clips { arm, entries, object: &[] };
@@ -1218,6 +1221,7 @@ mod tests {
     /// 0.3 s [data]) holds one weight through a whole overheat period once it has faded in.
     #[test]
     fn every_robots_overheat_arm_holds_its_weight_through_the_overheat() {
+        if crate::install::missing() { return; }
         for pack in ["bumblebee", "optimus", "ironhide", "ratchet", "megatron", "longhaul", "audir8", "jetfire", "firestorm", "starscream", "blackout", "optimusflight", "megatronflight"] {
             let Some(data) = installed_arm(pack) else { return };
             let (arm, entries) = (&data.animations.sets["WeaponPartialSet"], &data.animations.incoming["WeaponPartialSet"]);

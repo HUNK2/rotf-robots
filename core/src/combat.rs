@@ -1429,6 +1429,7 @@ mod tests {
 
     #[test]
     fn a_driven_enemy_moves_on_its_input_and_shoots_where_it_is_told() {
+        if crate::install::missing() { return; }
         let scout = installed();
         let t = player_tuning();
         let mut player = State::new(&t);
@@ -1455,6 +1456,7 @@ mod tests {
 
     #[test]
     fn data_brain_walks_toward_the_player() {
+        if crate::install::missing() { return; }
         let scout = installed();
         let t = player_tuning();
         let mut player = State::new(&t);
@@ -1488,6 +1490,7 @@ mod tests {
 
     #[test]
     fn data_brain_ranged_goal_presses_fire_and_shoots() {
+        if crate::install::missing() { return; }
         let scout = installed();
         let t = player_tuning();
         let mut player = State::new(&t);
@@ -1551,7 +1554,7 @@ mod tests {
     /// list sets it. Skipped without the install.
     #[test]
     fn escort_latch_picks_the_escort_goal_and_fires_at_the_convoy() {
-        if !Path::new("C:/Games2/bnxglobal.str").is_file() {
+        if !crate::install::dir().join("bnxglobal.str").is_file() {
             return; // skipped: the install is absent
         }
         let scout = installed();
@@ -1587,7 +1590,7 @@ mod tests {
     /// Skipped without the install.
     #[test]
     fn escort_attack_fires_at_the_convoy_through_the_group_perception() {
-        if !Path::new("C:/Games2/bnxglobal.str").is_file() {
+        if !crate::install::dir().join("bnxglobal.str").is_file() {
             return; // skipped: the install is absent
         }
         let scout = installed();
@@ -1642,7 +1645,7 @@ mod tests {
     /// The escort_attack test above is the check of the group feed on its own.
     #[test]
     fn escort_goal_needs_the_latch() {
-        if !Path::new("C:/Games2/bnxglobal.str").is_file() {
+        if !crate::install::dir().join("bnxglobal.str").is_file() {
             return; // skipped: the install is absent
         }
         let scout = installed();
@@ -1665,7 +1668,7 @@ mod tests {
     /// the step runs without a convoy in group (no NaN, no panic).
     #[test]
     fn escort_latch_without_a_member_falls_back() {
-        if !Path::new("C:/Games2/bnxglobal.str").is_file() {
+        if !crate::install::dir().join("bnxglobal.str").is_file() {
             return; // skipped: the install is absent
         }
         let scout = installed();
@@ -1690,6 +1693,7 @@ mod tests {
 
     #[test]
     fn installed_scout_loads_its_game_brain() {
+        if crate::install::missing() { return; }
         let scout = installed();
         let ai = scout.ai.as_ref().unwrap_or_else(|| panic!("no game brain: {:?}", scout.ai_error));
         assert!(!ai.brains.is_empty(), "brainList of characterAttributesDComScout");
@@ -1731,7 +1735,7 @@ mod tests {
     /// brain selects some goal. Run with --nocapture to see the timeline.
     #[test]
     fn installed_scout_brain_timeline() {
-        if !Path::new("C:/Games2/bnxglobal.str").is_file() {
+        if !crate::install::dir().join("bnxglobal.str").is_file() {
             return; // skipped: the install is absent
         }
         let scout = installed();
@@ -1780,7 +1784,7 @@ mod tests {
     /// install, with its brain list. Skipped without the install.
     #[test]
     fn spawn_table_entries_load_as_scouts() {
-        let dir = Path::new("C:/Games2");
+        let dir = crate::install::dir();
         if !dir.join("bnxglobal.str").is_file() {
             return; // skipped: the install is absent
         }
@@ -1800,7 +1804,7 @@ mod tests {
     /// without. Asserts nothing about the values. Run with --nocapture. Skipped without the install.
     #[test]
     fn spawned_aprot_scout_by_distance() {
-        let dir = Path::new("C:/Games2");
+        let dir = crate::install::dir();
         if !dir.join("bnxglobal.str").is_file() {
             return; // skipped: the install is absent
         }
@@ -1842,7 +1846,7 @@ mod tests {
     /// position, and the scout moved more than 5 m. Skipped without the install.
     #[test]
     fn installed_scout_brain_on_us_test_mesh() {
-        let dir = Path::new("C:/Games2");
+        let dir = crate::install::dir();
         if !dir.join("bnxglobal.str").is_file() {
             return; // skipped: the install is absent
         }
@@ -1972,7 +1976,7 @@ mod tests {
     /// without the install (Enemy needs the installed scout).
     #[test]
     fn walker_on_a_mesh_keeps_the_ground_z_not_the_mesh_constant() {
-        let dir = Path::new("C:/Games2");
+        let dir = crate::install::dir();
         if !dir.join("bnxglobal.str").is_file() {
             return; // skipped: the install is absent
         }
@@ -2029,7 +2033,7 @@ mod tests {
     /// point, no NaN, and no move toward infinity. Skipped without the install (the scout data).
     #[test]
     fn valid_record_holding_flt_max_is_no_point_and_the_scout_stays_put() {
-        if !Path::new("C:/Games2/bnxglobal.str").is_file() {
+        if !crate::install::dir().join("bnxglobal.str").is_file() {
             return; // skipped: the install is absent
         }
         let scout = installed();
@@ -2067,7 +2071,7 @@ mod tests {
     /// only that it runs without NaN. Skipped without the install.
     #[test]
     fn idle_unalerted_scout_form_and_requests_over_20_seconds() {
-        if !Path::new("C:/Games2/bnxglobal.str").is_file() {
+        if !crate::install::dir().join("bnxglobal.str").is_file() {
             return; // skipped: the install is absent
         }
         let scout = installed();
@@ -2106,13 +2110,14 @@ mod tests {
 
     fn installed() -> &'static Scout {
         static DATA: std::sync::OnceLock<Scout> = std::sync::OnceLock::new();
-        DATA.get_or_init(|| Scout::load(Path::new("C:/Games2")).expect("installed scout"))
+        DATA.get_or_init(|| Scout::load(crate::install::dir()).expect("installed scout"))
     }
     /// [test] An idle enemy in its car form, on flat ground far from the origin, stays on that ground for
     /// 10 s. Before `FightWorld` forwarded `wheel_ray` and `vehicle_sweep`, the car found no ground and
     /// fell (work/ai_check4_1.log: the Shanghai mission's scouts sank after the vehicle entry).
     #[test]
     fn idle_enemy_in_car_form_stays_on_the_ground() {
+        if crate::install::missing() { return; }
         let scout = installed();
         let t = player_tuning();
         let arena = Arena::default();
@@ -2139,6 +2144,7 @@ mod tests {
     /// A new enemy has no mesh (straight paths), no tactics point and no shots: the report's defaults.
     #[test]
     fn a_fresh_enemy_reports_straight_paths_no_tactics_and_no_shots() {
+        if crate::install::missing() { return; }
         let enemy = Enemy::new(9, Vec3::ZERO, installed());
         assert_eq!(enemy.path_kind(), "straight");
         assert!(enemy.tactics_point().is_none());
@@ -2149,7 +2155,7 @@ mod tests {
     /// stored value). Printed, not asserted: the team relation is not read (ai-spawn-characters.md 2).
     #[test]
     fn team_values_of_the_spawn_and_player_characters() {
-        let dir = Path::new("C:/Games2");
+        let dir = crate::install::dir();
         if !dir.join("bnxglobal.str").is_file() {
             return;
         }
@@ -2159,7 +2165,7 @@ mod tests {
         println!("team values: APrtScout {}, Bumblebee {}, DComScout {}", aprot.tuning.damage.team, player.damage.team, dcom.tuning.damage.team);
     }
     fn player_tuning() -> Tuning {
-        let dir = Path::new("C:/Games2");
+        let dir = crate::install::dir();
         let data = character::load(dir, "bumblebee").unwrap();
         let mut t = tuning::load(dir, "Bumblebee").unwrap();
         t.locomotion = tuning::Locomotion::from_animations(&data.animations, &mut t.missing);
@@ -2172,6 +2178,7 @@ mod tests {
     }
     #[test]
     fn installed_scout_fires_original_gun_and_can_kill_player() {
+        if crate::install::missing() { return; }
         let scout = installed();
         let t = player_tuning();
         let mut player = State::new(&t);
@@ -2207,6 +2214,7 @@ mod tests {
     }
     #[test]
     fn installed_scout_melee_is_a_real_clip_contact() {
+        if crate::install::missing() { return; }
         let scout = installed();
         let t = player_tuning();
         let player = State::new(&t);
@@ -2236,6 +2244,7 @@ mod tests {
     }
     #[test]
     fn emp_stuns_scout_break_budget_and_death_removes_after_clip() {
+        if crate::install::missing() { return; }
         let scout = installed();
         let t = player_tuning();
         let player = State::new(&t);
@@ -2317,6 +2326,7 @@ mod tests {
     }
     #[test]
     fn cylinder_trace_handles_vertical_and_inside_starts() {
+        if crate::install::missing() { return; }
         let target = Enemy::new(1, Vec3::ZERO, installed()).target(&installed().tuning);
         assert_eq!(
             intersect_cylinder(Vec3::Z, Vec3::X * 100.0, &target),
@@ -2334,6 +2344,7 @@ mod tests {
     }
     #[test]
     fn bumblebee_emp_does_not_shield_and_disable_blocks_transform() {
+        if crate::install::missing() { return; }
         let scout = installed();
         let t = player_tuning();
         let mut player = State::new(&t);
@@ -2390,6 +2401,7 @@ mod tests {
     }
     #[test]
     fn wall_contact_plays_installed_splat_recovery() {
+        if crate::install::missing() { return; }
         let t = player_tuning();
         let mut player = State::new(&t);
         player.pos = Vec3::new(0.0, 7.5, 1.0);
@@ -2443,6 +2455,7 @@ mod tests {
     }
     #[test]
     fn slow_changes_motion_and_weapon_cadence_and_heat_then_expires() {
+        if crate::install::missing() { return; }
         let scout = installed();
         let t = player_tuning();
         let mut a = State::new(&t);
@@ -2519,6 +2532,7 @@ mod tests {
     }
     #[test]
     fn difficulty_data_is_used_and_explosion_death_keeps_vertical_root_motion() {
+        if crate::install::missing() { return; }
         let t = player_tuning();
         assert_eq!(
             t.damage.difficulties.map(|d| d.enemy_health),

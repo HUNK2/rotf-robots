@@ -8,7 +8,7 @@ use std::path::Path;
 
 fn main() {
     let pack = std::env::args().nth(1).expect("pack");
-    let game = std::env::var("TF2_GAME_DIR").unwrap_or_else(|_| r"C:\Games2".into());
+    let game = tf2_core::install::dir_string();
     let data = tf2_core::character::load(Path::new(&game), &pack).expect("character");
     let names: std::collections::HashMap<u32, String> = std::fs::read_to_string(r"C:\Bumblebee\export\data\names.tsv")
         .unwrap_or_default()

@@ -87,7 +87,7 @@ fn main() {
     let path = std::env::args()
         .nth(1)
         .unwrap_or_else(|| "C:/Bumblebee/work/traces/run1_camera_full.csv".into());
-    let dir = std::env::var("TF2_GAME_DIR").unwrap_or_else(|_| "C:/Games2".into());
+    let dir = tf2_core::install::dir_string();
     let number = |name: &str| std::env::var(name).ok().and_then(|v| v.parse::<f32>().ok());
     let resync = number("RESYNC").unwrap_or(2.0);
     let from = number("FROM");

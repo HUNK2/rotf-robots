@@ -577,7 +577,7 @@ mod tests {
     }
 
     fn install() -> Option<std::path::PathBuf> {
-        let dir = std::path::PathBuf::from(std::env::var("TF2_GAME_DIR").unwrap_or_else(|_| "C:/Games2".into()));
+        let dir = std::path::PathBuf::from(crate::install::dir_string());
         dir.join("characters").join("bumblebee.str").is_file().then_some(dir)
     }
 

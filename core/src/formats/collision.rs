@@ -342,7 +342,7 @@ mod tests {
 
     /// The install, when it is there. The tests skip (pass) when the pack is not.
     fn pack_at(relative: &str) -> Option<PathBuf> {
-        let dir = PathBuf::from(std::env::var("TF2_GAME_DIR").unwrap_or_else(|_| r"C:\Games2".into()));
+        let dir = PathBuf::from(crate::install::dir_string());
         let path = dir.join(relative);
         path.is_file().then_some(path)
     }

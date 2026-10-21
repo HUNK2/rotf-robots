@@ -276,7 +276,7 @@ mod tests {
     /// frames, and it draws its teal frame round a clear middle.
     #[test]
     fn the_scope_movie_parses_and_draws_a_frame_round_a_clear_middle() {
-        let dir = std::path::Path::new(r"C:\Games2\UI\Flash");
+        let dir = &crate::install::dir().join("UI/Flash");
         let Ok(file) = std::fs::read(dir.join(scope_movie_file(16.0 / 9.0))) else { return };
         let movie = crate::formats::gfx::Movie::parse(&file).unwrap();
         assert_eq!((movie.stage, movie.rate), ([1280.0, 720.0], 30.0));
@@ -302,7 +302,7 @@ mod tests {
     /// Needs the install. [data] The scope's sounds are in the snipers' own event files.
     #[test]
     fn the_scope_sounds_are_in_the_snipers_event_files() {
-        let dir = std::path::Path::new(r"C:\Games2\characters\eng");
+        let dir = &crate::install::dir().join("characters/eng");
         for (file, names) in [
             ("audir8.fev", ["WPN_SNIPER_ZOOM_D", "BG_SNIPER_D", "ANIM_DECEPTICON_SNIPER_RETURN"]),
             ("firestorm.fev", ["WPN_SNIPER_ZOOM_A", "BG_SNIPER_A", "ANIM_AUTOBOT_SNIPER_RETURN"]),

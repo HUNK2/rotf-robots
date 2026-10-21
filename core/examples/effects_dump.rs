@@ -1,7 +1,7 @@
 //! Every particle effect his pack starts and who starts it: the clips' effect events, the
 //! footstep and melee presets, the effects on his objects and the weapons' effects, each
 //! with what the port does not run of it.
-//! `cargo run -p tf2-core --example effects_dump` (reads `C:\Games2`).
+//! `cargo run -p tf2-core --example effects_dump` (reads the install).
 
 use std::path::Path;
 
@@ -20,7 +20,7 @@ fn about(template: &Template) -> String {
 }
 
 fn main() {
-    let dir = std::env::var("TF2_GAME_DIR").unwrap_or_else(|_| "C:/Games2".into());
+    let dir = tf2_core::install::dir_string();
     let data = tf2_core::character::load(Path::new(&dir), "bumblebee").expect("load");
     println!("== clip events");
     let mut sets: Vec<_> = data.animations.sets.iter().collect();

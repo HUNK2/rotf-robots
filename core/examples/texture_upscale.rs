@@ -18,7 +18,7 @@ fn main() -> Result<(), String> {
     if !matches!(factor, 2 | 4) {
         return Err("factor must be 2 or 4".into());
     }
-    let install = std::env::var("TF2_GAME_DIR").unwrap_or_else(|_| "C:/Games2".into());
+    let install = tf2_core::install::dir_string();
     let pack = Pack::open(&Path::new(&install).join("characters/bumblebee.str"))?;
     let library = Library::load(&pack);
     let mut textures: Vec<_> = library

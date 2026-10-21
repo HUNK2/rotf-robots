@@ -1858,7 +1858,7 @@ struct Summary {
 }
 
 fn main() {
-    let dir = std::env::var("TF2_GAME_DIR").unwrap_or_else(|_| "C:/Games2".into());
+    let dir = tf2_core::install::dir_string();
     let mut args: Vec<String> = std::env::args().skip(1).collect();
     let show_reached = args.iter().any(|a| a == "--reached");
     let static_only = args.iter().any(|a| a == "--static-only");

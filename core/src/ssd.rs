@@ -401,9 +401,8 @@ mod tests {
     }
     #[test]
     fn bumblebees_presets_are_read_from_his_pack() {
-        let dir = std::env::var_os("TF2_GAME_DIR")
-            .map(std::path::PathBuf::from)
-            .unwrap_or_else(|| "C:/Games2".into());
+        if crate::install::missing() { return; }
+        let dir = crate::install::dir();
         let data = crate::character::load(&dir, "bumblebee").unwrap();
         assert_eq!(data.melee_impact.ssd.len(), 1);
         assert_eq!(

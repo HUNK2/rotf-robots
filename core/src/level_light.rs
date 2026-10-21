@@ -222,7 +222,6 @@ impl LightRig {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::Path;
 
     /// Compares every lane of nine float4 with the expected values, to 1e-6.
     fn check(ir: &Irradiance, expect: [[f32; 4]; 9]) {
@@ -457,7 +456,8 @@ mod tests {
     /// --nocapture.
     #[test]
     fn print_shanghai_fog() {
-        let env = crate::formats::environment::load(Path::new(r"C:\Games2"), "shanghai_01").unwrap();
+        if crate::install::missing() { return; }
+        let env = crate::formats::environment::load(crate::install::dir(), "shanghai_01").unwrap();
         let rig = LightRig::from_environment(&env);
         println!("environment {} fogHotspot {} fogRange {} fogFalloff {} fogHeight {}", env.name, env.fog_hotspot, env.fog_range, env.fog_falloff, env.fog_height);
         println!("fog colour bytes/255 {:?} (w = falloff/100 {})", env.fog_colour.to_array(), rig.fog_falloff);
@@ -472,7 +472,8 @@ mod tests {
     /// --nocapture.
     #[test]
     fn print_shanghai_default_fill_irradiance() {
-        let env = crate::formats::environment::load(Path::new(r"C:\Games2"), "shanghai_01").unwrap();
+        if crate::install::missing() { return; }
+        let env = crate::formats::environment::load(crate::install::dir(), "shanghai_01").unwrap();
         let rig = LightRig::from_environment(&env);
         println!("environment {} fill lights {}", env.name, env.fill_lights.len());
         for (i, f) in env.fill_lights.iter().enumerate() {

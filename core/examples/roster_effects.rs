@@ -3,7 +3,7 @@
 //! objects, and the weapons' muzzle / trail / blast / impact effects -- each with how many of
 //! its templates hold something the port does not read (`Template::unread`) and which renderer
 //! kinds they use.
-//! `cargo run -p tf2-core --example roster_effects` (reads `C:\Games2`).
+//! `cargo run -p tf2-core --example roster_effects` (reads the install).
 
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -41,7 +41,7 @@ impl Tally {
 }
 
 fn main() {
-    let dir = std::env::var("TF2_GAME_DIR").unwrap_or_else(|_| "C:/Games2".into());
+    let dir = tf2_core::install::dir_string();
     let mut renderers_all: BTreeMap<String, usize> = BTreeMap::new();
     println!("{:<15} {:>5} {:>5} {:>5} {:>5} {:>5} {:>6} {:>6}", "pack", "clip", "step", "melee", "obj", "weap", "tmpl", "unread");
     for pack in PACKS {

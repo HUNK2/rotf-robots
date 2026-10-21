@@ -130,7 +130,7 @@ mod tests {
     /// pack has one spawn point, `Player_A_Optimus`, at (-137.458, -366.849, 0.897).
     #[test]
     fn the_test_level_has_one_spawn_point() {
-        let path = PathBuf::from(r"C:\Games2\levels\us_test\mission.str");
+        let path = crate::install::dir().join("levels/us_test/mission.str");
         if !path.is_file() {
             return;
         }

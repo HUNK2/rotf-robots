@@ -41,7 +41,7 @@ fn target(s: &State, t: &Tuning, interpolated: bool) -> Target {
 }
 
 fn main() {
-    let dir = std::env::var("TF2_GAME_DIR").unwrap_or_else(|_| "C:/Games2".into());
+    let dir = tf2_core::install::dir_string();
     let t = tuning::load(std::path::Path::new(&dir), "Bumblebee").unwrap();
     let arena = Arena::default();
     let gas = Input {

@@ -1,7 +1,7 @@
 //! The AI brains of one or more characters as the install's `bnxglobal.str` data chunk 16 gives
 //! them, and the totals over every brain. `cargo run -p tf2-core --example ai_dump -- [Name...]`
 //! (`Name` is the character without `characterAttributes`; default `DComScout APrtScout`).
-//! Reads `C:\Games2` (or `TF2_GAME_DIR`). Writes nothing.
+//! Reads the install. Writes nothing.
 
 use std::path::Path;
 
@@ -10,7 +10,7 @@ use tf2_core::formats::lxb::DataFile;
 use tf2_core::formats::pack::{self, Pack};
 
 fn main() {
-    let dir = std::env::var("TF2_GAME_DIR").unwrap_or_else(|_| "C:/Games2".into());
+    let dir = tf2_core::install::dir_string();
     let pack = Pack::open(&Path::new(&dir).join("bnxglobal.str")).expect("open bnxglobal.str");
     let chunk = pack
         .chunks

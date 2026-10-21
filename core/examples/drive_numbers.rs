@@ -7,7 +7,7 @@ use std::path::Path;
 use tf2_core::sim::{self, Arena, Input, State};
 
 fn main() {
-    let dir = std::env::var("TF2_GAME_DIR").unwrap_or_else(|_| "C:/Games2".into());
+    let dir = tf2_core::install::dir_string();
     let mut names: Vec<String> = std::env::args().skip(1).collect();
     if names.is_empty() {
         names = ["Bumblebee", "Optimus", "Ironhide", "Ratchet", "Megatron", "LongHaul", "Audi"].map(str::to_owned).to_vec();

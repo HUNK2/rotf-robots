@@ -213,7 +213,8 @@ mod tests {
     /// Needs the game install.
     #[test]
     fn the_west_town_has_a_low_warm_sun_and_a_blue_ambient() {
-        let e = load(Path::new(r"C:\Games2"), "us_west_town").unwrap();
+        if crate::install::missing() { return; }
+        let e = load(crate::install::dir(), "us_west_town").unwrap();
         assert_eq!(e.name, "Environment01");
         assert!((e.ambient - Vec3::new(35.0, 54.0, 71.0) / 255.0).length() < 1e-4);
         assert!((e.to_sun - Vec3::new(-0.24337, 0.815195, 0.525575)).length() < 1e-3);
@@ -230,7 +231,8 @@ mod tests {
     /// LT_side02, LT_side03). The sun must not be among the fill lights.
     #[test]
     fn shanghai_default_has_four_fill_lights_and_not_the_sun() {
-        let e = load(Path::new(r"C:\Games2"), "shanghai_01").unwrap();
+        if crate::install::missing() { return; }
+        let e = load(crate::install::dir(), "shanghai_01").unwrap();
         // [data] flags [AMBIENT, BACKGROUND, FOG, BLOOM, DOF, IRIS, SSAO, DOF_USE_SOFTER, DEFAULT, COLOR_FILTER_LUT].
         assert!(e.iris_enabled);
         for (got, want) in [(e.iris_speed, 0.03), (e.iris_responsiveness, 0.593), (e.iris_lum_power, 0.933), (e.iris_gate, 0.0005)] {

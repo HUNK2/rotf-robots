@@ -265,7 +265,8 @@ mod tests {
 
     #[test]
     fn partial_entries_filter_the_base_and_empty_set_removes_the_layer() {
-        let data = crate::character::load(std::path::Path::new("C:/Games2"), "bumblebee").unwrap();
+        if crate::install::missing() { return; }
+        let data = crate::character::load(crate::install::dir(), "bumblebee").unwrap();
         let sets = RuleSet::all(&data.animations);
         let hit = crc32(b"HitReactPartialSet");
         let get = |v| (v == var::CHAR_FORM).then_some(Value::Int(0));
@@ -286,7 +287,8 @@ mod tests {
 
     #[test]
     fn idle_fidget_uses_elapsed_time_across_loop_boundaries() {
-        let data = crate::character::load(std::path::Path::new("C:/Games2"), "bumblebee").unwrap();
+        if crate::install::missing() { return; }
+        let data = crate::character::load(crate::install::dir(), "bumblebee").unwrap();
         let sets = RuleSet::all(&data.animations);
         let mut base = Base::default();
         let values = |v, seconds| Some(match v {
@@ -481,11 +483,12 @@ mod tests {
     /// Skipped where the install is not.
     #[test]
     fn the_sets_own_rules_pick_the_clips_the_movement_runs_on_foot() {
+        if crate::install::missing() { return; }
         use crate::sim::{self, Arena, Box3, Input, Mode, Pace, State};
         use crate::tuning::{self, Actions, Locomotion};
         use glam::{Vec2, Vec3};
 
-        let dir = std::path::Path::new(r"C:\Games2");
+        let dir = crate::install::dir();
         if !dir.exists() {
             return;
         }
@@ -555,7 +558,8 @@ mod tests {
     /// -45, back beyond.
     #[test]
     fn the_dash_sets_entry_rules_pick_the_dodge_by_the_sticks_angle() {
-        let dir = std::path::Path::new(r"C:\Games2");
+        if crate::install::missing() { return; }
+        let dir = crate::install::dir();
         if !dir.exists() {
             return;
         }
@@ -585,7 +589,8 @@ mod tests {
     /// data; skipped where the install is not.
     #[test]
     fn the_change_back_from_the_car_runs_on_into_the_run_without_a_blend() {
-        let dir = std::path::Path::new(r"C:\Games2");
+        if crate::install::missing() { return; }
+        let dir = crate::install::dir();
         if !dir.exists() {
             return;
         }

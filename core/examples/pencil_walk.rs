@@ -26,7 +26,7 @@ fn main() {
     let x: f32 = a.get(1).and_then(|s| s.parse().ok()).unwrap_or(0.0);
     let y: f32 = a.get(2).and_then(|s| s.parse().ok()).unwrap_or(0.0);
     let zone = a.get(3).map(String::as_str).unwrap_or("levels/shanghai_01/zone.str");
-    let dir = std::env::var("TF2_GAME_DIR").unwrap_or_else(|_| "C:/Games2".into());
+    let dir = tf2_core::install::dir_string();
     let dir = std::path::Path::new(&dir);
     let mut t = tuning::load(dir, "Bumblebee").unwrap();
     let data = tf2_core::character::load(dir, "bumblebee").expect("character");

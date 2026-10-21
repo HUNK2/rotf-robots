@@ -515,7 +515,8 @@ mod tests {
 
     #[test]
     fn anonymous_spawn_players_supply_the_punch_and_missile_sounds() {
-        let data = load(Path::new(r"C:\Games2"), "bumblebee").unwrap();
+        if crate::install::missing() { return; }
+        let data = load(crate::install::dir(), "bumblebee").unwrap();
         let launcher = data.weapons.iter().find(|w| w.kind == weapons::Kind::Launcher).unwrap();
         let audio = data.weapon_effects.iter().find(|w| w.name == launcher.name).unwrap();
         assert_eq!(audio.flight_sounds, [crc32(b"WPN_OPTIMUS_MISSLE_LOOP")]);
@@ -533,7 +534,8 @@ mod tests {
     /// the launcher's `nullray` leaves its own explosion. [data]
     #[test]
     fn starscreams_special_rounds_are_his_weapons_alternate_projectiles() {
-        let data = load(Path::new(r"C:\Games2"), "starscream").unwrap();
+        if crate::install::missing() { return; }
+        let data = load(crate::install::dir(), "starscream").unwrap();
         let (gatling, launcher) = (-1197494719i32 as u32, -1877059191i32 as u32);
         let def = |name| data.weapons.iter().find(|w| w.name == name).unwrap();
         let row = |name| data.weapon_effects.iter().find(|w| w.name == name).unwrap();
@@ -557,12 +559,13 @@ mod tests {
     /// The port's alternate-projectile key meets no weapon name of the roster.
     #[test]
     fn alt_projectile_rows_do_not_meet_a_weapon_name() {
+        if crate::install::missing() { return; }
         let packs = ["bumblebee", "optimus", "ratchet", "megatron", "longhaul", "firestorm", "blackout", "audir8",
             "starscream", "jetfire", "ironhide", "optimusflight", "megatronflight"];
         let mut names = Vec::new();
         let mut rows = 0;
         for pack in packs {
-            let data = load(Path::new(r"C:\Games2"), pack).unwrap();
+            let data = load(crate::install::dir(), pack).unwrap();
             names.extend(data.weapons.iter().map(|w| w.name));
             rows += data.weapons.iter().filter(|w| w.alt_projectile).count();
         }
@@ -579,7 +582,8 @@ mod tests {
 
     #[test]
     fn blackouts_turret_gun_has_a_row_of_its_own() {
-        let data = load(Path::new(r"C:\Games2"), "blackout").unwrap();
+        if crate::install::missing() { return; }
+        let data = load(crate::install::dir(), "blackout").unwrap();
         let launchers: Vec<u32> = data.weapons.iter().filter(|w| w.kind == crate::weapons::Kind::Turret).map(|w| w.name).collect();
         assert!(!launchers.is_empty());
         for launcher in launchers {
@@ -600,7 +604,8 @@ mod tests {
     /// ribbons, the blast's flash and rumble. [data: bumblebee.txt 551866-556188]
     #[test]
     fn bumblebees_missile_carries_its_emitters_lights_ribbons_and_blast_rumble() {
-        let data = load(Path::new(r"C:\Games2"), "bumblebee").unwrap();
+        if crate::install::missing() { return; }
+        let data = load(crate::install::dir(), "bumblebee").unwrap();
         let name = -364_875_044i32 as u32;
         let row = data.weapon_effects.iter().find(|w| w.name == name).unwrap();
         let flash = row.blast_light.as_ref().expect("detach1's Light");
@@ -626,7 +631,8 @@ mod tests {
 
     #[test]
     fn ironhides_grenade_has_a_ribbon_a_blast_light_and_ash_rain() {
-        let data = load(Path::new(r"C:\Games2"), "ironhide").unwrap();
+        if crate::install::missing() { return; }
+        let data = load(crate::install::dir(), "ironhide").unwrap();
         let name = 2_128_319_374u32;
         let row = data.weapon_effects.iter().find(|w| w.name == name).unwrap();
         let index = data.weapons.iter().position(|w| w.name == name).unwrap();
@@ -649,7 +655,8 @@ mod tests {
     /// The energon cannon's wave object: its emitter is its picture, its deleter its life. [data]
     #[test]
     fn grindors_and_jetfires_waves_are_read_from_their_objects() {
-        let data = load(Path::new(r"C:\Games2"), "blackout").unwrap();
+        if crate::install::missing() { return; }
+        let data = load(crate::install::dir(), "blackout").unwrap();
         let row = data.weapon_effects.iter().find(|w| w.name == 252_926_678).unwrap();
         let wave = row.wave.as_ref().expect("the radial_attack object");
         assert_eq!(wave.emitter.as_ref().map(|e| e.template.name), Some(crc32(b"w_exp_energoncannon")));
@@ -671,7 +678,7 @@ mod tests {
         assert_eq!((find(b"smk_impact_bldg_ash").on, find(b"smk_impact_bldg_ash").off), ((2.0, 2.5), (4.0, 5.0)));
         let z = find(b"smk_impact_bldg_ash").offset.z;
         assert!((z - 0.505).abs() < 0.01, "FX_Dummy sits 0.505 up: {z}");
-        let jetfire = load(Path::new(r"C:\Games2"), "jetfire").unwrap();
+        let jetfire = load(crate::install::dir(), "jetfire").unwrap();
         let row = jetfire.weapon_effects.iter().find(|w| w.name == -934_361_366i32 as u32).unwrap();
         assert_eq!(row.wave.as_ref().map(|w| w.life), Some(1.0));
     }
@@ -680,7 +687,8 @@ mod tests {
     /// (megatron dump 807937: 75, far 85, past where the survey stopped reading). [data]
     #[test]
     fn megatrons_fusion_arm_flashes_and_rumbles() {
-        let data = load(Path::new(r"C:\Games2"), "megatron").unwrap();
+        if crate::install::missing() { return; }
+        let data = load(crate::install::dir(), "megatron").unwrap();
         let row = data.weapon_effects.iter().find(|w| w.name == 270_503_727).unwrap();
         let flash = row.blast_light.as_ref().unwrap();
         assert_eq!((flash.light.range, flash.light.attenuate, flash.time), (12.0, 7.0, 1.0));
@@ -700,7 +708,8 @@ mod tests {
     /// A node riding a missile: the frame's turn and place applied to the node's bind, unit axes.
     #[test]
     fn an_emitter_rides_its_node_on_the_missile() {
-        let data = load(Path::new(r"C:\Games2"), "bumblebee").unwrap();
+        if crate::install::missing() { return; }
+        let data = load(crate::install::dir(), "bumblebee").unwrap();
         let index = data.weapons.iter().position(|w| w.name == -364_875_044i32 as u32).unwrap();
         let e = &data.missile_objects[index].as_ref().unwrap().emitters[0];
         let frame = glam::Affine3A::from_rotation_translation(weapons::look_along(glam::Vec3::X), glam::Vec3::new(0.0, 0.0, 10.0));
@@ -727,7 +736,8 @@ mod tests {
     /// Needs the game install, as the other data tests do.
     #[test]
     fn his_tyres_sound_by_the_ground_under_them() {
-        let data = load(Path::new(r"C:\Games2"), "bumblebee").unwrap();
+        if crate::install::missing() { return; }
+        let data = load(crate::install::dir(), "bumblebee").unwrap();
         let event = |name: &str| Some(crc32(name.as_bytes()));
         let skid = |name: &str| data.tyre_skid.pick(crc32(name.as_bytes())).map(|info| info.sound);
         let road = |name: &str| data.tyre_road.pick(crc32(name.as_bytes())).map(|info| info.sound);
@@ -745,7 +755,8 @@ mod tests {
     /// Needs the game install.
     #[test]
     fn his_car_has_a_skid_mark_and_smoke_for_each_tyre() {
-        let data = load(Path::new(r"C:\Games2"), "bumblebee").unwrap();
+        if crate::install::missing() { return; }
+        let data = load(crate::install::dir(), "bumblebee").unwrap();
         let car = data.vehicle.as_ref().unwrap();
         // Each sits on an effect node of its own; `tireName` names the tyre's node, where
         // the points are put (`FUN_0080bc30`).
@@ -778,7 +789,8 @@ mod tests {
     /// Needs the game install, as the other data tests do.
     #[test]
     fn installed_chatter_feet_and_collision_sounds_resolve_the_original_bindings() {
-        let data = load(Path::new(r"C:\Games2"), "bumblebee").unwrap();
+        if crate::install::missing() { return; }
+        let data = load(crate::install::dir(), "bumblebee").unwrap();
         assert_eq!(data.chatter.len(), 115);
         let generic_attack: Vec<_> = data.chatter.iter().filter(|l| l.action == crate::chatter::ATTACK
             && l.category == crate::chatter::GENERIC && l.subcategory == crate::chatter::ENEMY).collect();
@@ -814,7 +826,8 @@ mod tests {
     /// Needs the game install, as the other data tests do.
     #[test]
     fn his_punch_sounds_by_what_it_strikes() {
-        let data = load(Path::new(r"C:\Games2"), "bumblebee").unwrap();
+        if crate::install::missing() { return; }
+        let data = load(crate::install::dir(), "bumblebee").unwrap();
         let sound = |name: &str| data.melee_impact.pick(crc32(name.as_bytes())).map(|info| info.sound);
         let event = |name: &str| Some(crc32(name.as_bytes()));
         assert_eq!(data.melee_impact.infos.len(), 7);
@@ -834,7 +847,8 @@ mod tests {
     /// game has, and carry a pad rumble.
     #[test]
     fn his_ground_punches_shake_the_camera_and_the_pad() {
-        let game = Path::new(r"C:\Games2");
+        if crate::install::missing() { return; }
+        let game = crate::install::dir();
         let data = load(game, "bumblebee").unwrap();
         let tuning = crate::tuning::load(game, "Bumblebee").unwrap();
         let spawner = |name: &str| data.robot.spawners.iter().find(|s| s.script_name == crc32(name.as_bytes())).unwrap();
@@ -874,8 +888,9 @@ mod tests {
     /// clips' events, the step preset and the weapons.
     #[test]
     fn his_clips_steps_and_weapons_name_their_effects() {
+        if crate::install::missing() { return; }
         use crate::formats::anim::EffectEventKind;
-        let data = load(Path::new(r"C:\Games2"), "bumblebee").unwrap();
+        let data = load(crate::install::dir(), "bumblebee").unwrap();
         let clip = |set: &str, id: &str| data.animations.sets[set].iter().find(|r| r.id == id).and_then(|r| r.clip.as_ref()).unwrap();
         // A landing: dust at a foot at tick 8, left where it was made.
         let land: Vec<_> = clip("IdleStandSet", "Jump_Land")
@@ -935,9 +950,10 @@ mod tests {
     /// as his pack has them, and that everything in them is something the port runs.
     #[test]
     fn his_hit_and_punch_effects_are_read_whole() {
+        if crate::install::missing() { return; }
         use crate::particles::{Domain, Kind};
         use glam::Vec3;
-        let data = load(Path::new(r"C:\Games2"), "bumblebee").unwrap();
+        let data = load(crate::install::dir(), "bumblebee").unwrap();
         let hit = data.melee_impact.pick(surface::UPPER_BODY).unwrap();
         assert_eq!(hit.effect, Some(crc32(b"r_hit_melee")));
         let t = hit.template.as_ref().unwrap();

@@ -14,7 +14,7 @@ fn main() {
     let f = |i: usize| a.get(i).and_then(|s| s.parse::<f32>().ok()).unwrap_or(0.0);
     let (from, d) = (Vec3::new(f(1), f(2), f(3)), Vec3::new(f(4), f(5), f(6)));
     let zone = a.get(7).map(String::as_str).unwrap_or("levels/shanghai_01/zone.str");
-    let dir = std::env::var("TF2_GAME_DIR").unwrap_or_else(|_| "C:/Games2".into());
+    let dir = tf2_core::install::dir_string();
     let level = LevelWorld::load(std::path::Path::new(&dir), zone).expect("level");
     let (radius, height) = (2.0f32, 5.4f32);
     let gap_part = height * 0.45454544;

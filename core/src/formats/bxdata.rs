@@ -166,7 +166,7 @@ mod tests {
     #[test]
     fn the_install_archive_and_its_bindings_read() {
         // Needs the install. [data] 444 entries; the keyboard's Robot map binds RTrigger to Key_LSHIFT.
-        let Ok(a) = Archive::install(Path::new(r"C:\Games2")) else { return };
+        let Ok(a) = Archive::install(crate::install::dir()) else { return };
         assert_eq!(a.len(), 444);
         let tree = a.tree(r"beenox\default_bindings.bin").unwrap();
         let map = tree.children.iter().find(|m| m.get("device") == Some("Keyboard") && m.get("context") == Some("Robot")).unwrap();

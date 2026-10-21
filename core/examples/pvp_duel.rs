@@ -545,7 +545,7 @@ fn report(winner: Option<usize>, time: f32, f: [Fighter; 2]) -> Report {
 }
 
 fn main() {
-    let dir = std::env::var("TF2_GAME_DIR").unwrap_or_else(|_| "C:/Games2".into());
+    let dir = tf2_core::install::dir_string();
     let mut args: Vec<String> = std::env::args().skip(1).collect();
     let mut o = Options { at: 20.0, strafe: false, snipe: true, head: false };
     if let Some(i) = args.iter().position(|a| a == "--at") {

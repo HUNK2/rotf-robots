@@ -180,7 +180,7 @@ mod tests {
     use super::*;
 
     fn game_dir() -> Option<PathBuf> {
-        let dir = PathBuf::from(std::env::var("TF2_GAME_DIR").unwrap_or_else(|_| "C:/Games2".into()));
+        let dir = PathBuf::from(crate::install::dir_string());
         dir.join("bnxglobal.str").is_file().then_some(dir)
     }
 

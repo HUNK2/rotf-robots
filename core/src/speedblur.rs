@@ -150,7 +150,8 @@ mod tests {
 
     #[test]
     fn installed_speed_blur_resolves_its_own_mask_and_instant_blends() {
-        let (p, mask) = load(Path::new(r"C:\Games2"), "us_west_town").unwrap();
+        if crate::install::missing() { return; }
+        let (p, mask) = load(crate::install::dir(), "us_west_town").unwrap();
         assert_eq!(
             (
                 p.blur_amount,

@@ -28,7 +28,7 @@ fn main() {
     };
     let option = |key: &str| args.iter().find_map(|a| a.strip_prefix(key).map(str::to_owned));
     let seconds: f32 = args.get(2).and_then(|s| s.parse().ok()).unwrap_or(4.0);
-    let game = PathBuf::from(std::env::var("TF2_GAME_DIR").unwrap_or_else(|_| r"C:\Games2".into()));
+    let game = PathBuf::from(tf2_core::install::dir_string());
     let level = option("level=").unwrap_or_else(|| "us_city_00".into());
     // `bank=<name>` reads another character's bank (`characters\eng\<name>.fev`) in Bumblebee's place.
     let bank = option("bank=").unwrap_or_else(|| "bumblebee".into());

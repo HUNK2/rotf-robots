@@ -761,7 +761,7 @@ mod tests {
     #[test]
     fn every_reticle_texture_is_in_the_global_pack() {
         use crate::formats::{pack, texture};
-        let Ok(pack) = pack::Pack::open(std::path::Path::new(r"C:\Games2\bnxglobal.str")) else { return };
+        let Ok(pack) = pack::Pack::open(crate::install::dir().join("bnxglobal.str").as_path()) else { return };
         let ids: std::collections::HashSet<u32> = pack.of_type(pack::TEXTURE)
             .filter_map(|chunk| texture::parse(pack.data(chunk)).ok().flatten().map(|t| t.id))
             .collect();

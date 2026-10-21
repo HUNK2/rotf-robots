@@ -7,7 +7,7 @@ use tf2_core::{
     tuning,
 };
 fn main() {
-    let dir = std::path::Path::new("C:/Games2");
+    let dir = tf2_core::install::dir();
     let scout = Scout::load(dir).unwrap();
     let data = character::load(dir, "bumblebee").unwrap();
     let mut t = tuning::load(dir, "Bumblebee").unwrap();

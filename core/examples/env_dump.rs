@@ -1,9 +1,8 @@
 //! Prints a level's default Environment (sun, ambient, fills, fog, bloom, filter, iris).
 //! `cargo run -p tf2-core --example env_dump -- <level folder> [<level folder>...]`, e.g. `cairo_city shanghai_01`.
-use std::path::Path;
 
 fn main() {
-    let game = Path::new("C:/Games2");
+    let game = tf2_core::install::dir();
     for level in std::env::args().skip(1) {
         match tf2_core::formats::environment::load(game, &level) {
             Ok(e) => {

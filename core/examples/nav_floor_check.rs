@@ -3,7 +3,7 @@
 //! Default: `levels/us_test/zone.str` and `Shanghai_01_Construction_A_CSA`.
 //! The mesh is the one-placement-per-object mesh of the zone (as `combat.rs` and `tactics_check`
 //! build it). The collision is the mission's packs as `--mission` loads them (`level_world`), and
-//! the zone alone for comparison. Reads `C:\Games2` (or `TF2_GAME_DIR`). Writes nothing.
+//! the zone alone for comparison. Reads the install. Writes nothing.
 
 use std::collections::{BTreeMap, HashSet};
 use std::path::{Path, PathBuf};
@@ -265,7 +265,7 @@ fn report(game: &Path, c: &Case) {
 }
 
 fn main() {
-    let game = PathBuf::from(std::env::var("TF2_GAME_DIR").unwrap_or_else(|_| "C:/Games2".into()));
+    let game = PathBuf::from(tf2_core::install::dir_string());
     let mut args: Vec<String> = std::env::args().skip(1).collect();
     if args.is_empty() {
         args = vec!["levels/us_test/zone.str".into(), "Shanghai_01_Construction_A_CSA".into()];

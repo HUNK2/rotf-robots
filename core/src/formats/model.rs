@@ -417,7 +417,7 @@ mod tests {
 
     #[test]
     fn us_test_ifl_lists_resolve_every_frame_and_keep_repeats() {
-        let dir = std::path::PathBuf::from(std::env::var("TF2_GAME_DIR").unwrap_or_else(|_| "C:/Games2".into()));
+        let dir = std::path::PathBuf::from(crate::install::dir_string());
         let zone = dir.join("levels/us_test/zone.str");
         if !zone.is_file() { return; }
         let library = Library::load(&Pack::open(&zone).unwrap());
@@ -435,7 +435,7 @@ mod tests {
 
     #[test]
     fn us_test_three_layer_materials_retain_authored_uv_streams() {
-        let dir = std::path::PathBuf::from(std::env::var("TF2_GAME_DIR").unwrap_or_else(|_| "C:/Games2".into()));
+        let dir = std::path::PathBuf::from(crate::install::dir_string());
         let zone = dir.join("levels/us_test/zone.str");
         if !zone.is_file() { return; }
         let library = Library::load(&Pack::open(&zone).unwrap());
@@ -456,7 +456,7 @@ mod tests {
 
     #[test]
     fn us_test_flatcards_retain_3d_anchors_and_colour() {
-        let dir = std::path::PathBuf::from(std::env::var("TF2_GAME_DIR").unwrap_or_else(|_| "C:/Games2".into()));
+        let dir = std::path::PathBuf::from(crate::install::dir_string());
         let zone = dir.join("levels/us_test/zone.str");
         if !zone.is_file() { return; }
         let library = Library::load(&Pack::open(&zone).unwrap());
@@ -485,7 +485,7 @@ mod tests {
 
     #[test]
     fn deep_six_sky_retains_colour_for_every_vertex() {
-        let dir = std::path::PathBuf::from(std::env::var("TF2_GAME_DIR").unwrap_or_else(|_| r"C:\Games2".into()));
+        let dir = std::path::PathBuf::from(crate::install::dir_string());
         let zone = dir.join(r"levels\deep_six_01\zone.str");
         if !zone.exists() { return; }
         let pack = Pack::open(&zone).unwrap();
@@ -499,12 +499,12 @@ mod tests {
         }
     }
 
-    /// Needs the game install (`TF2_GAME_DIR`, default `C:\Games2`); skipped without it.
+    /// Needs the game install ; skipped without it.
     /// `roads.groundpatchd_01` in Shanghai's zone has blend2 parts (`notes\level-shaders-bgnd-blend2.md`):
     /// each reads its texture coordinate sets 0, 1 and 2, all of the vertex count.
     #[test]
     fn blend2_parts_read_three_uv_sets_of_the_vertex_count() {
-        let dir = std::path::PathBuf::from(std::env::var("TF2_GAME_DIR").unwrap_or_else(|_| r"C:\Games2".into()));
+        let dir = std::path::PathBuf::from(crate::install::dir_string());
         let zone = dir.join(r"levels\shanghai_01\zone.str");
         if !zone.exists() {
             return;

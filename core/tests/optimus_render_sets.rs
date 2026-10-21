@@ -2,7 +2,7 @@ use tf2_core::{character, special_types::{NORMAL_MESH, SPECIAL_ATTACK_MESH}};
 
 #[test]
 fn optimus_pack_switches_complete_normal_and_blue_mesh_sets() {
-    let dir = std::path::PathBuf::from(std::env::var("TF2_GAME_DIR").unwrap_or_else(|_| "C:/Games2".into()));
+    let dir = std::path::PathBuf::from(tf2_core::install::dir_string());
     if !dir.join("characters/optimus.str").exists() { return; }
     let data = character::load(&dir, "optimus").unwrap();
     let group = data.robot.render_sets.iter().find(|g| g.sets.iter().any(|s| s.name == SPECIAL_ATTACK_MESH)).unwrap();

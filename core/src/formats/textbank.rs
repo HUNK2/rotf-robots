@@ -64,7 +64,7 @@ mod tests {
     #[test]
     fn the_global_bank_has_the_completion_screens_labels() {
         // Needs the install.
-        let Ok(bank) = TextBank::global(Path::new(r"C:\Games2")) else { return };
+        let Ok(bank) = TextBank::global(crate::install::dir()) else { return };
         assert!(bank.strings.len() > 1000, "{}", bank.strings.len());
         assert_eq!(bank.by_hash(1272520435), Some("This is a test string to make sure everything is working a-ok."));
         for key in ["UI_MISSION_TIME", "UI_TITLE_MISSION_COMPLETE", "UI_GOLD_MEDAL", "UI_OVERALL_ACCURACY", "UI_ENERGON_POINTS"] {

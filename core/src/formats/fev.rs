@@ -512,7 +512,8 @@ mod tests {
 
     #[test]
     fn every_event_file_in_the_game_parses() {
-        let game = std::path::PathBuf::from(std::env::var("TF2_GAME_DIR").unwrap_or_else(|_| r"C:\Games2".into()));
+        if crate::install::missing() { return; }
+        let game = std::path::PathBuf::from(crate::install::dir_string());
         let mut files = Vec::new();
         collect(&game, &mut files);
         assert_eq!(files.len(), 172);
@@ -525,7 +526,7 @@ mod tests {
     }
 
     fn install_fev(relative: &str) -> Option<Fev> {
-        let game = std::path::PathBuf::from(std::env::var("TF2_GAME_DIR").unwrap_or_else(|_| r"C:\Games2".into()));
+        let game = std::path::PathBuf::from(crate::install::dir_string());
         let mut files = Vec::new();
         collect(&game, &mut files);
         let want = relative.replace('/', "\\").to_ascii_lowercase();
@@ -555,7 +556,7 @@ mod tests {
 
     #[test]
     fn every_event_with_parameters_has_exactly_one_primary() {
-        let game = std::path::PathBuf::from(std::env::var("TF2_GAME_DIR").unwrap_or_else(|_| r"C:\Games2".into()));
+        let game = std::path::PathBuf::from(crate::install::dir_string());
         let mut files = Vec::new();
         collect(&game, &mut files);
         if files.is_empty() {

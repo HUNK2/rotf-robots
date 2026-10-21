@@ -1,5 +1,5 @@
 //! Every clip of one animation set: length, loop, blend, speed, root travel and events.
-//! `cargo run -p tf2-core --example set_dump -- <Set> [pack]` (reads `C:\Games2`; the pack
+//! `cargo run -p tf2-core --example set_dump -- <Set> [pack]` (reads the install; the pack
 //! defaults to `bumblebee`).
 
 use std::path::Path;
@@ -7,7 +7,7 @@ use std::path::Path;
 fn main() {
     let set = std::env::args().nth(1).unwrap_or_else(|| "ClimbSet".into());
     let pack = std::env::args().nth(2).unwrap_or_else(|| "bumblebee".into());
-    let dir = std::env::var("TF2_GAME_DIR").unwrap_or_else(|_| "C:/Games2".into());
+    let dir = tf2_core::install::dir_string();
     let data = tf2_core::character::load(Path::new(&dir), &pack).expect("load");
     let Some(refs) = data.animations.sets.get(&set) else {
         println!("no set {set}; sets: {:?}", data.animations.sets.keys().collect::<Vec<_>>());

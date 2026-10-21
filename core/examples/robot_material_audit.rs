@@ -1,7 +1,7 @@
 //! Every robot pack's materials: technique, how the port draws it, textures present. Reads the
 //! install; writes nothing. Usage: `robot_material_audit [pack...] [--params]` (default: every pack
 //! in `characters\`). `--params` prints each material's parameters by name where `names.tsv` knows it.
-use std::{collections::{BTreeMap, HashMap}, path::Path};
+use std::collections::{BTreeMap, HashMap};
 use tf2_core::formats::{model::{Library, ParamValue}, pack::Pack};
 
 /// The techniques the port's own shaders draw (`map_audit`'s list, the character side). [code]
@@ -11,7 +11,7 @@ const PORTED: &[&str] = &["aniso_paint", "aniso_paint_x", "cheap_plus", "glass_p
     "glow_soft_vc_emissive", "glow_vc_mask_emissive", "decal", "decal_reflective", "dull_fx_emissive", "cheap_mask", "dull_mask"];
 
 fn main() {
-    let game = Path::new("C:/Games2");
+    let game = tf2_core::install::dir();
     let args: Vec<String> = std::env::args().skip(1).collect();
     let params = args.iter().any(|a| a == "--params");
     let mut packs: Vec<String> = args.iter().filter(|a| !a.starts_with("--")).cloned().collect();

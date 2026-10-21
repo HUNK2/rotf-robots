@@ -1,6 +1,6 @@
 //! Loads Bumblebee's control state machine and action clips from the install and plays
 //! scripted button sequences through the simulation, printing every change of control state.
-//! `cargo run -p tf2-core --example control_check` (reads `C:\Games2`, or `TF2_GAME_DIR`).
+//! `cargo run -p tf2-core --example control_check` (reads the install).
 
 use std::path::Path;
 
@@ -13,7 +13,7 @@ use tf2_core::tuning::{self, Actions, Locomotion, RuleSet};
 const DT: f32 = 0.032;
 
 fn main() {
-    let dir = std::env::var("TF2_GAME_DIR").unwrap_or_else(|_| "C:/Games2".into());
+    let dir = tf2_core::install::dir_string();
     let mut t = tuning::load(Path::new(&dir), "Bumblebee").expect("tuning");
     let data = tf2_core::character::load(Path::new(&dir), "bumblebee").expect("character");
     t.locomotion = Locomotion::from_animations(&data.animations, &mut t.missing);

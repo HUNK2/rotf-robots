@@ -5,7 +5,7 @@
 //! Two points `x,y,z` (arguments with a comma) plan a path on the one-placement-per-object mesh
 //! (agent radius 1.0, height 4.0) with `navpath::plan`, and print the records and the length.
 //! The first 12 silhouette centres are printed first, to choose the points from.
-//! Reads `C:\Games2` (or `TF2_GAME_DIR`). Writes nothing.
+//! Reads the install. Writes nothing.
 
 use std::path::{Path, PathBuf};
 use std::time::Instant;
@@ -24,7 +24,7 @@ fn parse_point(text: &str) -> [f32; 3] {
 }
 
 fn main() {
-    let dir = PathBuf::from(std::env::var("TF2_GAME_DIR").unwrap_or_else(|_| "C:/Games2".into()));
+    let dir = PathBuf::from(tf2_core::install::dir_string());
     let args: Vec<String> = std::env::args().skip(1).collect();
     let arg = args.iter().find(|a| !a.contains(',')).cloned().unwrap_or_else(|| "levels/us_test/zone.str".into());
     let points: Vec<[f32; 3]> = args.iter().filter(|a| a.contains(',')).map(|a| parse_point(a)).collect();

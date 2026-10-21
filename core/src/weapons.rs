@@ -2375,7 +2375,7 @@ mod grenade_tests {
     /// Jetfire's carpet bomb (`JetFire_CarpetBombAttribute`), as the install has it.
     fn carpet_bomb() -> WeaponTuning {
         let def = WeaponDef { attribute: crate::formats::hash::crc32(b"JetFire_CarpetBombAttribute"), ..WeaponDef::test(Kind::Grenade) };
-        load(std::path::Path::new(r"C:\Games2"), &[def]).unwrap().remove(0)
+        load(crate::install::dir(), &[def]).unwrap().remove(0)
     }
 
     /// Optimus's left-hand laser rifle is the child of the right-hand one and they take turns;
@@ -2384,9 +2384,10 @@ mod grenade_tests {
     /// `LongHaul_FlameThrowerLeftAttribute` in `bnxglobal.str#16`)
     #[test]
     fn a_left_hand_weapon_is_the_child_of_the_right() {
+        if crate::install::missing() { return; }
         let tuning = |attribute: &str, kind: Kind| {
             let def = WeaponDef { attribute: crate::formats::hash::crc32(attribute.as_bytes()), ..WeaponDef::test(kind) };
-            load(std::path::Path::new(r"C:\Games2"), &[def]).unwrap().remove(0)
+            load(crate::install::dir(), &[def]).unwrap().remove(0)
         };
         let name = |s: &str| crate::formats::hash::crc32(s.as_bytes());
         let rifle = tuning("Optimus_LaserRifleAttribute", Kind::Gun);
@@ -2404,8 +2405,9 @@ mod grenade_tests {
     /// [data] [game]
     #[test]
     fn the_car_mine_takes_on_the_cars_speed() {
+        if crate::install::missing() { return; }
         let def = WeaponDef { attribute: crate::formats::hash::crc32(b"AudiR8_VehicleSpecialMine"), ..WeaponDef::test(Kind::Grenade) };
-        let t = load(std::path::Path::new(r"C:\Games2"), &[def]).unwrap().remove(0);
+        let t = load(crate::install::dir(), &[def]).unwrap().remove(0);
         assert!(t.grenade.tack_on_owner_speed, "{:?}", t.grenade);
         let mut random = || 0.5;
         let still = Grenade::launch(Vec3::ZERO, Vec3::Y, Vec3::ZERO, Vec3::ZERO, &t, &mut random);
@@ -2419,6 +2421,7 @@ mod grenade_tests {
     /// goes off 0.1 s after it sticks (`sticky_attach` 00788da5). [data] [game]
     #[test]
     fn a_carpet_bomb_goes_off_a_tenth_of_a_second_after_it_lands() {
+        if crate::install::missing() { return; }
         let t = carpet_bomb();
         let g = &t.grenade;
         assert!(g.is_sticky && g.is_proximity && !g.arms_on_collision, "{g:?}");
@@ -2615,8 +2618,9 @@ mod grenade_tests {
     /// knock-back as the data's, the direction flat from the weapon to the victim. [game 0074d610]
     #[test]
     fn the_flame_packet_divides_heat_with_the_overheat_bits() {
+        if crate::install::missing() { return; }
         let def = WeaponDef { attribute: crate::formats::hash::crc32(b"LongHaul_FlameThrowerAttribute"), ..WeaponDef::test(Kind::Flame) };
-        let mut t = load(std::path::Path::new(r"C:\Games2"), &[def]).unwrap().remove(0);
+        let mut t = load(crate::install::dir(), &[def]).unwrap().remove(0);
         let p = flame_packet(&t, Vec3::new(0.0, 0.0, 1.0), Vec3::new(3.0, 4.0, 9.0));
         assert_eq!(p.amount, 22.0);
         assert_eq!(p.flags, 0x810);
@@ -2891,11 +2895,12 @@ mod grenade_tests {
     /// axis); the Audi's mine turns to its velocity. [data]
     #[test]
     fn the_spin_data_is_read() {
+        if crate::install::missing() { return; }
         let def = WeaponDef { attribute: crate::formats::hash::crc32(b"AudiR8_SpecialMine"), ..WeaponDef::test(Kind::Grenade) };
-        let t = load(std::path::Path::new(r"C:\Games2"), &[def]).unwrap().remove(0);
+        let t = load(crate::install::dir(), &[def]).unwrap().remove(0);
         assert!(t.grenade.velocity_orient);
         let def = WeaponDef { attribute: crate::formats::hash::crc32(b"Artillery_Attribute"), ..WeaponDef::test(Kind::Grenade) };
-        let t = load(std::path::Path::new(r"C:\Games2"), &[def]).unwrap().remove(0);
+        let t = load(crate::install::dir(), &[def]).unwrap().remove(0);
         assert!(!t.grenade.velocity_orient && t.grenade.random_spin_axis, "{:?}", t.grenade);
         assert_eq!(t.grenade.spin_axis, Vec3::Z);
         assert!((t.grenade.spin_speed[0] - std::f32::consts::PI).abs() < 1e-4 && (t.grenade.spin_speed[1] - std::f32::consts::TAU).abs() < 1e-4, "{:?}", t.grenade.spin_speed);
@@ -3587,7 +3592,7 @@ mod tests {
         "starscream", "jetfire", "ironhide", "optimusflight", "megatronflight"];
 
     fn pack(name: &str) -> crate::character::CharacterData {
-        crate::character::load(std::path::Path::new(r"C:\Games2"), name).unwrap()
+        crate::character::load(crate::install::dir(), name).unwrap()
     }
 
     fn hashes(object: &crate::formats::scene::ObjectDef) -> Vec<u32> {
@@ -3623,6 +3628,7 @@ mod tests {
     /// are the robot's. [data]
     #[test]
     fn car_form_specials_hang_on_the_car_and_foot_ones_on_the_robot() {
+        if crate::install::missing() { return; }
         let cases: [(&str, &str, bool); 9] = [
             ("megatron", "MegatronSpecialVehicleWeapon", true),
             ("megatron", "Megatron_VehicleGun", true),
@@ -3654,6 +3660,7 @@ mod tests {
     /// any robot hand point. [game 007a6380, 007a7a40] [data]
     #[test]
     fn megatrons_car_beam_leaves_from_the_cannon_tip() {
+        if crate::install::missing() { return; }
         let data = pack("megatron");
         let def = data.weapons.iter().find(|d| d.name == crc("MegatronSpecialVehicleWeapon")).unwrap();
         let vehicle = data.vehicle.as_ref().unwrap();
@@ -3673,6 +3680,7 @@ mod tests {
     /// [game 007b4f20] [data: `WeaponSet/Weapon_Idle` tick 0]
     #[test]
     fn bumblebees_cannon_fires_from_the_forearm_node() {
+        if crate::install::missing() { return; }
         let data = pack("bumblebee");
         let cannon = data.weapons.iter().find(|d| d.name == crc("SolarPlasmaCannon")).unwrap();
         assert_eq!(cannon.bone, crc("ObjectAttachment_Hand_R"));
@@ -3703,6 +3711,7 @@ mod tests {
     /// Only OptimusFlight's two guns always appear. [data]
     #[test]
     fn only_optimus_flights_guns_always_appear() {
+        if crate::install::missing() { return; }
         for name in ROSTER {
             for def in pack(name).weapons {
                 assert_eq!(def.always_appear, name == "optimusflight", "{name} {:#010x}", def.name);
@@ -3717,6 +3726,7 @@ mod tests {
     /// The charged guns' object clips and effects, and OptimusFlight's snaker round. [data]
     #[test]
     fn the_charged_guns_read_their_clips_effects_and_snaker() {
+        if crate::install::missing() { return; }
         let optimus = pack("optimus");
         let cannon = optimus.weapons.iter().find(|d| d.name == crc("ShellCannon")).expect("ShellCannon");
         assert_eq!(cannon.charging_clip, crc("WeaponB_Charging"));
@@ -3732,13 +3742,13 @@ mod tests {
         assert_eq!(gun.alt_snaker_check, Some(3.0));
         for name in ["megatron", "megatronflight"] {
             let data = pack(name);
-            let tunings = load(std::path::Path::new(r"C:\Games2"), &data.weapons).unwrap();
+            let tunings = load(crate::install::dir(), &data.weapons).unwrap();
             let charged: Vec<&WeaponDef> = data.weapons.iter().zip(&tunings).filter(|(_, t)| t.charge.has).map(|(d, _)| d).collect();
             assert!(!charged.is_empty() && charged.iter().all(|d| d.fx.as_deref().is_some_and(|fx| fx.charge.is_some())), "{name}");
         }
         // MegatronFlight's other gun names the clips but has no charged shot, so they never play.
         let data = pack("megatronflight");
-        let tunings = load(std::path::Path::new(r"C:\Games2"), &data.weapons).unwrap();
+        let tunings = load(crate::install::dir(), &data.weapons).unwrap();
         let named = data.weapons.iter().zip(&tunings).find(|(d, _)| d.name == 0x5274_4033);
         if let Some((def, t)) = named {
             assert!(def.charging_clip != 0 && !t.charge.has);
@@ -4058,7 +4068,8 @@ mod tests {
     /// none. [data] [game 00782b30, 007832b0]
     #[test]
     fn a_round_through_the_scouts_head_box_is_a_head_shot() {
-        let scout = crate::character::load(Path::new("C:/Games2"), "dcomscout").expect("installed scout");
+        if crate::install::missing() { return; }
+        let scout = crate::character::load(crate::install::dir(), "dcomscout").expect("installed scout");
         let object = &scout.robot;
         let pose = crate::pose::Rig::new(object).rest();
         let bodies = part_bodies(object, &pose);
@@ -4336,9 +4347,10 @@ mod tests {
     /// The four burst weapons of the roster, as the install has them. [data]
     #[test]
     fn the_burst_weapons_read_their_counts_and_gaps() {
+        if crate::install::missing() { return; }
         let tuning = |attribute: &str, kind: Kind| {
             let def = WeaponDef { attribute: crate::formats::hash::crc32(attribute.as_bytes()), ..WeaponDef::test(kind) };
-            load(std::path::Path::new(r"C:\Games2"), &[def]).unwrap().remove(0)
+            load(crate::install::dir(), &[def]).unwrap().remove(0)
         };
         let ms = |s: f32| (s * 1000.0).round() as i32;
         let laser = tuning("Ironhide_LaserCannonAttribute", Kind::Gun);
@@ -4542,14 +4554,13 @@ mod sound_tests {
 
     const ROSTER: [&str; 13] = ["bumblebee", "optimus", "ratchet", "megatron", "longhaul", "firestorm", "blackout", "audir8",
         "starscream", "jetfire", "ironhide", "optimusflight", "megatronflight"];
-    const GAME: &str = r"C:\Games2";
 
     fn pack(name: &str) -> crate::character::CharacterData {
-        crate::character::load(std::path::Path::new(GAME), name).unwrap()
+        crate::character::load(crate::install::dir(), name).unwrap()
     }
 
     fn library(name: &str) -> Library {
-        let dir = std::path::Path::new(GAME);
+        let dir = crate::install::dir();
         Library::load(&[dir.join(format!(r"characters\eng\{name}.fev")), dir.join(r"audio\eng\global.fev")]).0
     }
 
@@ -4558,10 +4569,11 @@ mod sound_tests {
     /// arsenal never keys one off). [data]
     #[test]
     fn the_kept_fire_sounds_are_the_gatling_the_audi_car_gun_and_the_flames() {
+        if crate::install::missing() { return; }
         let (mut kept, mut rings, mut idles) = (Vec::new(), Vec::new(), Vec::new());
         for name in ROSTER {
             let data = pack(name);
-            let tunings = load(std::path::Path::new(GAME), &data.weapons).unwrap();
+            let tunings = load(crate::install::dir(), &data.weapons).unwrap();
             let lib = library(name);
             let named = |id: u32| lib.name(id).unwrap_or("?").to_owned();
             for (d, t) in data.weapons.iter().zip(&tunings) {
@@ -4594,6 +4606,7 @@ mod sound_tests {
     /// ones per pack: Starscream 2, Ironhide 1, Blackout 2, Optimus 2, Ratchet 3, Audi 2, Long Haul 1.
     #[test]
     fn the_overheat_key_off_byte_is_read_as_the_raw_data_counts_it() {
+        if crate::install::missing() { return; }
         for (name, ones) in [("starscream", 2), ("ironhide", 1), ("blackout", 2), ("optimus", 2), ("ratchet", 3), ("audir8", 2), ("longhaul", 1)] {
             let count = pack(name).weapons.iter().filter(|d| d.overheat_key_off).count();
             assert_eq!(count, ones, "{name}");
@@ -4609,6 +4622,7 @@ mod sound_tests {
     /// one-shot) in Blackout's, Jetfire's and OptimusFlight's packs. [data r3-sound 1.7]
     #[test]
     fn the_ground_waves_carry_the_charge_loop_and_the_cannon_impact() {
+        if crate::install::missing() { return; }
         let wanted = [event_id("ANIM_BUMB_CHARGE_LP"), event_id("WPN_BLAC_CAN_IMP")];
         for name in ["blackout", "jetfire", "optimusflight"] {
             let data = pack(name);
@@ -4624,7 +4638,7 @@ mod sound_tests {
 
     fn gatling() -> WeaponTuning {
         let data = pack("blackout");
-        let tunings = load(std::path::Path::new(GAME), &data.weapons).unwrap();
+        let tunings = load(crate::install::dir(), &data.weapons).unwrap();
         let i = data.weapons.iter().position(|d| d.name == 0x0e10_e69c).expect("BlackoutGatling");
         tunings[i].clone()
     }
@@ -4634,6 +4648,7 @@ mod sound_tests {
     /// 007ae010]
     #[test]
     fn a_held_gatling_keeps_its_sounds_until_the_trigger_goes_up() {
+        if crate::install::missing() { return; }
         let t = gatling();
         assert!(t.automatic_firing && t.heat_per_round > 0.0);
         let mut w = Weapon::default();
@@ -4670,6 +4685,7 @@ mod sound_tests {
     /// 007a9d40]
     #[test]
     fn a_held_gatling_plays_one_loop_and_its_spin_down_after_the_release() {
+        if crate::install::missing() { return; }
         let t = gatling();
         let lib = library("blackout");
         let id = event_id("WPN_BLAC_GAT_FIRE_LP");
@@ -4720,6 +4736,7 @@ mod sound_tests {
     /// fire loop's key-off before the overheat sound (007a90c0 -> 007a9ec0). [game]
     #[test]
     fn the_gatling_held_to_its_capacity_overheats_on_a_round() {
+        if crate::install::missing() { return; }
         let t = gatling();
         let mut w = Weapon::default();
         let dt = crate::sim::GAME_UPDATE;
@@ -4749,11 +4766,12 @@ mod sound_tests {
     /// beam's after its charge-down). [data, game 007b08a0, 007b0aa0]
     #[test]
     fn every_charge_loop_holds_while_charging_and_falls_silent_after_its_key_off() {
+        if crate::install::missing() { return; }
         let mut loops = Vec::new();
         let dt = crate::sim::GAME_UPDATE;
         for name in ROSTER {
             let data = pack(name);
-            let tunings = load(std::path::Path::new(GAME), &data.weapons).unwrap();
+            let tunings = load(crate::install::dir(), &data.weapons).unwrap();
             let lib = library(name);
             for (d, t) in data.weapons.iter().zip(&tunings) {
                 let id = d.charge_loop_sound;
@@ -4799,7 +4817,7 @@ mod sound_tests {
 
     fn shell_cannon() -> WeaponTuning {
         let data = pack("optimus");
-        let tunings = load(std::path::Path::new(GAME), &data.weapons).unwrap();
+        let tunings = load(crate::install::dir(), &data.weapons).unwrap();
         let i = data.weapons.iter().position(|d| d.name == 0x690c_62d1).expect("ShellCannon");
         tunings[i].clone()
     }
@@ -4812,6 +4830,7 @@ mod sound_tests {
     /// [game 007b08a0, 007af210, 007add20, 007b0aa0, 007b0520]
     #[test]
     fn the_shell_cannons_charge_loop_is_keyed_off_on_the_release_and_the_cancel() {
+        if crate::install::missing() { return; }
         let t = shell_cannon();
         assert!(t.charge.has);
         let lib = library("optimus");

@@ -11,7 +11,7 @@ fn main() {
         eprintln!("usage: zone_probe <zone under the install, e.g. levels/shanghai_01/zone.str> <x> <y>");
         std::process::exit(2);
     }
-    let dir = std::env::var("TF2_GAME_DIR").unwrap_or_else(|_| "C:/Games2".into());
+    let dir = tf2_core::install::dir_string();
     let level = LevelWorld::load(std::path::Path::new(&dir), &args[1]).expect("level");
     let (x, y): (f32, f32) = (args[2].parse().expect("x"), args[3].parse().expect("y"));
     let mut hits = level.world.ray_cast(Vec3::new(x, y, 2000.0), Vec3::new(x, y, -2000.0));

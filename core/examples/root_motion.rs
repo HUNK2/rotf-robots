@@ -1,5 +1,5 @@
 //! Prints which channels of a clip move forward over time, to find where root motion is kept.
-//! `cargo run -p tf2-core --example root_motion -- <Set> <Id>` (reads `C:\Games2`).
+//! `cargo run -p tf2-core --example root_motion -- <Set> <Id>` (reads the install).
 
 use std::path::Path;
 
@@ -7,7 +7,7 @@ fn main() {
     let mut args = std::env::args().skip(1);
     let set = args.next().unwrap_or_else(|| "IdleStandSet".into());
     let id = args.next().unwrap_or_else(|| "Run2Idle".into());
-    let dir = std::env::var("TF2_GAME_DIR").unwrap_or_else(|_| "C:/Games2".into());
+    let dir = tf2_core::install::dir_string();
     let data = tf2_core::character::load(Path::new(&dir), "bumblebee").expect("load");
     let anim = data.animations.find(&set, &id).expect("no such clip");
     let clip = anim.clip.as_ref().unwrap();

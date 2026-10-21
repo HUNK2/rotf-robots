@@ -5,7 +5,7 @@
 use std::path::PathBuf;
 
 fn main() {
-    let dir = PathBuf::from(std::env::args().nth(1).unwrap_or_else(|| r"C:\Games2".into()));
+    let dir = PathBuf::from(std::env::args().nth(1).unwrap_or_else(tf2_core::install::dir_string));
     let roster = tf2_core::formats::characterlist::CharacterList::load(&dir).expect("character list");
     let missions = tf2_core::formats::missionlist::MissionList::load(&dir).expect("mission list");
     println!("[characters]");

@@ -2,7 +2,7 @@
 //! simulation on the install's real data, and compares, update by update, the clip the base
 //! layer's own rules pick (`animrules::Base`: the sets' entry and exit rules) with the clip
 //! the movement's pace chooser has leading on the ground.
-//! `cargo run -p tf2-core --example base_check` (reads `C:\Games2`, or `TF2_GAME_DIR`).
+//! `cargo run -p tf2-core --example base_check` (reads the install).
 //! Every disagreement is printed; the last line counts them. `VERBOSE=1` prints each change
 //! of the rules' clip.
 
@@ -28,7 +28,7 @@ fn pace_clip(s: &State) -> Option<&'static str> {
 }
 
 fn main() {
-    let dir = std::env::var("TF2_GAME_DIR").unwrap_or_else(|_| "C:/Games2".into());
+    let dir = tf2_core::install::dir_string();
     let mut t = tuning::load(Path::new(&dir), "Bumblebee").expect("tuning");
     let data = tf2_core::character::load(Path::new(&dir), "bumblebee").expect("character");
     t.locomotion = Locomotion::from_animations(&data.animations, &mut t.missing);

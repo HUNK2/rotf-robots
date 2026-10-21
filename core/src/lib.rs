@@ -51,6 +51,7 @@ pub mod gun;
 pub mod hud;
 pub mod ifl;
 pub mod input;
+pub mod install;
 pub mod light_tiles;
 pub mod lod;
 pub mod lockon;

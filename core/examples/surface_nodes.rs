@@ -6,7 +6,7 @@
 use std::path::Path;
 
 fn main() {
-    let dir = std::env::var("TF2_GAME_DIR").unwrap_or_else(|_| "C:/Games2".into());
+    let dir = tf2_core::install::dir_string();
     for pack in std::env::args().skip(1) {
         let data = match tf2_core::character::load(Path::new(&dir), &pack) {
             Ok(d) => d,

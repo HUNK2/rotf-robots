@@ -3,7 +3,7 @@ use glam::{Quat, Vec3};
 use tf2_core::{character, pose::Rig, sim::{self, Arena, Input, State}, tuning, vehicle::Chassis};
 
 fn main() {
-    let dir=std::env::var("TF2_GAME_DIR").unwrap_or_else(|_|"C:/Games2".into());
+    let dir=tf2_core::install::dir_string();
     let dir=std::path::Path::new(&dir);
     let t=tuning::load(dir,"Bumblebee").unwrap();
     let data=character::load(dir,"bumblebee").unwrap();

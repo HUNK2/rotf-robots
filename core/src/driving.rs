@@ -213,7 +213,8 @@ mod tests {
 
     #[test]
     fn installed_upgrade_tables_match_the_captured_turbo_timers() {
-        let dir=std::env::var("TF2_GAME_DIR").unwrap_or_else(|_|"C:/Games2".into());
+        if crate::install::missing() { return; }
+        let dir=crate::install::dir_string();
         let t=crate::tuning::load(std::path::Path::new(&dir),"Bumblebee").expect("installed tuning");
         assert_eq!(turbo_times(&t.drive,[0,0]),(2.4,3.2));
         assert_eq!(turbo_times(&t.drive,[3,3]),(4.8,1.6));

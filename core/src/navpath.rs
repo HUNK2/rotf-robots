@@ -1163,14 +1163,14 @@ mod tests {
 
     /// The us_test route the status note records (one placement per object, radius 1, height 4):
     /// every segment of the planned route must pass the straight test on that mesh. Needs the
-    /// install (`TF2_GAME_DIR`, default C:/Games2): run with `--ignored`.
+    /// install : run with `--ignored`.
     /// [known gap] Fails on the first two segments: start (-40,-108) to node (-71.47,-97.29), and
     /// that node to the sample (-76.46,-97.82). Same cause as the wall test: nodes on the portal
     /// insets are not checked against the corridor of the adjacent segment.
     #[test]
     #[ignore = "known gap: adjacent segments near building outlines fail the radius-1 straight test"]
     fn us_test_route_segments_pass_the_straight_test() {
-        let dir = std::env::var("TF2_GAME_DIR").unwrap_or_else(|_| "C:/Games2".into());
+        let dir = crate::install::dir_string();
         let path = std::path::PathBuf::from(dir).join("levels/us_test/zone.str");
         let (sils, _) = crate::navmesh::load(&path).expect("load us_test");
         let mut seen = std::collections::HashSet::new();

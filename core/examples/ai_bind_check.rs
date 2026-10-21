@@ -2,7 +2,7 @@
 //! brain form of `ai_bind`, and prints per brain the goals and perceptions bound and stand-in, the
 //! Message latch nodes made, the totals by type, the value kinds (valueTypes) with their data uses
 //! and whether the port binds them, and the goal table of brainDComScout with what blocks each
-//! stand-in goal. Reads `C:\Games2` (or `TF2_GAME_DIR`). Writes nothing.
+//! stand-in goal. Reads the install. Writes nothing.
 //! `cargo run -p tf2-core --example ai_bind_check`. The Message perceptions (toggleOn included) are
 //! bound since the latch port (ai-messages.md), so no Message appears among the stand-ins.
 
@@ -59,7 +59,7 @@ fn perception_blockers(list: &[data::PerceptionRef], out: &mut Vec<String>) {
 }
 
 fn main() {
-    let dir = std::env::var("TF2_GAME_DIR").unwrap_or_else(|_| "C:/Games2".into());
+    let dir = tf2_core::install::dir_string();
     let ai = data::load(Path::new(&dir)).expect("load the AI data from bnxglobal.str");
     let make = || -> Box<dyn PathSource> { Box::new(StraightLine) };
 

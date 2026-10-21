@@ -358,7 +358,7 @@ mod tests {
     /// ShutDown state change is an FSCommand.
     #[test]
     fn the_opt_graph_setters_summarise_to_a_field_set_and_an_fscommand() {
-        let Ok(file) = std::fs::read(r"C:\Games2\UI\Flash\Opt_graph_xbwin.gfx") else { return };
+        let Ok(file) = std::fs::read(crate::install::dir().join("UI/Flash/Opt_graph_xbwin.gfx")) else { return };
         let movie = super::super::gfx::Movie::parse(&file).unwrap();
         let fs = root_functions(&movie);
         let (ops, complete) = summarise(&fs["gcmdSetResolution"]);

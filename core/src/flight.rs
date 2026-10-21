@@ -2105,7 +2105,7 @@ mod tests {
     #[test]
     fn the_flyers_fly_and_the_car_drives() {
         // Needs the install.
-        let dir = PathBuf::from(std::env::var("TF2_GAME_DIR").unwrap_or_else(|_| "C:/Games2".into()));
+        let dir = PathBuf::from(crate::install::dir_string());
         if !dir.join("bnxglobal.str").is_file() {
             return;
         }

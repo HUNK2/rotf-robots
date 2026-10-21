@@ -139,7 +139,8 @@ mod tests {
     }
     #[test]
     fn installed_chatter_tuning_is_read_without_fitting() {
-        let t = Tuning::load(Path::new(r"C:\Games2")).unwrap();
+        if crate::install::missing() { return; }
+        let t = Tuning::load(crate::install::dir()).unwrap();
         assert!(t.enabled);
         assert_eq!((t.low_health, t.delay, t.history[&ATTACK]), (0.333, [0.3, 1.5], 25.0));
     }

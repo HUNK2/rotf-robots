@@ -10,7 +10,7 @@ use tf2_core::camera::{Camera, Open, Target, View};
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
-    let dir = std::env::var("TF2_GAME_DIR").unwrap_or_else(|_| "C:/Games2".into());
+    let dir = tf2_core::install::dir_string();
     let mut tuning = tf2_core::tuning::load(Path::new(&dir), &args[0]).expect("tuning");
     let only: Option<usize> = args.get(2).map(|a| a.parse().expect("stretch"));
     let rows: Vec<Vec<f32>> = std::fs::read_to_string(&args[1])

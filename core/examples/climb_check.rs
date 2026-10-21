@@ -2,7 +2,7 @@
 //! the first one climbed in run 1 (43.3 high), run at, jumped at with Climb held, climbed
 //! with the stick up, and pulled up over. Prints every change of control state and climb
 //! phase, and the position against the wall. Then the shimmy, the climb down to the ground,
-//! and the jump off. `cargo run -p tf2-core --example climb_check` (reads `C:\Games2`).
+//! and the jump off. `cargo run -p tf2-core --example climb_check` (reads the install).
 
 use std::path::Path;
 
@@ -14,7 +14,7 @@ use tf2_core::tuning::{self, Actions, Locomotion};
 const DT: f32 = 0.032;
 
 fn main() {
-    let dir = std::env::var("TF2_GAME_DIR").unwrap_or_else(|_| "C:/Games2".into());
+    let dir = tf2_core::install::dir_string();
     let mut t = tuning::load(Path::new(&dir), "Bumblebee").expect("tuning");
     let data = tf2_core::character::load(Path::new(&dir), "bumblebee").expect("character");
     t.locomotion = Locomotion::from_animations(&data.animations, &mut t.missing);

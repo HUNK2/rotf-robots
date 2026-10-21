@@ -310,7 +310,7 @@ mod tests {
     /// damage 5 is the special's `explosion_for`. Skips without the install.
     #[test]
     fn starscream_special_blast_reads_its_slow() {
-        let Ok(data) = crate::character::load(std::path::Path::new(r"C:\Games2"), "starscream") else { return };
+        let Ok(data) = crate::character::load(crate::install::dir(), "starscream") else { return };
         let launcher = -1877059191i32 as u32;
         let def = data.weapons.iter().find(|w| w.name == launcher).and_then(|w| w.explosion_for(true)).unwrap();
         println!(

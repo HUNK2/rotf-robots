@@ -2,7 +2,7 @@
 //! named like an effect that read as a template, and `ParticleEmitter` things), with the
 //! path to it -- to see which weapons' effects `character::read_weapon_effects` (guns and
 //! missile launchers only) leaves out.
-//! `cargo run -p tf2-core --example weapon_fx_probe [pack...]` (reads `C:\Games2`).
+//! `cargo run -p tf2-core --example weapon_fx_probe [pack...]` (reads the install).
 
 use std::path::Path;
 
@@ -43,7 +43,7 @@ fn walk(file: &DataFile, node: Node, path: String, depth: usize, out: &mut Vec<S
 }
 
 fn main() {
-    let dir = std::env::var("TF2_GAME_DIR").unwrap_or_else(|_| "C:/Games2".into());
+    let dir = tf2_core::install::dir_string();
     let args: Vec<String> = std::env::args().skip(1).collect();
     let packs: Vec<&str> = if args.is_empty() { PACKS.to_vec() } else { args.iter().map(String::as_str).collect() };
     for name in packs {

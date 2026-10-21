@@ -101,7 +101,7 @@ fn audit(label: &str, object: &ObjectDef, library: &tf2_core::formats::model::Li
 }
 
 fn main() {
-    let dir = std::env::var("TF2_GAME_DIR").unwrap_or_else(|_| "C:/Games2".into());
+    let dir = tf2_core::install::dir_string();
     let mut packs: Vec<String> = std::env::args().skip(1).collect();
     if packs.is_empty() {
         packs = ROSTER.map(str::to_owned).to_vec();

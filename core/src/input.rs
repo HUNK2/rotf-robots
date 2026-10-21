@@ -761,7 +761,7 @@ mod tests {
     #[test]
     fn shipped_defaults_load_from_the_install() {
         // Needs the install. [data] the four keyboard/mouse contexts are identical; the pad map is Robot's.
-        let Ok(a) = Archive::install(std::path::Path::new(r"C:\Games2")) else { return };
+        let Ok(a) = Archive::install(crate::install::dir()) else { return };
         let robot = ActionMap::install_defaults(&a, "Robot").unwrap();
         for ctx in ["Weapon", "Vehicle", "Flight"] {
             assert_eq!(ActionMap::install_defaults(&a, ctx).unwrap(), robot);

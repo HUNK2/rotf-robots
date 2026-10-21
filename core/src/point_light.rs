@@ -336,7 +336,7 @@ pub fn placement(world: &[f32; 12]) -> (Vec3, Vec3) {
 }
 
 fn install_path(relative: &str) -> Option<PathBuf> {
-    let dir = PathBuf::from(std::env::var("TF2_GAME_DIR").unwrap_or_else(|_| r"C:\Games2".into()));
+    let dir = PathBuf::from(crate::install::dir_string());
     let path = dir.join(relative);
     path.is_file().then_some(path)
 }
@@ -1351,7 +1351,7 @@ mod flash_tests {
     /// 0.05 s TimeoutDeleter with no fade (export/data/bumblebee.txt).
     #[test]
     fn bumblebees_muzzle_light_is_the_orange_omni() {
-        let Ok(lights) = load_flash_lights(std::path::Path::new("C:/Games2"), "bumblebee") else { return };
+        let Ok(lights) = load_flash_lights(crate::install::dir(), "bumblebee") else { return };
         let gun = &lights.first().expect("his gun has a muzzle flash object").1;
         assert_eq!(gun.light.kind, LightKind::Omni);
         assert!((gun.light.colour - Vec3::new(0.8, 0.749804, 0.611765)).abs().max_element() < 1e-5);
@@ -1425,7 +1425,7 @@ mod flash_tests {
     /// Every playable pack's muzzle flash objects hold a readable light (printed for the notes).
     #[test]
     fn the_rosters_muzzle_lights_read() {
-        let dir = std::path::Path::new("C:/Games2");
+        let dir = crate::install::dir();
         if !dir.join("characters").is_dir() { return; }
         for pack in ROSTER {
             let lights = load_flash_lights(dir, pack).unwrap();

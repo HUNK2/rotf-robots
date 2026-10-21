@@ -2,7 +2,7 @@ use tf2_core::{character, formats::hash::lower33};
 
 fn main() {
     use tf2_core::formats::{pack::{self, Pack}, lxb::DataFile};
-    let pack = Pack::open(std::path::Path::new("C:/Games2/characters/optimus.str")).unwrap();
+    let pack = Pack::open(tf2_core::install::dir().join("characters/optimus.str").as_path()).unwrap();
     let chunk = pack.of_type(pack::DATA).next().unwrap();
     let file = DataFile::parse(pack.data(chunk).to_vec()).unwrap();
     for (_, root) in file.root().fields() {
@@ -30,7 +30,7 @@ fn main() {
             }
         }
     }
-    let data = character::load(std::path::Path::new("C:/Games2"), "optimus").unwrap();
+    let data = character::load(tf2_core::install::dir(), "optimus").unwrap();
     if let Some(vehicle) = &data.vehicle {
         for group in &vehicle.render_sets {
             println!("VEHICLE sets: {:?}",group.sets.iter().map(|s| (s.name,s.nodes.len())).collect::<Vec<_>>());

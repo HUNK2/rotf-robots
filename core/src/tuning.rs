@@ -1254,7 +1254,8 @@ mod tests {
     /// own set, keyed apart from the robot's clips, and the mine's event is read into it. [data]
     #[test]
     fn audi_car_special_clip_is_found_by_its_attribute() {
-        let dir = Path::new("C:/Games2");
+        if crate::install::missing() { return; }
+        let dir = crate::install::dir();
         let t = load(dir, "Audi").unwrap();
         assert_eq!(t.special.vehicle_anim, crc32(b"Special"), "specialAbilityVehicleAnim is CRC-32 of Special");
         let data = crate::character::load(dir, "audir8").unwrap();
@@ -1271,7 +1272,8 @@ mod tests {
     /// `SportsCarA`, which holds the same rows as `BumblebeeGears`. [data]
     #[test]
     fn every_ground_robot_finds_its_gear_table_by_its_drive_mode() {
-        let dir = Path::new("C:/Games2");
+        if crate::install::missing() { return; }
+        let dir = crate::install::dir();
         for character in ["Bumblebee", "Optimus", "Ironhide", "Ratchet", "Megatron", "LongHaul", "Audi"] {
             let t = load(dir, character).unwrap();
             assert!(!t.drive_gears.is_empty(), "{character} has no gears");

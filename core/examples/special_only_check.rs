@@ -13,7 +13,7 @@ const ROSTER: [&str; 13] = [
 ];
 
 fn main() {
-    let game_dir = PathBuf::from(std::env::args().nth(1).unwrap_or_else(|| r"C:\Games2".to_owned()));
+    let game_dir = PathBuf::from(std::env::args().nth(1).unwrap_or_else(tf2_core::install::dir_string));
     for pack in ROSTER {
         let data = character::load(&game_dir, pack).expect("the character pack");
         let tunings = weapons::load(&game_dir, &data.weapons).expect("the weapon attributes");

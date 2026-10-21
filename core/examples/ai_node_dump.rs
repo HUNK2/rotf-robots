@@ -1,14 +1,14 @@
 //! The AI nodes of packs, as `ai_node` reads and links them: counts by flag, link counts, unresolved
 //! connection names, and a sample route. Usage:
 //!   cargo run -p tf2-core --example ai_node_dump -- <pack.str> [<pack.str> ...] [--route x y z x y z]
-//! Paths are relative to the install (`TF2_GAME_DIR` or `C:\Games2`).
+//! Paths are relative to the install.
 
 use std::path::PathBuf;
 
 use tf2_core::ai_node::{self, AiNodeGraph, NODE_JUMP, NODE_PATH, NODE_SNIPER, NODE_TELEPORT, NODE_WAYPOINT};
 
 fn main() {
-    let dir = PathBuf::from(std::env::var("TF2_GAME_DIR").unwrap_or_else(|_| r"C:\Games2".into()));
+    let dir = PathBuf::from(tf2_core::install::dir_string());
     let args: Vec<String> = std::env::args().skip(1).collect();
     let (packs, route): (Vec<&String>, Option<Vec<f32>>) = match args.iter().position(|a| a == "--route") {
         Some(i) => (args[..i].iter().collect(), Some(args[i + 1..].iter().filter_map(|a| a.parse().ok()).collect())),
