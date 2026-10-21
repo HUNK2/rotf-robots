@@ -3,6 +3,7 @@ name = "tf2-core"
 version = "0.1.0"
 edition = "2024"
 publish = false
+license = "MIT"
 description = "Engine-free readers and movement rules for the decoded Transformers data. Reads the game install at runtime; ships no game files."
 
 [dependencies]
