@@ -150,6 +150,12 @@ pub struct Event {
     pub max_distance: f32,
     pub fade_in_ms: u32,
     pub fade_out_ms: u32,
+    /// Reverb dry and wet levels, dB (head words 24 and 25, event +0x50 and +0x54 [game 004bbc80]).
+    /// FMOD sets them on every channel of the event as the reverb properties' `Direct` and `Room`
+    /// (millibels, -60 dB and below = -10000) [game 004c7be0 / 004cb870 -> 004d2170, 004c7b70 /
+    /// 004cb850 -> 004d2040, 004c4060].
+    pub reverb_dry_db: f32,
+    pub reverb_wet_db: f32,
     pub layers: Vec<Layer>,
     pub parameters: Vec<Parameter>,
     pub category: String,
@@ -200,6 +206,140 @@ pub struct Fev {
     pub events: Vec<Event>,
     pub definitions: Vec<Definition>,
     pub categories: Vec<Category>,
+    /// Where the sound definitions end: what follows (reverb and music data) starts here.
+    pub tail: usize,
+    /// The project's reverb presets, in file order (`global.fev` and `MUSIC_SYSTEM.fev` 20,
+    /// `war_room.fev` 1, every other file 0). [data; layout game 004d3b70]
+    pub reverbs: Vec<ReverbDef>,
+}
+
+/// FMOD Ex's `FMOD_REVERB_PROPERTIES` as the event system keeps it: 31 words at a reverb
+/// definition's +0x18, copied whole by `getReverbPresetByIndex` (004d5e90). [game] the size and
+/// the defaults (the definition's constructor 004d0730); the field names are FMOD Ex's public
+/// header's, whose layout the 31 words and the defaults match (Environment -1 = off, EnvSize 7.5,
+/// Reflections -2602, ReflectionsDelay 0.007, Reverb 200, ReverbDelay 0.011, EchoTime 0.25,
+/// ModulationTime 0.25, AirAbsorptionHF -5, HFReference 5000, LFReference 250). Levels are
+/// millibels, times seconds, Diffusion and Density percent.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct ReverbProperties {
+    pub instance: i32,
+    pub environment: i32,
+    pub env_size: f32,
+    pub env_diffusion: f32,
+    pub room: i32,
+    pub room_hf: i32,
+    pub room_lf: i32,
+    pub decay_time: f32,
+    pub decay_hf_ratio: f32,
+    pub decay_lf_ratio: f32,
+    pub reflections: i32,
+    pub reflections_delay: f32,
+    pub reflections_pan: [f32; 3],
+    pub reverb: i32,
+    pub reverb_delay: f32,
+    pub reverb_pan: [f32; 3],
+    pub echo_time: f32,
+    pub echo_depth: f32,
+    pub modulation_time: f32,
+    pub modulation_depth: f32,
+    pub air_absorption_hf: f32,
+    pub hf_reference: f32,
+    pub lf_reference: f32,
+    pub room_rolloff_factor: f32,
+    pub diffusion: f32,
+    pub density: f32,
+    pub flags: u32,
+}
+
+impl Default for ReverbProperties {
+    /// The reverb definition's constructor (004d0730). [game]
+    fn default() -> Self {
+        Self {
+            instance: 0,
+            environment: -1,
+            env_size: 7.5,
+            env_diffusion: 1.0,
+            room: -10000,
+            room_hf: -10000,
+            room_lf: 0,
+            decay_time: 1.0,
+            decay_hf_ratio: 1.0,
+            decay_lf_ratio: 1.0,
+            reflections: -2602,
+            reflections_delay: 0.007,
+            reflections_pan: [0.0; 3],
+            reverb: 200,
+            reverb_delay: 0.011,
+            reverb_pan: [0.0; 3],
+            echo_time: 0.25,
+            echo_depth: 0.0,
+            modulation_time: 0.25,
+            modulation_depth: 0.0,
+            air_absorption_hf: -5.0,
+            hf_reference: 5000.0,
+            lf_reference: 250.0,
+            room_rolloff_factor: 0.0,
+            diffusion: 0.0,
+            density: 0.0,
+            flags: 0x33f,
+        }
+    }
+}
+
+/// A named reverb preset of a project. [data]
+#[derive(Clone, Debug, PartialEq)]
+pub struct ReverbDef {
+    pub name: String,
+    pub properties: ReverbProperties,
+}
+
+/// The reverb presets after the sound definitions: u32 count, then each a string name and 33
+/// words in the loader's order (004d3b70, 004d4cf0-004d5034: the destinations from the
+/// disassembly): Room, RoomHF, RoomRolloffFactor, DecayTime, DecayHFRatio, Reflections,
+/// ReflectionsDelay, Reverb, ReverbDelay, Diffusion, Density, HFReference, then (version
+/// 0x1c0000 and later, every install file) RoomLF, LFReference, then Instance, Environment,
+/// EnvSize, EnvDiffusion, RoomLF again, DecayLFRatio, ReflectionsPan x3, ReverbPan x3, EchoTime,
+/// EchoDepth, ModulationTime, ModulationDepth, AirAbsorptionHF, LFReference again, Flags. The
+/// later RoomLF and LFReference words overwrite the earlier ones. [game]
+fn read_reverbs(r: &mut Reader) -> Result<Vec<ReverbDef>, String> {
+    let mut out = Vec::new();
+    for _ in 0..r.count("reverbs")? {
+        let name = r.string()?;
+        let w: [u32; 33] = r.words()?;
+        let f = |i: usize| f32::from_bits(w[i]);
+        let i = |i: usize| w[i] as i32;
+        let properties = ReverbProperties {
+            room: i(0),
+            room_hf: i(1),
+            room_rolloff_factor: f(2),
+            decay_time: f(3),
+            decay_hf_ratio: f(4),
+            reflections: i(5),
+            reflections_delay: f(6),
+            reverb: i(7),
+            reverb_delay: f(8),
+            diffusion: f(9),
+            density: f(10),
+            hf_reference: f(11),
+            instance: i(14),
+            environment: i(15),
+            env_size: f(16),
+            env_diffusion: f(17),
+            room_lf: i(18),
+            decay_lf_ratio: f(19),
+            reflections_pan: [f(20), f(21), f(22)],
+            reverb_pan: [f(23), f(24), f(25)],
+            echo_time: f(26),
+            echo_depth: f(27),
+            modulation_time: f(28),
+            modulation_depth: f(29),
+            air_absorption_hf: f(30),
+            lf_reference: f(31),
+            flags: w[32],
+        };
+        out.push(ReverbDef { name, properties });
+    }
+    Ok(out)
 }
 
 #[derive(Clone, Debug)]
@@ -346,6 +486,8 @@ fn read_event(r: &mut Reader) -> Result<Event, String> {
         max_distance: float(9),
         fade_in_ms: head[27],
         fade_out_ms: head[28],
+        reverb_dry_db: float(24),
+        reverb_wet_db: float(25),
         layers: Vec::new(),
         parameters: Vec::new(),
         category: String::new(),
@@ -479,7 +621,9 @@ impl Fev {
                 }
             }
         }
-        Ok(Self { project, banks, events, definitions, categories })
+        let tail = r.at;
+        let reverbs = if r.at < data.len() { read_reverbs(&mut r)? } else { Vec::new() };
+        Ok(Self { project, banks, events, definitions, categories, tail, reverbs })
     }
 
     pub fn event(&self, id: u32) -> Option<&Event> {

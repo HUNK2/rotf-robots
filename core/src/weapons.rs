@@ -328,7 +328,7 @@ fn find_snaker_check(node: Node, depth: u32) -> Option<f32> {
 }
 
 /// The rest place of the weapon object's barrel node numbered `index`.
-fn fire_dummy(object: Option<Node>, index: usize) -> Option<Vec3> {
+pub(crate) fn fire_dummy(object: Option<Node>, index: usize) -> Option<Vec3> {
     let object = object?;
     let wanted = *FIRE_DUMMIES.get(index)?;
     let names = object.path(&["hierarchy", "names"])?.ints();
@@ -398,10 +398,20 @@ fn weapon_class(name: &str) -> Option<(Kind, &'static str)> {
 
 /// The weapons a `Character` object lists, in its own order (primary first).
 pub fn read_defs(character: Node) -> Vec<WeaponDef> {
-    let id = |node: Option<Node>| node.and_then(Node::int).map_or(0, |h| h as u32);
     let mut defs = Vec::new();
     for (list, file) in character.get("weapons").into_iter().flat_map(|weapons| weapons.items()).enumerate() {
-        let attached = file.path(&["obj", "attachments"]).into_iter().flat_map(|a| a.items());
+        defs.extend(object_weapons(list, file.get("obj")));
+    }
+    defs
+}
+
+/// The weapons one object carries (`read_defs` of a weapon file's `obj`, or a placed object's:
+/// Devastator's gun pods in his boss mission, `giant::read_pods`), each as its file's `list`.
+pub fn object_weapons(list: usize, object: Option<Node>) -> Vec<WeaponDef> {
+    let id = |node: Option<Node>| node.and_then(Node::int).map_or(0, |h| h as u32);
+    let mut defs = Vec::new();
+    {
+        let attached = object.and_then(|o| o.get("attachments")).into_iter().flat_map(|a| a.items());
         for thing in attached.filter_map(|a| a.get("thing")) {
             let Some((kind, attribute)) = thing.type_name().and_then(weapon_class) else { continue };
             let sound = |field: &str| id(thing.path(&["genericWeaponSoundTable", field]));
@@ -413,12 +423,12 @@ pub fn read_defs(character: Node) -> Vec<WeaponDef> {
                 if barrel_count == barrels.len() {
                     break;
                 }
-                if let Some(at) = fire_dummy(file.get("obj"), index) {
+                if let Some(at) = fire_dummy(object, index) {
                     barrels[barrel_count] = at;
                     barrel_count += 1;
                 }
             }
-            let (flame, flame_count) = if kind == Kind::Flame { read_flame(file.get("obj")) } else { Default::default() };
+            let (flame, flame_count) = if kind == Kind::Flame { read_flame(object) } else { Default::default() };
             defs.push(WeaponDef {
                 list,
                 first_barrel: first,
@@ -445,11 +455,11 @@ pub fn read_defs(character: Node) -> Vec<WeaponDef> {
                 charge_fire_sound: gun_sound("chargeFireSound"),
                 // Every kind: the charged guns (Optimus's, OptimusFlight's, the Megatrons') carry
                 // `chargeId` / `chargeMaxReadyId` too; a weapon with none gets None. [data]
-                fx: read_fx(thing, file.get("obj")),
+                fx: read_fx(thing, object),
                 charging_clip: id(thing.get("chargingAnimation")),
                 charged_clip: id(thing.get("chargedAnimation")),
                 alt_snaker_check: thing.path(&["chargeMaxProjectileObj", "obj"]).and_then(|o| find_snaker_check(o, 0)),
-                muzzle: fire_dummy(file.get("obj"), id(thing.get("minFireDummyIndex")) as usize).unwrap_or(Vec3::ZERO),
+                muzzle: fire_dummy(object, id(thing.get("minFireDummyIndex")) as usize).unwrap_or(Vec3::ZERO),
                 idle_clip: id(thing.get("idleAnimation")),
                 exit_clip: id(thing.get("exitAnimation")),
                 exit_overheat_clip: id(thing.get("exitOverheatAnimation")),

@@ -35,6 +35,7 @@ pub mod flybound;
 #[allow(dead_code)]
 pub mod formats;
 pub mod fxstate;
+pub mod giant;
 pub mod gjk;
 pub mod gjk_shapes;
 pub mod gjk_swept;
@@ -56,6 +57,9 @@ pub mod light_tiles;
 pub mod lod;
 pub mod lockon;
 pub mod melee;
+// Only the reader of a zone's script (its objects and links), for the stage reverb; the mission
+// runtime is not part of this repository.
+pub mod mission_script;
 pub mod flash_timeline;
 pub mod debris;
 pub mod particles;
@@ -63,6 +67,7 @@ pub mod point_light;
 pub mod pose;
 pub mod repair;
 pub mod reticle;
+pub mod reverb;
 pub mod ribbon;
 pub mod rumble;
 pub mod shake;

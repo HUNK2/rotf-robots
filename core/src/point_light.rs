@@ -730,6 +730,19 @@ pub fn read_weapon_flash_lights(character: Node) -> Vec<(u32, FlashLight)> {
 
 /// `read_weapon_flash_lights` of a character pack (`characters\<pack>.str`, its `Character` thing).
 pub fn load_flash_lights(game_dir: &std::path::Path, pack_name: &str) -> Result<Vec<(u32, FlashLight)>, String> {
+    // Devastator's weapons are the boss mission's pods (`giant::read_pods`), each with its own. [data]
+    if crate::formats::characterlist::elsewhere(pack_name).is_some() {
+        let pods = crate::giant::read_pods(game_dir);
+        // [assumed port design] its 15 m reach is made for a pod seen from his feet: three times it
+        // lights his shoulders and the ground under a 60 m robot's guns. Only the gatling pods have
+        // one [data]; his missile and bomb launchers flash with theirs.
+        let lent = pods.iter().find_map(|p| p.flash.clone());
+        return Ok(pods.into_iter().filter_map(|p| {
+            let mut flash = p.flash.or_else(|| lent.clone())?;
+            flash.light.range *= 3.0;
+            Some((p.def.name, flash))
+        }).collect());
+    }
     let path = game_dir.join("characters").join(format!("{pack_name}.str"));
     let pack = Pack::open(&path)?;
     let chunk = pack.of_type(pack::DATA).next().ok_or("pack has no data object")?;

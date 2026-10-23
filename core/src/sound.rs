@@ -4,7 +4,8 @@
 //! Tags as in `sim.rs`: `[data]` comes straight out of the event files, `[assumed]` is a
 //! reading of the data that has not been checked against the game's player, `[stand-in]` is
 //! ours. FMOD Ex's 3D (stereo speaker levels, roll-off, Doppler) is read from the executable
-//! (`fmod_angle`, `stereo_levels`, `distance_gain`, `doppler_pitch`); reverb is not done.
+//! (`fmod_angle`, `stereo_levels`, `distance_gain`, `doppler_pitch`); `Mixer::send` is the
+//! reverb send that `crate::reverb` (FMOD's SFX Reverb) runs on.
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -94,6 +95,15 @@ pub struct Library {
 }
 
 impl Library {
+    /// The event system's reverb presets by index (`getReverbPresetByIndex`, 004d5e90): every
+    /// file's, in load order. [data] only `audio\eng\global.fev` has any (its 20). [assumed] the
+    /// game's index counts across the loaded files in their order, so global.fev's are 0..19
+    /// whatever is loaded before it (no other file of the install has presets, so only a
+    /// mod's could tell). settles: 004d5e90's walk over the projects.
+    pub fn reverb_presets(&self) -> Vec<crate::formats::fev::ReverbProperties> {
+        self.files.iter().flat_map(|f| f.fev.reverbs.iter().map(|r| r.properties)).collect()
+    }
+
     /// Every category path of the loaded event files (`FX/AMB`...), once each.
     pub fn category_paths(&self) -> Vec<String> {
         let mut paths: Vec<String> = self.files.iter().flat_map(|f| f.fev.categories.iter().map(|c| c.path.clone())).collect();
@@ -138,7 +148,7 @@ impl Library {
         let bank = Bank::open(path)?;
         let name = path.file_stem().and_then(|s| s.to_str()).ok_or("bank has no name")?.to_owned();
         let mut fev = Fev { project: "chatter bindings".into(), banks: vec![name.clone()], events: Vec::new(),
-            definitions: Vec::new(), categories: self.files[template_file].fev.categories.clone() };
+            definitions: Vec::new(), categories: self.files[template_file].fev.categories.clone(), tail: 0, reverbs: Vec::new() };
         for (index, sample) in bank.entries.iter().enumerate() {
             let stem = sample.name.rsplit_once('.').map_or(sample.name.as_str(), |(stem, _)| stem);
             let id = event_id(&stem.to_ascii_uppercase());
@@ -253,8 +263,139 @@ impl Library {
 }
 
 /// Names one playing event, for stopping it or setting its parameters.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Handle(u64);
+
+impl Handle {
+    /// Its number, unique within its mixer (`Command`'s).
+    pub fn number(self) -> u64 {
+        self.0
+    }
+}
+
+/// One thing a mixer was told, kept while its `tap` is on, so another mixer can be told the same
+/// (the game's `--net` link replays another copy's sounds). [port] Handles are the telling mixer's
+/// numbers; places are in its listener's frame, as given. `stop_event` is kept as the `Stop` of each
+/// instance it stops, and `set_parameter_hash` as the `Parameter` it resolves to.
+#[derive(Clone, Debug, PartialEq)]
+pub enum Command {
+    Play { handle: u64, id: u32, volume: f32 },
+    KeyOff(u64),
+    Stop(u64),
+    Spatial(u64, Vec3),
+    StopAll,
+    Parameter(u64, String, f32),
+    Volume(u64, f32),
+    CategoryVolume(String, f32),
+    CategoryPitch(String, f32),
+}
+
+impl Command {
+    /// Appends the commands, little-endian, to `out`.
+    pub fn encode(commands: &[Command], out: &mut Vec<u8>) {
+        let str = |out: &mut Vec<u8>, s: &str| {
+            let b = &s.as_bytes()[..s.len().min(255)];
+            out.push(b.len() as u8);
+            out.extend_from_slice(b);
+        };
+        out.extend_from_slice(&(commands.len() as u32).to_le_bytes());
+        for c in commands {
+            match c {
+                Command::Play { handle, id, volume } => {
+                    out.push(0);
+                    out.extend_from_slice(&handle.to_le_bytes());
+                    out.extend_from_slice(&id.to_le_bytes());
+                    out.extend_from_slice(&volume.to_le_bytes());
+                }
+                Command::KeyOff(h) | Command::Stop(h) => {
+                    out.push(if matches!(c, Command::KeyOff(_)) { 1 } else { 2 });
+                    out.extend_from_slice(&h.to_le_bytes());
+                }
+                Command::Spatial(h, v) => {
+                    out.push(3);
+                    out.extend_from_slice(&h.to_le_bytes());
+                    for x in v.to_array() {
+                        out.extend_from_slice(&x.to_le_bytes());
+                    }
+                }
+                Command::StopAll => out.push(4),
+                Command::Parameter(h, name, value) => {
+                    out.push(5);
+                    out.extend_from_slice(&h.to_le_bytes());
+                    str(out, name);
+                    out.extend_from_slice(&value.to_le_bytes());
+                }
+                Command::Volume(h, v) => {
+                    out.push(6);
+                    out.extend_from_slice(&h.to_le_bytes());
+                    out.extend_from_slice(&v.to_le_bytes());
+                }
+                Command::CategoryVolume(name, v) | Command::CategoryPitch(name, v) => {
+                    out.push(if matches!(c, Command::CategoryVolume(..)) { 7 } else { 8 });
+                    str(out, name);
+                    out.extend_from_slice(&v.to_le_bytes());
+                }
+            }
+        }
+    }
+
+    /// Reads what `encode` wrote from the start of `bytes`: the commands and the bytes after them,
+    /// or None for a short or unknown record.
+    pub fn decode(bytes: &[u8]) -> Option<(Vec<Command>, &[u8])> {
+        struct Cursor<'a>(&'a [u8]);
+        impl<'a> Cursor<'a> {
+            fn take(&mut self, n: usize) -> Option<&'a [u8]> {
+                let (head, rest) = (self.0.get(..n)?, self.0.get(n..)?);
+                self.0 = rest;
+                Some(head)
+            }
+            fn u8(&mut self) -> Option<u8> { Some(self.take(1)?[0]) }
+            fn u32(&mut self) -> Option<u32> { Some(u32::from_le_bytes(self.take(4)?.try_into().ok()?)) }
+            fn u64(&mut self) -> Option<u64> { Some(u64::from_le_bytes(self.take(8)?.try_into().ok()?)) }
+            fn f32(&mut self) -> Option<f32> { Some(f32::from_le_bytes(self.take(4)?.try_into().ok()?)) }
+            fn str(&mut self) -> Option<String> {
+                let n = self.u8()? as usize;
+                String::from_utf8(self.take(n)?.to_vec()).ok()
+            }
+        }
+        let mut c = Cursor(bytes);
+        let count = c.u32()? as usize;
+        let mut commands = Vec::with_capacity(count.min(4096));
+        for _ in 0..count {
+            let kind = c.u8()?;
+            commands.push(match kind {
+                0 => {
+                    let handle = c.u64()?;
+                    let id = c.u32()?;
+                    Command::Play { handle, id, volume: c.f32()? }
+                }
+                1 => Command::KeyOff(c.u64()?),
+                2 => Command::Stop(c.u64()?),
+                3 => {
+                    let h = c.u64()?;
+                    Command::Spatial(h, Vec3::new(c.f32()?, c.f32()?, c.f32()?))
+                }
+                4 => Command::StopAll,
+                5 => {
+                    let h = c.u64()?;
+                    let name = c.str()?;
+                    Command::Parameter(h, name, c.f32()?)
+                }
+                6 => {
+                    let h = c.u64()?;
+                    Command::Volume(h, c.f32()?)
+                }
+                7 | 8 => {
+                    let name = c.str()?;
+                    let v = c.f32()?;
+                    if kind == 7 { Command::CategoryVolume(name, v) } else { Command::CategoryPitch(name, v) }
+                }
+                _ => return None,
+            });
+        }
+        Some((commands, c.0))
+    }
+}
 
 struct Voice {
     sample: Arc<Sample>,
@@ -305,6 +446,40 @@ struct Instance {
     released: usize,
     /// The trace's check of this instance's own output.
     health: Health,
+    /// The last render's loudest sample of this instance's own output (master divided out),
+    /// and its roll-off then (`Mixer::view`).
+    peak: f32,
+    rolloff: f32,
+}
+
+/// One instance as the sound debug overlay shows it (`Mixer::view`). Not the game's: a debug aid.
+#[derive(Clone, Debug)]
+pub struct InstanceView {
+    pub handle: Handle,
+    pub id: u32,
+    pub name: String,
+    pub category: String,
+    /// Mode 0x10: placed in the world (3D); otherwise a 2D sound.
+    pub placed: bool,
+    /// Where the source is from the listener (x right, y front, z up), and whether the
+    /// instance has its own place (`set_spatial`) rather than the mixer's `offset`.
+    pub offset: Vec3,
+    pub own_place: bool,
+    pub elapsed: f32,
+    pub stopping: bool,
+    /// The event's fade, 1 while playing.
+    pub fade: f32,
+    /// A running parameter is waiting at a sustain point for a key-off.
+    pub held: bool,
+    pub key_offs: usize,
+    /// Sounds with a voice now, of how many.
+    pub sounding: usize,
+    pub sounds: usize,
+    /// The last render's peak of its own output, master divided out (1 is full scale).
+    pub peak: f32,
+    pub rolloff: f32,
+    pub min_distance: f32,
+    pub max_distance: f32,
 }
 
 /// Where a running parameter must stop: the next sustain point not yet released, in its own
@@ -333,6 +508,11 @@ fn sustain_limit(p: &crate::formats::fev::Parameter, released: usize, value: f32
     // Not yet past it (with room for rounding: held exactly at the point stays held).
     (value <= point + range * 1e-5).then_some(point)
 }
+
+/// The output limiter's ceiling (full scale is 1) and release time in seconds (`Mixer::limit`).
+/// [assumed port design]
+const LIMIT_CEILING: f32 = 0.95;
+const LIMIT_RELEASE: f32 = 0.25;
 
 pub struct Mixer {
     rate: f32,
@@ -369,8 +549,16 @@ pub struct Mixer {
     choices: HashMap<(usize, usize, u32, usize, usize), WaveChoice>,
     /// With the trace on: what happened, at the output's time (`take_journal`).
     journal: Vec<(f32, String)>,
-    /// With the trace on: the output before the current instance added to it.
+    /// The output before the current instance added to it (its own part is split into the
+    /// dry output and the reverb send by this; the trace's health check reads it too).
     before: Vec<f32>,
+    /// The last render's reverb send: every instance's output at its event's reverb wet level
+    /// (`crate::reverb::ReverbSystem` takes it).
+    send: Vec<f32>,
+    /// While Some, every command is kept here as well (`Command`).
+    pub tap: Option<Vec<Command>>,
+    /// The output limiter's gain (`limit`), 1 when it is not acting.
+    limit_gain: f32,
 }
 
 /// With the trace on, each instance's own output is checked over a quarter of a second:
@@ -756,7 +944,18 @@ fn pitch_multiplier(pitch: f32, radius: f32, random: f32) -> f32 {
 impl Mixer {
     /// `rate` is the output's frames per second.
     pub fn new(rate: u32) -> Self {
-        Self { rate: rate as f32, rendered: 0, instances: Vec::new(), next: 1, random: 0x2545_f491, offset: Vec3::ZERO, listener_velocity: Vec3::ZERO, doppler_scale: 0.3, rolloff_scale: 1.0, update_ms: 32, master: 1.0, category_volumes: HashMap::new(), category_pitches: HashMap::new(), gather: Vec::new(), choices: HashMap::new(), journal: Vec::new(), before: Vec::new() }
+        Self { rate: rate as f32, rendered: 0, instances: Vec::new(), next: 1, random: 0x2545_f491, offset: Vec3::ZERO, listener_velocity: Vec3::ZERO, doppler_scale: 0.3, rolloff_scale: 1.0, update_ms: 32, master: 1.0, category_volumes: HashMap::new(), category_pitches: HashMap::new(), gather: Vec::new(), choices: HashMap::new(), journal: Vec::new(), before: Vec::new(), send: Vec::new(), tap: None, limit_gain: 1.0 }
+    }
+
+    /// The last `render`'s reverb send, stereo interleaved, as long as its output.
+    pub fn send(&self) -> &[f32] {
+        &self.send
+    }
+
+    fn tapped(&mut self, command: impl FnOnce() -> Command) {
+        if let Some(tap) = self.tap.as_mut() {
+            tap.push(command());
+        }
     }
 
     /// The output's frames per second.
@@ -793,11 +992,13 @@ impl Mixer {
     /// A category's pitch multiplier, applied to it and its children (the audio presets' pitch,
     /// `audio_mix::raw_pitch_multiplier` of their raw sum). 1 leaves it.
     pub fn set_category_pitch(&mut self, category: &str, multiplier: f32) {
+        self.tapped(|| Command::CategoryPitch(category.to_owned(), multiplier));
         self.category_pitches.insert(category.to_owned(), multiplier.max(0.01));
     }
 
     /// Category options multiply the authored gain of the category and its parents.
     pub fn set_category_volume(&mut self, category: &str, volume: f32) {
+        self.tapped(|| Command::CategoryVolume(category.to_owned(), volume));
         self.category_volumes.insert(category.to_owned(), volume.max(0.0));
     }
 
@@ -821,6 +1022,7 @@ impl Mixer {
     /// has not is decoded here, which is slow enough to be heard as a hitch.
     pub fn play(&mut self, library: &Library, id: u32, volume: f32) -> Option<Handle> {
         let (file, event) = library.event(id)?;
+        let asked = volume;
         if tracing() {
             eprintln!("sound trace: {} ({id:#010x}) at output {:.2}s", event.name, self.rendered as f32 / self.rate);
         }
@@ -859,8 +1061,9 @@ impl Mixer {
         let fade = if event.fade_in_ms > 0 { 0.0 } else { 1.0 };
         self.instances.push(Instance { handle, file, event, parameters, wanted, parts, volume, pitch,
             elapsed: 0.0, stopped_at: None, filters, fade, stopping: false, fresh: true, spatial: None, head: library.head(id),
-            released: 0, health: Health::default() });
+            released: 0, health: Health::default(), peak: 0.0, rolloff: 1.0 });
         self.note_handle(handle, "start");
+        self.tapped(|| Command::Play { handle: handle.0, id, volume: asked });
         Some(handle)
     }
 
@@ -876,6 +1079,7 @@ impl Mixer {
         {
             instance.released += 1;
             self.note_handle(handle, "key-off");
+            self.tapped(|| Command::KeyOff(handle.0));
         }
     }
 
@@ -911,12 +1115,29 @@ impl Mixer {
             .collect()
     }
 
+    /// Every instance in the mix as the sound debug overlay shows it, oldest first.
+    pub fn view(&self) -> Vec<InstanceView> {
+        self.instances.iter().map(|i| {
+            let event = &i.event;
+            let held = event.parameters.iter().zip(&i.parameters).any(|(p, &value)|
+                sustain_limit(p, i.released, value).is_some_and(|point| value >= point - (p.max - p.min) * 1e-4));
+            InstanceView {
+                handle: i.handle, id: event.id, name: event.name.clone(), category: event.category.clone(),
+                placed: event.mode & 0x10 != 0, offset: i.spatial.unwrap_or(self.offset), own_place: i.spatial.is_some(),
+                elapsed: i.elapsed, stopping: i.stopping, fade: i.fade, held, key_offs: i.released,
+                sounding: i.parts.iter().filter(|p| p.voice.is_some()).count(), sounds: i.parts.len(),
+                peak: i.peak, rolloff: i.rolloff, min_distance: event.min_distance, max_distance: event.max_distance,
+            }
+        }).collect()
+    }
+
     /// Lets an event fade out over its own fade time.
     pub fn stop(&mut self, handle: Handle) {
         if let Some(instance) = self.instances.iter_mut().find(|i| i.handle == handle) {
             if !instance.stopping {
                 instance.stopping = true;
                 self.note_handle(handle, "stop");
+                self.tapped(|| Command::Stop(handle.0));
             }
         }
     }
@@ -926,7 +1147,19 @@ impl Mixer {
     pub fn set_spatial(&mut self, handle: Handle, offset: Vec3) {
         if let Some(instance) = self.instances.iter_mut().find(|i| i.handle == handle) {
             instance.spatial = Some(offset);
+            self.tapped(|| Command::Spatial(handle.0, offset));
         }
+    }
+
+    /// The handle numbers of every instance not stopping, oldest first (what `--net` sends so the
+    /// other copy can end what it missed the stop of).
+    pub fn live_numbers(&self) -> Vec<u64> {
+        self.instances.iter().filter(|i| !i.stopping).map(|i| i.handle.0).collect()
+    }
+
+    /// Every live copy of an event, oldest first.
+    pub fn handles_of(&self, id: u32) -> Vec<Handle> {
+        self.instances.iter().filter(|i| i.event.id == id).map(|i| i.handle).collect()
     }
 
     /// Stops every playing copy of an event.
@@ -939,12 +1172,14 @@ impl Mixer {
 
     pub fn stop_all(&mut self) {
         self.note(|| "stop all\t\t\t".to_owned());
+        self.tapped(|| Command::StopAll);
         for instance in &mut self.instances {
             instance.stopping = true;
         }
     }
 
     pub fn set_parameter(&mut self, handle: Handle, name: &str, value: f32) {
+        if self.is_alive(handle) { self.tapped(|| Command::Parameter(handle.0, name.to_owned(), value)); }
         let Some(instance) = self.instances.iter_mut().find(|i| i.handle == handle) else { return };
         if let Some(index) = instance.event.parameters.iter().position(|p| p.name == name) {
             let p = &instance.event.parameters[index];
@@ -969,11 +1204,30 @@ impl Mixer {
     pub fn set_volume(&mut self, handle: Handle, volume: f32) {
         if let Some(instance) = self.instances.iter_mut().find(|i| i.handle == handle) {
             instance.volume = volume;
+            self.tapped(|| Command::Volume(handle.0, volume));
         }
     }
 
     /// Adds the next stretch of sound to `out`: stereo, interleaved, `out.len() / 2` frames.
     /// `out` is overwritten.
+    /// [assumed port design] The output's limiter, on the whole mix (stereo pairs) just before
+    /// the device: where a frame would pass `LIMIT_CEILING` the gain drops at once to keep it
+    /// there, and comes back to 1 over `LIMIT_RELEASE` seconds. Below the ceiling the gain is 1
+    /// and nothing changes. FMOD's own mix stage is not read; what the port had was a clamp,
+    /// heard as crackle when Devastator's pounds stack (peaks 1.8 times full scale, 2026-10-22).
+    pub fn limit(&mut self, mixed: &mut [f32]) {
+        let release = 1.0 - (-1.0 / (LIMIT_RELEASE * self.rate.max(1.0))).exp();
+        for frame in mixed.chunks_exact_mut(2) {
+            let peak = frame[0].abs().max(frame[1].abs());
+            self.limit_gain += (1.0 - self.limit_gain) * release;
+            if peak * self.limit_gain > LIMIT_CEILING {
+                self.limit_gain = LIMIT_CEILING / peak;
+            }
+            frame[0] *= self.limit_gain;
+            frame[1] *= self.limit_gain;
+        }
+    }
+
     pub fn render(&mut self, library: &Library, out: &mut [f32]) {
         out.fill(0.0);
         let frames = out.len() / 2;
@@ -989,13 +1243,14 @@ impl Mixer {
         gather.resize(out.len(), 0.0);
         let checking = tracing();
         let mut before = std::mem::take(&mut self.before);
+        let mut send = std::mem::take(&mut self.send);
+        send.clear();
+        send.resize(out.len(), 0.0);
         let mut noted = Vec::new();
         let now = self.output_time();
         for instance in &mut self.instances {
-            if checking {
-                before.clear();
-                before.extend_from_slice(out);
-            }
+            before.clear();
+            before.extend_from_slice(out);
             let offset = instance.spatial.unwrap_or(self.offset);
             let distance = offset.length();
             // [game: 0040b120] the direction is the unit offset's right and front parts.
@@ -1238,9 +1493,29 @@ impl Mixer {
                     }
                 }
             }
+            // [game: 004c7be0 / 004c7b70] the event's reverb wet and dry levels become its
+            // channels' reverb Room and Direct (dB x 100, in millibels). [data] every event of
+            // the install has both at 0 dB. [assumed] the send is taken after the event's
+            // volume, fades, roll-off and panning, and both channels go to the reverb (whose
+            // input sums them, 0047f320). settles: FMOD's channel-to-reverb connection (the
+            // ChannelI reverb properties' use).
+            let (wet, dry) = (crate::reverb::decibels(event.reverb_wet_db), crate::reverb::decibels(event.reverb_dry_db));
+            let mut peak = 0.0f32;
+            for ((o, b), s) in out.iter_mut().zip(&before).zip(send.iter_mut()) {
+                let own = *o - *b;
+                *s += own * wet;
+                if dry != 1.0 {
+                    *o = *b + own * dry;
+                }
+                peak = peak.max((own * dry).abs());
+            }
+            // The debug overlay's meter (`view`).
+            instance.peak = if master > 0.0 { peak / master } else { 0.0 };
+            instance.rolloff = rolloff;
         }
         self.gather = gather;
         self.before = before;
+        self.send = send;
         self.journal.extend(noted);
         let alive_before: Vec<(Handle, String)> = if checking {
             self.instances.iter().map(|i| (i.handle, i.event.name.clone())).collect()
@@ -1287,7 +1562,7 @@ impl Mixer {
                     self.journal.push((now, format!("end\t{name}\t#{}\t", handle.0)));
                 }
             }
-            // Clipping: the mix over full scale is clamped below, which the dump cannot show.
+            // Clipping: the mix over full scale before the output's limiter (`limit`), which the dump (taken after it) cannot show.
             // Judged at volume 1 (the master divided out), so a quiet test run still shows it.
             let full = if master > 0.0 { master } else { 1.0 };
             let peak = out.iter().fold(0f32, |m, v| m.max(v.abs())) / full;
@@ -1296,9 +1571,7 @@ impl Mixer {
                 self.journal.push((now, format!("clip\t\t\t{over} frames over full scale at volume 1, peak {peak:.2}")));
             }
         }
-        for value in out.iter_mut() {
-            *value = value.clamp(-1.0, 1.0);
-        }
+        self.limit(out);
     }
 }
 
@@ -1629,6 +1902,53 @@ pub fn tyre_sounds(input: &TyreInput) -> TyreSounds {
 mod tests {
     use super::*;
 
+    /// The limiter leaves a mix under its ceiling alone, holds a loud one at the ceiling, and
+    /// gives the gain back over its release.
+    #[test]
+    fn the_limiter_holds_loud_stacks_under_full_scale() {
+        let mut mixer = Mixer::new(48_000);
+        let mut quiet = vec![0.5, -0.4, 0.9, 0.1];
+        mixer.limit(&mut quiet);
+        assert_eq!(quiet, vec![0.5, -0.4, 0.9, 0.1]);
+        let mut loud: Vec<f32> = (0..4800).flat_map(|i| { let v = 1.8 * (i as f32 * 0.05).sin(); [v, -v] }).collect();
+        mixer.limit(&mut loud);
+        assert!(loud.iter().all(|v| v.abs() <= LIMIT_CEILING + 1e-6));
+        let mut after = vec![0.5f32; 2 * 48_000];
+        mixer.limit(&mut after);
+        assert!(after[0] < 0.5 * 0.7, "the gain comes back over the release, not at once: {}", after[0]);
+        assert!((after[after.len() - 1] - 0.5).abs() < 0.01, "and is back after a second");
+    }
+
+    #[test]
+    fn tapped_commands_survive_the_wire() {
+        let commands = vec![
+            Command::Play { handle: 7, id: 0xdead_beef, volume: 0.5 },
+            Command::KeyOff(7),
+            Command::Stop(7),
+            Command::Spatial(9, Vec3::new(1.0, -2.0, 3.5)),
+            Command::StopAll,
+            Command::Parameter(9, "rpm".to_owned(), 0.25),
+            Command::Volume(9, 0.8),
+            Command::CategoryVolume("sfx".to_owned(), 0.7),
+            Command::CategoryPitch("sfx/robot".to_owned(), 1.1),
+        ];
+        let mut out = Vec::new();
+        Command::encode(&commands, &mut out);
+        out.extend_from_slice(b"rest");
+        let (back, rest) = Command::decode(&out).unwrap();
+        assert_eq!(back, commands);
+        assert_eq!(rest, b"rest");
+        assert!(Command::decode(&out[..out.len() - 6]).is_none());
+        // a mixer taps only once asked, and only what it did
+        let mut mixer = Mixer::new(48_000);
+        mixer.stop(Handle(3));
+        mixer.set_category_volume("sfx", 0.5);
+        mixer.tap = Some(Vec::new());
+        mixer.stop(Handle(3));
+        mixer.set_category_volume("sfx", 0.5);
+        assert_eq!(mixer.tap.unwrap(), vec![Command::CategoryVolume("sfx".to_owned(), 0.5)]);
+    }
+
     #[test]
     fn gearbox_replays_recorded_vehicle_updates() {
         if crate::install::missing() { return; }
@@ -1914,6 +2234,33 @@ mod tests {
         mixer.render(&library, &mut buffer);
         let one = |channel: usize| loudness(&buffer.iter().skip(channel).step_by(2).copied().collect::<Vec<_>>());
         assert!(one(0) > 0.005 && one(1) < 1e-6, "{} {}", one(0), one(1));
+        // Its reverb levels are 0 dB, as every event's: the send is the output itself.
+        assert_eq!(mixer.send(), &buffer[..]);
+    }
+
+    #[test]
+    fn the_debug_view_shows_each_instance_its_place_level_and_stop() {
+        let (library, problems) = Library::load(&[game_dir().join(r"characters\eng\optimus.fev")]);
+        assert!(problems.is_empty(), "{problems:?}");
+        let id = event_id("WPN_OPTIMUS_LASER_FIRE_L");
+        library.prepare(id);
+        let mut mixer = Mixer::new(48000);
+        mixer.master = 0.5;
+        let handle = mixer.play(&library, id, 1.0).unwrap();
+        mixer.set_spatial(handle, Vec3::new(3.0, 4.0, 0.0));
+        let mut buffer = vec![0.0; 19200];
+        mixer.render(&library, &mut buffer);
+        let view = mixer.view();
+        assert_eq!(view.len(), 1);
+        let v = &view[0];
+        assert_eq!((v.handle, v.id, v.name.as_str()), (handle, id, "WPN_OPTIMUS_LASER_FIRE_L"));
+        assert!(v.own_place && (v.offset.length() - 5.0).abs() < 1e-5 && !v.stopping);
+        // The meter is the instance's own output with the master divided out.
+        let loudest = buffer.iter().fold(0.0f32, |m, s| m.max(s.abs()));
+        assert!(v.peak > 0.0 && (v.peak * mixer.master - loudest).abs() < 1e-5, "{} {loudest}", v.peak);
+        assert!((v.elapsed - 0.2).abs() < 1e-4 && v.sounds > 0);
+        mixer.stop(handle);
+        assert!(mixer.view()[0].stopping);
     }
 
     #[test]

@@ -161,6 +161,8 @@ pub struct Actions {
     /// The CRC-32 of the name of each of his nodes, for where a melee weapon links at load
     /// (`MeleeBlade::link`).
     pub robot_nodes: Vec<u32>,
+    /// Sets beyond `SETS` this character's states play as actions (`with_sets`).
+    pub extra_sets: Vec<String>,
 }
 
 /// An object's explosion spawners, each at its node's rest place.
@@ -223,6 +225,50 @@ impl Actions {
         name.rotate_left(16) ^ 0x7f4a_7c15
     }
 
+    /// One clip of a set the control states play, measured on his node tree.
+    fn action_clip(set: &str, r: &AnimRef, clip: &Clip, rig: &Rig, robot: &ObjectDef) -> ActionClip {
+        let (bodies, mounts) = melee::attack_bodies_and_mounts(rig, robot, clip, r.looping);
+        ActionClip {
+            set: set.to_owned(),
+            id: r.id.clone(),
+            ticks: clip.length,
+            speed: r.speed,
+            crossfade: r.crossfade,
+            looping: r.looping,
+            path: clip.root_path(),
+            turn: clip.root_turn(),
+            events: clip.action_events.clone(),
+            attack: r.attack,
+            bodies,
+            mounts,
+            weapon_events: clip.weapon_events.clone(),
+            blasts: melee::clip_blasts(rig, robot, clip, r.looping),
+        }
+    }
+
+    /// Adds sets beyond `SETS` that this character's own states play (Devastator's `TurnSet` and
+    /// `PlayAnimSet`: `crate::giant`). A clip whose name the table already holds is left as it is,
+    /// and the sets are played as actions for this character only (`extra_sets`): Bumblebee's
+    /// pack has a `PlayAnimSet` too, which the mission scripts' states use. [data]
+    pub fn with_sets(mut self, animations: &AnimSet, robot: &ObjectDef, sets: &[&str]) -> Self {
+        let rig = Rig::new(robot);
+        for &set in sets {
+            let Some(refs) = animations.sets.get(set) else { continue };
+            for r in refs {
+                let Some(clip) = &r.clip else { continue };
+                self.clips.entry(crc32(r.id.as_bytes())).or_insert_with(|| Self::action_clip(set, r, clip, &rig, robot));
+            }
+            self.extra_sets.push(set.to_owned());
+        }
+        self
+    }
+
+    /// Whether the control states' clips in this set play as actions: `SETS`, and this
+    /// character's `extra_sets`. [data]
+    pub fn plays(&self, set: u32) -> bool {
+        Self::SETS.iter().copied().chain(self.extra_sets.iter().map(String::as_str)).any(|name| crc32(name.as_bytes()) == set)
+    }
+
     /// `robot` is his node tree, for the bodies his attacks hit with.
     pub fn from_animations(animations: &AnimSet, robot: &ObjectDef, missing: &mut Vec<String>) -> Self {
         let mut clips = HashMap::new();
@@ -238,26 +284,7 @@ impl Actions {
             };
             for r in refs {
                 let Some(clip) = &r.clip else { continue };
-                let (bodies, mounts) = melee::attack_bodies_and_mounts(&rig, robot, clip, r.looping);
-                clips.insert(
-                    crc32(r.id.as_bytes()),
-                    ActionClip {
-                        set: set.to_owned(),
-                        id: r.id.clone(),
-                        ticks: clip.length,
-                        speed: r.speed,
-                        crossfade: r.crossfade,
-                        looping: r.looping,
-                        path: clip.root_path(),
-                        turn: clip.root_turn(),
-                        events: clip.action_events.clone(),
-                        attack: r.attack,
-                        bodies,
-                        mounts,
-                        weapon_events: clip.weapon_events.clone(),
-                        blasts: melee::clip_blasts(&rig, robot, clip, r.looping),
-                    },
-                );
+                clips.insert(crc32(r.id.as_bytes()), Self::action_clip(set, r, clip, &rig, robot));
             }
         }
         // The car model's clips, keyed apart from the robot's (see `vehicle_clip_key`). [data]
@@ -302,6 +329,7 @@ impl Actions {
             vehicle_spawners: Vec::new(),
             melee: Vec::new(),
             robot_nodes: robot.nodes.iter().map(|n| n.name_hash).collect(),
+            extra_sets: Vec::new(),
         }
     }
 
@@ -755,6 +783,9 @@ pub struct Tuning {
     pub vehicle_weapon_wait: f32,
     /// What the attack mode's target search weighs by.
     pub melee: MeleeTuning,
+    /// Devastator's player binding and his pound's shockwaves (`crate::giant::fit`); None for
+    /// every other character.
+    pub giant: Option<crate::giant::Giant>,
     /// Values the pack did not have.
     pub missing: Vec<String>,
 }
@@ -886,7 +917,9 @@ impl Locomotion {
             walk_speed: walk.map_or(0.0, |(_, c)| c.forward_speed()),
             run_speed: run.map_or(0.0, |(_, c)| c.forward_speed()),
             move_stick: rule("animRuleMovement"),
-            run_stick: rule("animRuleMovementRun"),
+            // A set with no Run clip never runs: Devastator's WalkSet has only IdleToWalk and Walk,
+            // and his rules name no run (`notes\devastator.md`). [data]
+            run_stick: if run.is_some() { rule("animRuleMovementRun") } else { f32::INFINITY },
             idle_blend: fade(idle),
             walk_blend: fade(walk),
             run_blend: fade(run),

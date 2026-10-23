@@ -52,6 +52,26 @@ pub struct CharacterData {
     pub melee_weapons: Vec<weapons::MeleeWeapon>,
     /// What each weapon shows, by the weapon's name.
     pub weapon_effects: Vec<WeaponEffects>,
+    /// The robot object's `ShockWave` attachments, each with the node it sits on (its attachment
+    /// `index`). Only Devastator's object has any among the playable packs: the two his pound's
+    /// Trigger events set off (`crate::giant`). [data]
+    pub shockwaves: Vec<(usize, crate::shockwave::Def)>,
+    /// Sound events the port gives him beyond what his data names (Devastator's,
+    /// `giant::SOUNDS`), to be loaded with the rest. Empty from the pack.
+    pub extra_sounds: Vec<u32>,
+}
+
+/// An object's own `ShockWave` attachments and their nodes. [data]
+fn read_shockwaves(object: Node) -> Vec<(usize, crate::shockwave::Def)> {
+    object
+        .get("attachments")
+        .into_iter()
+        .flat_map(|a| a.items())
+        .filter_map(|a| {
+            let thing = a.get("thing").filter(|t| t.type_name() == Some("ShockWave"))?;
+            Some((a.get("index").and_then(Node::int).unwrap_or(0) as usize, crate::shockwave::read(thing)))
+        })
+        .collect()
 }
 
 /// Sound events the character names outside its clips, by id (the CRC-32 of the event's
@@ -329,7 +349,17 @@ pub const fn alt_projectile_key(weapon: u32) -> u32 {
 fn read_weapon_effects<'a>(character: Node<'a>, name_of: &dyn Fn(u32) -> Option<&'a str>, presets: &crate::collision_masks::Presets) -> Vec<WeaponEffects> {
     let mut out = Vec::new();
     for file in character.get("weapons").into_iter().flat_map(|weapons| weapons.items()) {
-        let attached = file.path(&["obj", "attachments"]).into_iter().flat_map(|a| a.items());
+        out.extend(object_weapon_effects(file.get("obj"), name_of, presets));
+    }
+    out
+}
+
+/// The effects rows of the weapons one object carries (`read_weapon_effects` of a weapon file's
+/// `obj`, or a placed object's: Devastator's pods, `giant::read_pods`).
+pub fn object_weapon_effects<'a>(object: Option<Node<'a>>, name_of: &dyn Fn(u32) -> Option<&'a str>, presets: &crate::collision_masks::Presets) -> Vec<WeaponEffects> {
+    let mut out = Vec::new();
+    {
+        let attached = object.and_then(|o| o.get("attachments")).into_iter().flat_map(|a| a.items());
         for thing in attached.filter_map(|a| a.get("thing")) {
             // A grenade's projectile is laid out as a missile's: its `obj` holds the trail's
             // emitter and a DamageLink to the `damage` object (the blast's emitter, the
@@ -410,11 +440,35 @@ fn read_sounds(character: Node) -> Sounds {
     }
 }
 
+/// The first node under `node` whose object label is `label`, depth first. Depth 40 is deeper than
+/// a CharacterSpawnManager's definition sits (about 12 objects down).
+pub(crate) fn find_label<'a>(node: Node<'a>, label: u32, depth: u32, seen: &mut std::collections::HashSet<usize>) -> Option<Node<'a>> {
+    if depth > 40 || node.offset().is_some_and(|o| !seen.insert(o)) {
+        return None;
+    }
+    if node.label() == Some(label) {
+        return Some(node);
+    }
+    node.fields().into_iter().map(|(_, n)| n).chain(node.items()).find_map(|n| find_label(n, label, depth + 1, seen))
+}
+
 pub fn load(game_dir: &Path, pack_name: &str) -> Result<CharacterData, String> {
-    let path = game_dir.join("characters").join(format!("{pack_name}.str"));
-    let pack = Pack::open(&path)?;
-    let chunk = pack.of_type(pack::DATA).next().ok_or("pack has no data object")?;
-    let file = DataFile::parse(pack.data(chunk).to_vec())?;
+    let pack = Pack::open(&crate::formats::characterlist::pack_file(game_dir, pack_name))?;
+    // The node whose fields are the character's roots: the data object itself for a `characters\`
+    // pack; for one kept in a mission pack (`characterlist::ELSEWHERE`), the embedded scene of his
+    // CharacterDefinition, in whichever data chunk holds it. [data]
+    let elsewhere = crate::formats::characterlist::elsewhere(pack_name);
+    let chunks = pack.of_type(pack::DATA).take(if elsewhere.is_some() { usize::MAX } else { 1 });
+    let files = chunks.map(|chunk| DataFile::parse(pack.data(chunk).to_vec())).collect::<Result<Vec<_>, _>>()?;
+    let (file, top) = match elsewhere {
+        None => files.first().map(|f| (f, f.root())).ok_or("pack has no data object")?,
+        Some(e) => {
+            let label = crate::formats::hash::crc32(e.scene.as_bytes());
+            files.iter()
+                .find_map(|f| find_label(f.root(), label, 0, &mut std::collections::HashSet::new()).map(|n| (f, n)))
+                .ok_or_else(|| format!("{pack_name}: no {} in {}", e.scene, e.file))?
+        }
+    };
     let name_of = |hash| file.name(hash);
 
     let mut robot = None;
@@ -435,10 +489,14 @@ pub fn load(game_dir: &Path, pack_name: &str) -> Result<CharacterData, String> {
     let mut weapon_animations = Vec::new();
     let mut melee_weapons = Vec::new();
     let mut weapon_effects = Vec::new();
-    for (_, root) in file.root().fields() {
+    let mut shockwaves = Vec::new();
+    for (_, root) in top.fields() {
         for thing in root.get("things").into_iter().flat_map(|things| things.items()) {
             match thing.type_name() {
-                Some("Object") if robot.is_none() => robot = scene::read_object(thing, name_of),
+                Some("Object") if robot.is_none() => {
+                    robot = scene::read_object(thing, name_of);
+                    shockwaves = read_shockwaves(thing);
+                }
                 Some("Character") => {
                     sounds = read_sounds(thing);
                     chatter = thing.get("battleChatter").map(crate::chatter::read).unwrap_or_default();
@@ -504,6 +562,8 @@ pub fn load(game_dir: &Path, pack_name: &str) -> Result<CharacterData, String> {
         weapon_animations,
         melee_weapons,
         weapon_effects,
+        shockwaves,
+        extra_sounds: Vec::new(),
     })
 }
 
@@ -527,6 +587,27 @@ mod tests {
             assert!(object.sound_players.iter().all(|p| p.node < object.nodes.len()),
                 "installed SoundPlayer attachments must address their object's nodes");
         }
+    }
+
+    /// Devastator has no `characters\` pack: he loads from the Cairo City boss mission's pack, out of
+    /// `CharDef_Devastator`'s embedded scene, with his six animation sets and his model. [data 2026-10-22]
+    #[test]
+    fn devastator_loads_from_the_boss_mission_pack() {
+        let dir = crate::install::dir();
+        if !dir.join(crate::formats::characterlist::ELSEWHERE[0].file).is_file() {
+            return;
+        }
+        let data = load(dir, "devastator").unwrap();
+        assert_eq!(data.name_id, crc32(b"Devastator"));
+        assert!(data.vehicle.is_none());
+        for (set, id) in [("IdleStandSet", "Idle"), ("WalkSet", "Walk"), ("WalkSet", "IdleToWalk"), ("TurnSet", "TurnLeft"),
+            ("TurnSet", "TurnRight"), ("CombatSet", "Attack1"), ("PlayAnimSet", "Idle2AttackSpecial"), ("PlayAnimSet", "AttackSpecial"),
+            ("DeathSet", "Death")] {
+            assert!(data.animations.find(set, id).and_then(|r| r.clip.as_ref()).is_some(), "{set}/{id}");
+        }
+        let walk = data.animations.find("WalkSet", "Walk").and_then(|r| r.clip.as_ref()).unwrap();
+        println!("devastator: {} nodes, walk {:.2} m/s, {} meshes", data.robot.nodes.len(), walk.forward_speed(), data.library.meshes.len());
+        assert!(walk.forward_speed() > 0.0);
     }
 
     /// Starscream's special makes his weapons fire their `chargeMaxProjectileObj` (007ae010,

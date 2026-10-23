@@ -16,7 +16,7 @@ use crate::formats::{
 use crate::pose::affine;
 
 /// [game: 0073db50] Probe extent, contact bias, reach margin and angular rate.
-const PROBE: f32 = 1.5;
+pub const PROBE: f32 = 1.5;
 const BIAS: f32 = 0.03;
 const REACH_MARGIN: f32 = 0.001;
 const TURN_RATE: f32 = 24.0;
@@ -32,10 +32,91 @@ pub struct Leg {
     pub sole: [Vec3; 4],
 }
 
+impl Leg {
+    /// The limb ending at `foot` (its parent the knee, the knee's the hip), its sole measured in
+    /// `pose` (every node in the object's space, as `pose::Rig::pose` gives it) instead of the bind
+    /// pose: the rectangle round the rigid mesh points of `foot` and every node under it that lie
+    /// within `reach` of their lowest, at that lowest height.
+    /// [assumed] For a limb that stands on more than a foot mesh, in a pose it stands in
+    /// (Devastator's hands on their fingertips: `crate::giant::limbs`). settles: none in the game,
+    /// which has no foot IK on him (no FootIK object in his pack, `notes/devastator.md`).
+    pub fn planted(object: &ObjectDef, library: &Library, pose: &[Affine3A], foot: usize, reach: f32) -> Option<Self> {
+        let knee = object.nodes[foot].parent?;
+        let hip = object.nodes[knee].parent?;
+        let under = |mut n: usize| loop {
+            if n == foot {
+                return true;
+            }
+            match object.nodes[n].parent {
+                Some(p) => n = p,
+                None => return false,
+            }
+        };
+        let mut points = Vec::new();
+        for render in object.renders.iter().filter(|r| under(r.node)) {
+            // Skinned meshes are in model space and need a different bounds path.
+            let Some(mesh) = library.meshes.get(&lower33(&render.model)).filter(|m| m.skeleton.is_none()) else {
+                continue;
+            };
+            let at = pose[render.node];
+            points.extend(mesh.parts.iter().flat_map(|p| &p.positions).map(|p| at.transform_point3(Vec3::from(*p))));
+        }
+        let low = points.iter().map(|p| p.z).fold(f32::INFINITY, f32::min);
+        if !low.is_finite() {
+            return None;
+        }
+        let mut min = Vec3::splat(f32::INFINITY);
+        let mut max = Vec3::splat(f32::NEG_INFINITY);
+        for p in points.iter().filter(|p| p.z <= low + reach) {
+            min = min.min(*p);
+            max = max.max(*p);
+        }
+        let inverse = pose[foot].inverse();
+        let sole = [
+            Vec3::new(min.x, min.y, low),
+            Vec3::new(max.x, min.y, low),
+            Vec3::new(min.x, max.y, low),
+            Vec3::new(max.x, max.y, low),
+        ]
+        .map(|p| inverse.transform_point3(p));
+        Some(Leg { hip, knee, foot, sole })
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct FootRig {
-    pub legs: [Leg; 2],
+    /// The supported limbs: a robot's two legs, Devastator's legs and arms (`crate::giant::limbs`).
+    pub legs: Vec<Leg>,
     pub body: usize,
+    /// The vertical probe's half extent: `PROBE` [game], scaled for a giant [assumed].
+    pub probe: f32,
+    /// A heavy body's planting (Devastator's, `crate::giant::WEIGHT`); `None` is the game's filter.
+    pub weight: Option<Weight>,
+}
+
+/// How a heavy body's limbs and body follow the ground [assumed port design: the user, 2026-10-23,
+/// Devastator "feels weightless when he's pushing his feet up over a small obstacle"; the game's
+/// filter halves the gap every 0.032 s, so a giant's limb pops up a 2 m block in 0.1 s and his body
+/// never moves]. Each limb's lift is a critically damped spring (slower up than down), aimed at the
+/// higher of the ground under it and the ground where it will be `lead` seconds on at its present
+/// speed (so a swinging limb rises as it comes to an edge, not after it is in it). The body rises a
+/// share of the limbs' lift on an under-damped spring, and a limb landing on its height pushes it
+/// down by a share of the limb's speed: the weight settling onto it.
+#[derive(Clone, Copy, Debug)]
+pub struct Weight {
+    /// The limbs' spring rate (rad/s) going up and coming down.
+    pub rise: f32,
+    pub fall: f32,
+    /// Seconds a moving limb looks ahead, and the farthest it looks (m).
+    pub lead: f32,
+    pub lead_reach: f32,
+    /// The share of the supported limbs' mean lift the body rises by.
+    pub heave: f32,
+    /// The body's spring rate (rad/s) and damping ratio.
+    pub body_rate: f32,
+    pub body_damping: f32,
+    /// The share of a landing limb's speed (m/s) the body is pushed down at.
+    pub settle: f32,
 }
 
 impl FootRig {
@@ -92,8 +173,10 @@ impl FootRig {
             })
         };
         Some(Self {
-            legs: [leg("L")?, leg("R")?],
+            legs: vec![leg("L")?, leg("R")?],
             body: node("Main")?,
+            probe: PROBE,
+            weight: None,
         })
     }
 }
@@ -184,20 +267,133 @@ fn apply_leg(
     local[leg.foot] = parents[leg.foot].map_or(at, |p| world[p].inverse() * at);
 }
 
+/// The filtered state, one entry per limb of the rig it is applied with.
 #[derive(Default)]
 pub struct FootIk {
-    offsets: [f32; 2],
-    turns: [Quat; 2],
+    offsets: Vec<f32>,
+    turns: Vec<Quat>,
     remainder: f32,
     previous: Option<Vec3>,
+    /// A heavy body's state (`Weight`): each limb's lift speed, the fastest it rose in its present
+    /// rise, where the clip drew it last frame; the body's lift and its speed.
+    speeds: Vec<f32>,
+    peaks: Vec<f32>,
+    drawn: Vec<Option<Vec3>>,
+    body: f32,
+    body_speed: f32,
+}
+
+/// A limb's lift for the ground under its sole with its ankle at `ankle` (world), and the sole's turn
+/// onto that ground (`None` with no ground in the probe's reach).
+fn limb_lift(rig: &FootRig, leg: &Leg, ankle: Affine3A, origin: Vec3, ground: &impl Sight) -> Option<(f32, Quat)> {
+    let (_, rotation, p) = ankle.to_scale_rotation_translation();
+    let centre = leg.sole.iter().copied().sum::<Vec3>() / 4.0;
+    // settles: the original probe binding to the animated endpoint (0073db50; not bound for these robots).
+    // [game] Vertical probe +/-1.5. [assumed] Centre and corners of the
+    // mesh-derived sole instead of the original linked endpoint. Sampling
+    // corners prevents a toe sinking into a higher surface at a join.
+    let contacts: Vec<_> = std::iter::once(centre)
+        .chain(leg.sole)
+        .filter_map(|s| {
+            let probe = ankle.transform_point3(s);
+            ground.sight(probe + Vec3::Z * rig.probe, probe - Vec3::Z * rig.probe)
+        })
+        .filter(|h| h.normal.z > 1e-6)
+        .collect();
+    let before = leg
+        .sole
+        .iter()
+        .map(|s| (rotation * *s).z)
+        .fold(f32::INFINITY, f32::min);
+    let correction = |hit: &crate::camera::Hit, rotated: Quat| {
+        let after = leg
+            .sole
+            .iter()
+            .map(|s| hit.normal.dot(rotated * *s) / hit.normal.z)
+            .fold(f32::INFINITY, f32::min);
+        let height = hit.point.z
+            - hit.normal.truncate().dot((p - hit.point).truncate()) / hit.normal.z;
+        height - origin.z + before - after + BIAS
+    };
+    let candidate = |hit: &crate::camera::Hit| {
+        correction(
+            hit,
+            Quat::from_rotation_arc(Vec3::Z, hit.normal.normalize()) * rotation,
+        )
+    };
+    let hit = contacts
+        .iter()
+        .max_by(|a, b| candidate(a).total_cmp(&candidate(b)))?;
+    let turn = Quat::from_rotation_arc(Vec3::Z, hit.normal.normalize());
+    // settles: 0073db50's foot-turn selection (only its halfway and dt*24 lines are read).
+    // [assumed] Respect every sampled plane after selecting the foot turn.
+    let lift = contacts
+        .iter()
+        .map(|h| correction(h, turn * rotation))
+        .fold(f32::NEG_INFINITY, f32::max);
+    Some((lift, turn))
 }
 
 impl FootIk {
     pub fn reset(&mut self) {
-        self.offsets = [0.0; 2];
-        self.turns = [Quat::IDENTITY; 2];
+        self.offsets.iter_mut().for_each(|o| *o = 0.0);
+        self.turns.iter_mut().for_each(|t| *t = Quat::IDENTITY);
         self.remainder = 0.0;
         self.previous = None;
+        self.speeds.iter_mut().for_each(|s| *s = 0.0);
+        self.peaks.iter_mut().for_each(|s| *s = 0.0);
+        self.drawn.iter_mut().for_each(|d| *d = None);
+        self.body = 0.0;
+        self.body_speed = 0.0;
+    }
+
+    /// The body's lift this frame (a heavy body's spring, else the lowering to the lowest limb).
+    pub fn body_lift(&self) -> f32 {
+        self.body
+    }
+
+    /// The limbs' lifts this frame.
+    pub fn lifts(&self) -> &[f32] {
+        &self.offsets
+    }
+
+    /// A heavy body's filter (`Weight`), in steps of at most 1/120 s.
+    fn weigh(&mut self, w: &Weight, desired: &[f32], supported: &[bool], dt: f32) {
+        let steps = (dt * 120.0).ceil().max(1.0);
+        let h = dt / steps;
+        for _ in 0..steps as usize {
+            let mut settle = 0.0;
+            for i in 0..self.offsets.len() {
+                if !supported[i] {
+                    continue;
+                }
+                let gap = desired[i] - self.offsets[i];
+                let rate = if gap > 0.0 { w.rise } else { w.fall };
+                self.speeds[i] += (rate * rate * gap - 2.0 * rate * self.speeds[i]) * h;
+                self.offsets[i] += self.speeds[i] * h;
+                // A rise ends when the limb has slowed to a fifth of its fastest: it has landed.
+                if self.speeds[i] > self.peaks[i] {
+                    self.peaks[i] = self.speeds[i];
+                } else if self.peaks[i] > 0.5 && self.speeds[i] < self.peaks[i] * 0.2 {
+                    settle += self.peaks[i];
+                    self.peaks[i] = 0.0;
+                }
+            }
+            let lowest = self.offsets.iter().copied().fold(0.0_f32, f32::min);
+            let high = self
+                .offsets
+                .iter()
+                .zip(supported)
+                .filter(|(_, s)| **s)
+                .map(|(o, _)| o.max(0.0))
+                .fold(0.0_f32, f32::max);
+            let target = lowest + w.heave * high;
+            self.body_speed -= w.settle * settle;
+            self.body_speed += (w.body_rate * w.body_rate * (target - self.body)
+                - 2.0 * w.body_damping * w.body_rate * self.body_speed)
+                * h;
+            self.body += self.body_speed * h;
+        }
     }
 
     /// settles: 0073db50's lowering gate (enabled, the composed local_428 > 0.95, endpoint travel <= dt*0.3 + 0.001),
@@ -219,84 +415,62 @@ impl FootIk {
             self.reset();
             return;
         }
+        let count = rig.legs.len();
+        self.offsets.resize(count, 0.0);
+        self.turns.resize(count, Quat::IDENTITY);
         let origin: Vec3 = root.translation.into();
         // settles: 00740d60's and 0073db50's reset / teleport rule (unresolved in `notes/foot-ik.md`).
         // [assumed] A move larger than the probe diameter in one frame is a teleport.
         if self
             .previous
-            .is_some_and(|p| p.distance(origin) > PROBE * 2.0)
+            .is_some_and(|p| p.distance(origin) > rig.probe * 2.0)
         {
             self.reset();
         }
         self.previous = Some(origin);
         let inverse = root.inverse();
         let world = accumulate(local, parents);
-        let mut desired = [0.0; 2];
-        let mut turns = [Quat::IDENTITY; 2];
-        let mut supported = [false; 2];
+        let mut desired = vec![0.0; count];
+        let mut turns = vec![Quat::IDENTITY; count];
+        let mut supported = vec![false; count];
+        self.speeds.resize(count, 0.0);
+        self.peaks.resize(count, 0.0);
+        self.drawn.resize(count, None);
         for (i, leg) in rig.legs.iter().enumerate() {
             let ankle = root * world[leg.foot];
-            let (_, rotation, p) = ankle.to_scale_rotation_translation();
-            let centre = leg.sole.iter().copied().sum::<Vec3>() / 4.0;
-            // settles: the original probe binding to the animated endpoint (0073db50; not bound for these robots).
-            // [game] Vertical probe +/-1.5. [assumed] Centre and corners of the
-            // mesh-derived sole instead of the original linked endpoint. Sampling
-            // corners prevents a toe sinking into a higher surface at a join.
-            let contacts: Vec<_> = std::iter::once(centre)
-                .chain(leg.sole)
-                .filter_map(|s| {
-                    let probe = ankle.transform_point3(s);
-                    ground.sight(probe + Vec3::Z * PROBE, probe - Vec3::Z * PROBE)
-                })
-                .filter(|h| h.normal.z > 1e-6)
-                .collect();
-            let before = leg
-                .sole
-                .iter()
-                .map(|s| (rotation * *s).z)
-                .fold(f32::INFINITY, f32::min);
-            let correction = |hit: &crate::camera::Hit, rotated: Quat| {
-                let after = leg
-                    .sole
-                    .iter()
-                    .map(|s| hit.normal.dot(rotated * *s) / hit.normal.z)
-                    .fold(f32::INFINITY, f32::min);
-                let height = hit.point.z
-                    - hit.normal.truncate().dot((p - hit.point).truncate()) / hit.normal.z;
-                height - origin.z + before - after + BIAS
-            };
-            let candidate = |hit: &crate::camera::Hit| {
-                correction(
-                    hit,
-                    Quat::from_rotation_arc(Vec3::Z, hit.normal.normalize()) * rotation,
-                )
-            };
-            let Some(hit) = contacts
-                .iter()
-                .max_by(|a, b| candidate(a).total_cmp(&candidate(b)))
-            else {
+            let drawn: Vec3 = ankle.translation.into();
+            let was = self.drawn[i].replace(drawn);
+            let Some((lift, turn)) = limb_lift(rig, leg, ankle, origin, ground) else {
                 continue;
             };
-            let turn = Quat::from_rotation_arc(Vec3::Z, hit.normal.normalize());
-            // settles: 0073db50's foot-turn selection (only its halfway and dt*24 lines are read).
-            // [assumed] Respect every sampled plane after selecting the foot turn.
-            desired[i] = contacts
-                .iter()
-                .map(|h| correction(h, turn * rotation))
-                .fold(f32::NEG_INFINITY, f32::max);
+            desired[i] = lift;
+            // A heavy body's swinging limb also takes the ground where it is going (`Weight`).
+            if let (Some(w), Some(was)) = (rig.weight, was) {
+                let ahead = ((drawn - was).truncate() / dt * w.lead).clamp_length_max(w.lead_reach);
+                if ahead.length() > 0.05 {
+                    let there = Affine3A::from_translation(ahead.extend(0.0)) * ankle;
+                    if let Some((lift, _)) = limb_lift(rig, leg, there, origin, ground) {
+                        desired[i] = desired[i].max(lift);
+                    }
+                }
+            }
             turns[i] = inverse.to_scale_rotation_translation().1
                 * turn
                 * root.to_scale_rotation_translation().1;
             supported[i] = true;
         }
-        // settles: the dt that 00740d60 passes to 0073db50 (the frame dt or the 0.032 s step): the call site, not read.
-        // [assumed] Apply the game's half-per-update filter at the simulation cadence,
-        // independent of display refresh. Angular dt*24 is capped to avoid overshoot.
-        self.remainder += dt;
-        while self.remainder >= UPDATE {
-            self.remainder -= UPDATE;
-            for i in 0..2 {
-                self.offsets[i] += (desired[i] - self.offsets[i]) * 0.5;
+        if let Some(w) = rig.weight {
+            self.weigh(&w, &desired, &supported, dt);
+        } else {
+            // settles: the dt that 00740d60 passes to 0073db50 (the frame dt or the 0.032 s step): the call site, not read.
+            // [assumed] Apply the game's half-per-update filter at the simulation cadence,
+            // independent of display refresh. Angular dt*24 is capped to avoid overshoot.
+            self.remainder += dt;
+            while self.remainder >= UPDATE {
+                self.remainder -= UPDATE;
+                for i in 0..count {
+                    self.offsets[i] += (desired[i] - self.offsets[i]) * 0.5;
+                }
             }
         }
         for (i, turn) in turns.iter().enumerate() {
@@ -306,13 +480,18 @@ impl FootIk {
                 // [assumed] A lost probe releases its foot immediately.
                 self.offsets[i] = 0.0;
                 self.turns[i] = Quat::IDENTITY;
+                self.speeds[i] = 0.0;
+                self.peaks[i] = 0.0;
             }
         }
         if !supported.iter().any(|&s| s) {
             self.reset();
             return;
         }
-        let lower = self.offsets.iter().copied().fold(0.0_f32, f32::min);
+        if rig.weight.is_none() {
+            self.body = self.offsets.iter().copied().fold(0.0_f32, f32::min);
+        }
+        let lower = self.body;
         let body_parent = parents[rig.body].map_or(Affine3A::IDENTITY, |p| world[p]);
         local[rig.body].translation +=
             glam::Vec3A::from(body_parent.inverse().transform_vector3(Vec3::Z * lower));
@@ -707,6 +886,6 @@ mod tests {
             &crate::camera::Open,
         );
         assert_eq!(pose, base);
-        assert_eq!(ik.offsets, [0.0; 2]);
+        assert_eq!(ik.offsets, vec![0.0; 2]);
     }
 }

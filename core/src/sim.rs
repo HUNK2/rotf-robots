@@ -789,6 +789,17 @@ pub struct State {
     /// put their object at the node's world place when the Trigger arrives (ObjectSpawnerOnBone
     /// 007fc270: object_node_world_place 0056bee0 at 007fc31a, read 007fc325-007fc33a) [game, wave 28 P2].
     pub node_places: Vec<(u32, Vec3)>,
+    /// Devastator's `ShockWave` objects, one per `giant::Wave`, with their living rings
+    /// (`shockwave_hits`); empty for everyone else.
+    pub shockwaves: Vec<crate::shockwave::ShockWave>,
+    /// Devastator's root motion as it was last taken (`giant_root_motion`).
+    giant_root: crate::giant::RootMotion,
+    /// Devastator's vortex funnel where it stands this step (`vortex_pull`), and the drag it puts
+    /// on each target inside it (target id, velocity), for whoever moves the targets. And how long
+    /// each target it hit has before it can hit it again.
+    pub vortex: Option<crate::giant::Funnel>,
+    pub pulls: Vec<(u32, Vec3)>,
+    vortex_hits: Vec<(u32, f32)>,
     /// The camera shakes and pad rumbles started in the last step, for whoever owns the
     /// camera and the pad.
     pub shakes: Vec<ShakeStart>,
@@ -900,6 +911,11 @@ pub struct State {
     hover_weapon: bool,
     hit_direction: Vec3,
     wall_splatted: bool,
+    /// Devastator's answer to hits (`crate::giant::Stagger`): the damage taken since the last
+    /// update, the stagger itself, and a count of staggers for the game's sound and shake.
+    giant_hurt: f32,
+    pub giant_stagger: crate::giant::Stagger,
+    pub giant_staggers: u32,
 }
 
 /// The base layer's clip as the picture needs it: the set and clip by name, the tick, the
@@ -1020,6 +1036,9 @@ pub struct ActionState {
     /// clip ended: that update's root motion (`ActionState::root_travel`). Cleared by the next
     /// update's `play_action`.
     carried: Vec3,
+    /// The clip's exit rule led into a set the action player does not play (`action_exits`):
+    /// the layer has left the state's set. Cleared when a clip starts.
+    pub left_set: bool,
 }
 
 impl ActionState {
@@ -1176,6 +1195,11 @@ impl State {
             melee_attacking: false,
             blasts: Vec::new(),
             node_places: Vec::new(),
+            shockwaves: tuning.giant.as_ref().map_or(Vec::new(), |g| g.waves.iter().map(|w| crate::shockwave::ShockWave::new(w.def.clone())).collect()),
+            giant_root: Default::default(),
+            vortex: None,
+            pulls: Vec::new(),
+            vortex_hits: Vec::new(),
             shakes: Vec::new(),
             rumbles: Vec::new(),
             triggers: Vec::new(),
@@ -1212,6 +1236,9 @@ impl State {
             hover_weapon: false,
             hit_direction: Vec3::ZERO,
             wall_splatted: false,
+            giant_hurt: 0.0,
+            giant_stagger: crate::giant::Stagger::default(),
+            giant_staggers: 0,
         }
     }
 
@@ -1307,6 +1334,11 @@ impl State {
     /// The class of the control state he is in (`StateAttack`, `StateIdle`...).
     pub fn state_class<'a>(&self, t: &'a Tuning) -> Option<&'a str> {
         self.runner.state.and_then(|state| t.control.states.get(state)).map(|def| def.class.as_str())
+    }
+
+    /// The name of the control state he is in (`stateIdle`, `stateTurnLeft`...).
+    pub fn state_name<'a>(&self, t: &'a Tuning) -> Option<&'a str> {
+        self.runner.state.and_then(|state| t.control.states.get(state)).map(|def| def.name.as_str())
     }
 
     /// Includes the two active overlay levels, as the battle chatter checks do.
@@ -1528,6 +1560,8 @@ impl State {
         // receiver: bit 28 skips both blocks, bit 23 exempts the multipliers but not the floor, and
         // the floor holds while either special runs or the hit has bit 27 (l.216-220). [game 00719830]
         // `resolve` takes the factor and applies the floor of 1 while it is passed.
+        // Devastator's plating takes most of every hit. [assumed port design]
+        let packet = if t.giant.is_some() { crate::giant::armour(packet) } else { packet };
         let active = self.special.as_ref();
         let factor = crate::special_types::incoming_damage_flags(active, &t.damage.special_multipliers, 1.0, packet.flags, false);
         let context_shield = crate::special_types::health_floor_flags(active, packet.flags).map(|_| factor);
@@ -1543,6 +1577,7 @@ impl State {
             reject: false, invincible: t.damage.invincible, controller_accepts: true, external_health: false,
             difficulty: self.difficulty, immune_to_overdrive:false, double_damage:false }, &t.damage);
         if !resolved.accepted { return resolved; }
+        if t.giant.is_some() { self.giant_hurt += (self.health - resolved.health).max(0.0); }
         self.health = resolved.health.min(t.base_health);
         self.since_damage = 0.0;
         self.hit_direction = packet.direction;
@@ -1637,7 +1672,133 @@ pub fn step(s: &mut State, input: &Input, t: &Tuning, arena: &dyn World, dt: f32
     // The original's hits are contacts found by the physics step, which follows the modes.
     land_hits(s, t, arena);
     blast_hits(s, t, arena, dt);
+    shockwave_hits(s, t, arena, dt);
+    vortex_pull(s, t, arena, dt);
     hit_rumbles(s, t);
+}
+
+/// How fast Devastator's vortex drags what is inside it toward his head: at the point and at
+/// the open end, at its full size (it drags in proportion to its size as it grows and shrinks),
+/// and the part of that it turns about the funnel's axis. And how long after the funnel hits a
+/// thing it can hit it again. [assumed port design] The game's funnel only damages what touches
+/// it (its KillBox); nothing in its data drags. The movie's vortex inhales; the port's does, slowly
+/// at the funnel's mouth, 100 m out, and faster near his head, where its KillBox keeps hitting.
+/// The rehit: as `CollisionDamageObject`'s PUNCH contacts, at most every 0.5 s [game 007d7cc0];
+/// the KillBox's own contact (007f0810) has no wait. Settles: play.
+const VORTEX_PULL_POINT: f32 = 30.0;
+const VORTEX_PULL_MOUTH: f32 = 8.0;
+const VORTEX_SWIRL: f32 = 0.4;
+const VORTEX_REHIT: f32 = 0.5;
+
+/// Devastator's vortex (`crate::giant::Vortex`): while his clip has the funnel up, every target
+/// inside it is dragged toward his head (`pulls`) and hit by its KillBox: its damage, flags and
+/// knock-back, the blow going from the funnel's point to the target as the KillBox's does
+/// (normalize(contact - box place), 007f0810) [game] [data]. [assumed port design] see the pull's
+/// numbers above. [stand-in: the candidates are the arena's targets, as for his shockwaves, and
+/// the funnel's hull is its model's widest point at each tenth of its length]
+fn vortex_pull(s: &mut State, t: &Tuning, arena: &dyn World, dt: f32) {
+    s.pulls.clear();
+    s.vortex = None;
+    s.vortex_hits.retain_mut(|(_, left)| {
+        *left -= dt;
+        *left > 0.0
+    });
+    let Some(vortex) = t.giant.as_ref().and_then(|g| g.vortex.as_ref()) else { return };
+    let Some((clip, tick)) = s.action.as_ref().map(|a| (a.clip, a.tick)) else { return };
+    let placed = Affine3A::from_rotation_translation(Quat::from_rotation_z(s.yaw), s.pos);
+    let Some(funnel) = vortex.at(placed, clip, tick) else { return };
+    s.vortex = Some(funnel);
+    let full = vortex.scale.iter().copied().fold(1.0, f32::max);
+    let axis = funnel.axis();
+    for target in arena.targets() {
+        let centre = target.pos + Vec3::Z * target.radius;
+        let Some((along, _)) = funnel.holds(vortex, centre, target.radius) else { continue };
+        let inward = (funnel.tip - centre).normalize_or_zero();
+        let out = (centre - funnel.tip) - axis * (centre - funnel.tip).dot(axis);
+        let around = axis.cross(out).normalize_or_zero();
+        let speed = (VORTEX_PULL_POINT + (VORTEX_PULL_MOUTH - VORTEX_PULL_POINT) * along) * funnel.scale / full;
+        // No further in this update than the point: what reaches it is held there.
+        let speed = speed.min((funnel.tip - centre).length() / dt.max(1e-3));
+        s.pulls.push((target.id, inward * speed + around * speed * VORTEX_SWIRL));
+        if s.vortex_hits.iter().any(|(id, _)| *id == target.id) {
+            continue;
+        }
+        s.vortex_hits.push((target.id, VORTEX_REHIT));
+        s.hits.push(Hit {
+            target: target.id,
+            clip,
+            damage: vortex.damage,
+            point: centre,
+            body: vortex.head_node,
+            direction: (centre - funnel.tip).truncate().normalize_or_zero(),
+            knock_back_speed: vortex.knock_back_speed,
+            knock_back_angle: vortex.knock_back_angle.to_radians(),
+            flags: vortex.flags,
+            surface: target.surface,
+            blast: true,
+            stun_time: 0.0,
+        });
+    }
+}
+
+/// Devastator's pound (`crate::giant`): each Trigger his clip sent this update that names one of
+/// his `ShockWave`s starts a ring at its node (`FUN_00805ed0`), the drawn node's place or else the
+/// node's place in the clip; the ground probe, 1 m above to 2 m below, sets the ring on what it
+/// hits; then every living ring grows and hurts what its band passes, each thing once while any
+/// ring of that wave lives (`FUN_00805410`, `crate::shockwave`). [game] [stand-in: the candidates
+/// are the arena's targets, where the game's query walks every object with a collision record,
+/// and each target takes the hit, as for his blasts (`blast_hits`); the probe is the floor under
+/// the node, not a swept sphere] The rings' start time is carried by the game's damage message
+/// only, which the port's hit does not have: 0.
+fn shockwave_hits(s: &mut State, t: &Tuning, arena: &dyn World, dt: f32) {
+    let Some(giant) = &t.giant else { return };
+    let placed = Affine3A::from_rotation_translation(Quat::from_rotation_z(s.yaw), s.pos);
+    let playing = s.action.as_ref().map(|a| (a.clip, a.tick));
+    for (wave, data) in s.shockwaves.iter_mut().zip(&giant.waves) {
+        for _ in s.triggers.iter().filter(|&&name| name == data.def.name) {
+            let at = s.node_places.iter().find(|(node, _)| *node == data.node).map(|&(_, at)| at)
+                .or_else(|| playing.and_then(|(clip, tick)| data.centre(clip, tick)).map(|c| placed.transform_point3(c)))
+                .unwrap_or(s.pos);
+            wave.trigger(at, 0.0);
+            let floor = arena.floor(at.x, at.y, at.z + crate::shockwave::PROBE_UP);
+            if (at.z - crate::shockwave::PROBE_DOWN..=at.z + crate::shockwave::PROBE_UP).contains(&floor) {
+                wave.ground(wave.rings.len() - 1, floor);
+            }
+        }
+    }
+    let targets = arena.targets();
+    let candidates: Vec<_> = targets
+        .iter()
+        .map(|target| crate::shockwave::Candidate {
+            id: target.id,
+            position: target.pos,
+            radius: target.radius,
+            size: target.character.then_some(if target.large { crate::shockwave::Size::Large } else { crate::shockwave::Size::Small }),
+        })
+        .collect();
+    let clip = playing.map_or(0, |(clip, _)| clip);
+    let mut hits = Vec::new();
+    for (wave, data) in s.shockwaves.iter_mut().zip(&giant.waves) {
+        wave.update(dt, u32::MAX, None, &candidates, |hit| {
+            let Some(target) = targets.iter().find(|target| target.id == hit.target) else { return false };
+            hits.push(Hit {
+                target: hit.target,
+                clip,
+                damage: hit.packet.amount,
+                point: target.pos,
+                body: data.node,
+                direction: hit.packet.direction.truncate().normalize_or_zero(),
+                knock_back_speed: hit.packet.knockback_speed,
+                knock_back_angle: hit.packet.knockback_angle,
+                flags: hit.packet.flags,
+                surface: target.surface,
+                blast: true,
+                stun_time: hit.packet.stun_time,
+            });
+            true
+        });
+    }
+    s.hits.extend(hits);
 }
 
 /// Starts one of the pad's preset rumbles by its number (`FUN_00717c40` -> `FUN_007dc0a0`).
@@ -1912,6 +2073,35 @@ fn die(s: &mut State, input: &Input, t: &Tuning) {
     s.stun_pending = false;
     if let Some(index) = t.control.states.iter().position(|def| def.class == "StateDeath") {
         s.runner.enter(&t.control, index);
+    }
+}
+
+/// Devastator's hits (`crate::giant::Stagger`) [assumed port design]: the shared reacts and stun
+/// never start (they play `HitReactionSet`, which he lacks [data]); the damage of the last
+/// moments staggers him instead. Standing or walking, a stagger plays one of his own hit reacts
+/// (`giant::react_clip`) in `stateTurnLeft`, the plain one-clip state his machine has
+/// (StateBasic, finishAnim, playAnimOnce [data]), which hands him back to `stateMove` when the
+/// clip ends; busy with his pound, his vortex or a turn, his body sways under it instead.
+fn giant_react(s: &mut State, input: &Input, t: &Tuning, dt: f32) {
+    s.hit_pending = None;
+    s.stun_pending = false;
+    let hurt = std::mem::take(&mut s.giant_hurt);
+    if !s.giant_stagger.step(hurt, t.base_health, dt) || s.dead() {
+        return;
+    }
+    s.giant_staggers = s.giant_staggers.wrapping_add(1);
+    let graph = &t.control;
+    let free = s.runner.state.is_some_and(|i| matches!(graph.states[i].class.as_str(), "StateIdle" | "StateMove"));
+    let clip = crate::giant::react_clip(s.hit_direction, s.yaw);
+    match graph.find("stateTurnLeft").filter(|_| free && t.actions.clips.contains_key(&clip)) {
+        Some(host) => {
+            let on_ground = s.ground_flag();
+            enter_state(s, input, t, host, None, on_ground);
+            s.previous_state = s.runner.state;
+            s.runner.enter(graph, host);
+            start_clip(s, input, t, host, clip);
+        }
+        None => s.giant_stagger.kick(s.hit_direction, s.yaw),
     }
 }
 
@@ -2203,8 +2393,17 @@ fn advance(s: &mut State, input: &Input, t: &Tuning, arena: &dyn World, dt: f32)
     // [game] on a level the robot's pencil meets the walls through the contact pass (`World::move_pencil`,
     // `physics_contact`), and so does the driving car's chassis (`World::move_chassis`, in `step_drive`);
     // a car-sized body elsewhere keeps the stand-in push.
+    let stride = t.giant.as_ref().map_or(0.0, |g| g.stride);
     let pushed = if s.is_vehicle() {
         !(s.mode == Mode::Drive && arena.chassis_pass()) && arena.push_out(&mut s.pos, radius, height)
+    } else if stride > 0.0 && stride < height {
+        // Devastator: his cylinder starts at his ankles (`giant::body`), so what is lower passes
+        // between his legs and he stays on the ground under it. [assumed port design]
+        let lift = Vec3::Z * stride;
+        let mut body = s.pos + lift;
+        let pushed = arena.move_pencil(previous_feet + lift, &mut body, &mut s.vel, radius, height - stride);
+        (s.pos.x, s.pos.y) = (body.x, body.y);
+        pushed
     } else {
         arena.move_pencil(previous_feet, &mut s.pos, &mut s.vel, radius, height)
     };
@@ -2397,7 +2596,8 @@ fn step_move(s: &mut State, input: &Input, t: &Tuning, dt: f32) {
     let deflection = input.stick.length().min(1.0);
     let pushing = deflection * deflection > STICK_DEAD_SQUARED;
     if moving && pushing {
-        s.yaw = turn_toward(s.yaw, yaw_of(input.stick), t.moving.turn_speed.to_radians() * dt);
+        let rate = t.giant.as_ref().map_or(t.moving.turn_speed.to_radians(), |g| g.walk_turn);
+        s.yaw = turn_toward(s.yaw, yaw_of(input.stick), rate * dt);
     }
     let walk = &t.locomotion;
     s.gait = if moving { gait_of(deflection, walk) } else { Gait::Idle };
@@ -2405,6 +2605,12 @@ fn step_move(s: &mut State, input: &Input, t: &Tuning, dt: f32) {
         // A state that plays its own clip in this mode (the first half of the change into the
         // car, while the stick does not yet line up): that clip's root moves him. [game]
         s.layers.clear();
+        // Devastator's walk does not carry on past an action (`giant_root_motion`).
+        s.giant_root.velocity = Vec2::ZERO;
+        moved
+    } else if let Some(moved) = giant_root_motion(s, t, dt) {
+        s.layers.clear();
+        s.speed = moved.length();
         moved
     } else {
         s.speed = step_pace(s, walk, dt);
@@ -2814,6 +3020,46 @@ fn enter_strafe(s: &mut State, input: &Input, t: &Tuning, old: Mode) {
         s.strafe.layers.push(RootLayer { clip, action: clip != 0, weight: 1.0, blend: 0.0, tick, carry, elapsed_ticks:tick, overrun:0.0 });
     }
     strafe_entry(s, input, t, from_set, from_id);
+}
+
+/// Devastator stands and walks by his base clip's root motion (`giant::Giant::roots`), not at
+/// the walk's even speed: the velocity it gives over this step, in the world, and his root's
+/// turn added to his heading. None for anyone else. [assumed port design] The clip's travel is
+/// taken from the tick he was last moved at; a clip started since (or a look missed, as after an
+/// action) from one step's worth of ticks back, not before its start. A clip started since: the
+/// one before goes on moving him, less and less over the new one's blend, as the two are drawn
+/// (so the walk runs down into the stand instead of stopping dead). Each hand or foot that lands
+/// in the stretch (`giant::Root::steps`) starts `giant::FOOTFALL_SHAKE` at his place and the
+/// pad's landing rumble (`VEHICLE_HIT_GROUND`). [assumed port design]
+fn giant_root_motion(s: &mut State, t: &Tuning, dt: f32) -> Option<Vec2> {
+    let giant = t.giant.as_ref()?;
+    let seen = s.giant_root;
+    (s.giant_root.serial, s.giant_root.tick) = (s.base.serial, s.base.tick);
+    let root = giant.roots.get(&(s.base.set, s.base.clip))?;
+    let speed = s.base.current(&t.rule_sets).map_or(1.0, |clip| clip.speed);
+    let step = dt * crate::formats::anim::TICKS_PER_SECOND * speed * s.special_rate;
+    let gone = |from: f32| if root.looping { (s.base.tick - from).rem_euclid(root.ticks().max(1.0)) } else { s.base.tick - from };
+    let fresh = seen.serial == s.base.serial && (0.0..=2.0 * step + 1e-3).contains(&gone(seen.tick));
+    let from = if fresh { seen.tick } else { (s.base.tick - step).max(0.0) };
+    let (moved, turned) = root.travel(from, s.base.tick);
+    let facing = s.facing();
+    let right = Vec2::new(facing.y, -facing.x);
+    s.yaw = wrapped(s.yaw + turned);
+    let moved = if dt > 1e-6 { moved / dt } else { Vec3::ZERO };
+    let own = right * moved.x + facing * moved.y;
+    let r = &mut s.giant_root;
+    if seen.serial != s.base.serial {
+        (r.carry, r.left, r.blend) = (seen.velocity, s.base.blend, s.base.blend);
+    }
+    let carried = if r.blend > 1e-6 { (r.left / r.blend).clamp(0.0, 1.0) } else { 0.0 };
+    r.left = (r.left - dt).max(0.0);
+    r.velocity = own * (1.0 - carried) + r.carry * carried;
+    let velocity = r.velocity;
+    if root.lands(from, s.base.tick) {
+        s.shakes.push(ShakeStart { name: crate::giant::FOOTFALL_SHAKE, at: s.pos });
+        preset_rumble(s, t, rumble::preset::VEHICLE_HIT_GROUND);
+    }
+    Some(velocity)
 }
 
 /// The velocity the playing state clip's root motion gives over this step, in the world, if
@@ -3453,6 +3699,9 @@ fn control(s: &mut State, input: &Input, t: &Tuning, arena: &dyn World, dt: f32)
         s.runner.enter(graph, idle);
         base_enter(s, input, t, IDLE_SET, (0, 0));
     }
+    if t.giant.is_some() {
+        giant_react(s, input, t, dt);
+    }
     if let Some(full) = s.hit_pending.take() {
         let permission = if full { 1 << 1 } else { 1 << 2 };
         let allowed = s.runner.state.is_some_and(|index| graph.states[index].can_go_to & permission != 0);
@@ -3511,6 +3760,17 @@ fn control(s: &mut State, input: &Input, t: &Tuning, arena: &dyn World, dt: f32)
     // The flying form is on the same trigger as the car: the `Controller` bindings give
     // `FlyingMode` and `VehicleMode` the same entry, 25394345 (R2). [data global_tuning.txt]
     pad.set(button::FLYING_MODE, input.vehicle > R2_DOWN, false);
+    // Devastator's player binding: the pad as the messages his brain would send, and a turn on
+    // the spot keeps the stick from the machine (`crate::giant`). [assumed port binding]
+    let mut messages = messages;
+    if let Some(giant) = &t.giant {
+        let idle = graph.states[current].class == "StateIdle";
+        let ask = giant.ask(idle, facing, input.stick, held(button::ATTACK_FAST).1, held(button::ATTACK_SPECIAL).1);
+        messages.extend(ask.messages);
+        if ask.hide_stick {
+            (pad.left, pad.left_character) = (Vec2::ZERO, Vec2::ZERO);
+        }
+    }
 
     s.clip_handover = None;
     if s.action.is_some() {
@@ -3691,8 +3951,18 @@ fn control(s: &mut State, input: &Input, t: &Tuning, arena: &dyn World, dt: f32)
     // 100, as the connections see it. [game]
     let current_def = &graph.states[current];
     let basic = current_def.class == "StateBasic" && !current_def.overlay;
-    let basic_left_set = current_def.finish_on_set_exit && current_def.anim_set != playing_set(s, t);
+    let left_set = s.action.as_ref().is_some_and(|a| a.left_set);
+    let basic_left_set = current_def.finish_on_set_exit && (left_set || current_def.anim_set != playing_set(s, t));
     let basic_done = basic && if current_def.finish_on_set_exit { basic_left_set } else { current_def.play_anim_once && branch == 100 };
+    // The attack state's own done (slot 9, `00878d20`): not as an overlay; with
+    // `finishOnCombatAnimSetExit` (+0x58) once the layer has left `CombatSet`, else once its clip
+    // has finished. Done with no transition winning sends it to the default state, as for the
+    // plain state. [game] Devastator's pound has no transitions at all and ends only by this.
+    let attack_done = current_def.class == "StateAttack" && !current_def.overlay && if current_def.finish_on_set_exit {
+        left_set || playing_set(s, t).as_deref() != Some("CombatSet")
+    } else {
+        branch == 100
+    };
     let may_leave = match graph.states[current].class.as_str() {
         "StateBasic" if basic => if current_def.finish_on_set_exit { basic_left_set } else { !current_def.finish_anim || branch == 100 },
         // An ordinary special with `finishOnSpecialAnimSetExit` (+0x60) waits until the layer has
@@ -3749,7 +4019,7 @@ fn control(s: &mut State, input: &Input, t: &Tuning, arena: &dyn World, dt: f32)
         // not asked for these (`FUN_00878230`). [game]
         if let Some(over) = s.runner.pick_overlay(graph, &facts, &may_enter) {
             s.runner.ask_overlay(over);
-        } else if basic_done || ((s.hit_full || s.stun_full || special_ended(s, t, graph.states[current].class == "StateAttackSpecial")) && branch == 100) {
+        } else if basic_done || attack_done || ((s.hit_full || s.stun_full || special_ended(s, t, graph.states[current].class == "StateAttackSpecial")) && branch == 100) {
             // A completed ordinary state requests the owner's default state (+0x318).
             // Character setup binds that default to stateIdle, even when another state
             // starts first. [game: FUN_00877d90, FUN_00850a70, 00716d8b..00716d9b]
@@ -4424,6 +4694,7 @@ fn start_clip(s: &mut State, _input: &Input, t: &Tuning, state: usize, clip: u32
         from_climb: false,
         lifted: false,
         effects: Vec::new(),
+        left_set: false,
     });
     // The clip's events at its first tick count at once.
     pass_events(s.action.as_mut().unwrap(), data, &Pad::default());
@@ -4553,6 +4824,7 @@ fn switch_action_clip(s: &mut State, t: &Tuning, next_id: u32) {
     action.hitting = false;
     action.live.clear();
     action.triggers.clear();
+    action.left_set = false;
     action.fade = if fade_time > 0.0 { 0.0 } else { 1.0 };
     action.fade_time = fade_time;
     pass_events(action, next, &Pad::default());
@@ -4593,10 +4865,11 @@ fn action_set_name(t: &Tuning, state: usize, clip: u32) -> Option<&'static str> 
     crate::tuning::Actions::SETS.into_iter().find(|name| crc32(name.as_bytes()) == set)
 }
 
-/// Whether a set is one whose clips the action player plays (`Actions::SETS`): an exit rule
-/// into any other set is the base layer's, or the state machine's, to carry out.
-fn plays_as_action(set: u32) -> bool {
-    crate::tuning::Actions::SETS.iter().any(|name| crc32(name.as_bytes()) == set)
+/// Whether a set is one whose clips the action player plays (`Actions::SETS`, and this
+/// character's `extra_sets`): an exit rule into any other set is the base layer's, or the state
+/// machine's, to carry out.
+fn plays_as_action(t: &Tuning, set: u32) -> bool {
+    t.actions.plays(set)
 }
 
 /// The animation controller's turn for a clip a control state started BY NAME (`start_clip`):
@@ -4631,8 +4904,18 @@ fn action_exits(s: &mut State, input: &Input, t: &Tuning) {
     } else {
         t.rule_sets.get(&to_set).and_then(|rules| animrules::entry(&rules.incoming, set, clip.id, &get))
     };
+    // An exit into a set the action player does not play hands the layer to that set: the
+    // state's clip set is left (what `finishOnAnimSetExit` and `finishOnCombatAnimSetExit` wait
+    // for), though the action keeps its last clip until the machine moves on. [game 00878d20,
+    // 0087a1b0: they compare the layer's set with the state's]
+    let current = action.clip;
+    if let Some((next_set, _)) = next
+        && next_set != 0 && next_set != set && !plays_as_action(t, next_set)
+        && let Some(action) = s.action.as_mut() {
+        action.left_set = true;
+    }
     let next = next
-        .filter(|&(next_set, id)| id != 0 && id != action.clip && (next_set == 0 || plays_as_action(next_set)) && t.actions.clips.contains_key(&id))
+        .filter(|&(next_set, id)| id != 0 && id != current && (next_set == 0 || plays_as_action(t, next_set)) && t.actions.clips.contains_key(&id))
         .map(|(_, id)| id);
     if let Some(next) = next {
         switch_action_clip(s, t, next);
@@ -8774,7 +9057,7 @@ mod rule_variable_tests {
                 with_exits.push(format!("{pack}:{}:{}", def.name, clip.name));
                 for exit in &clip.exits {
                     let to_set = if exit.to_set == 0 { set } else { exit.to_set };
-                    if exit.to_id != 0 && plays_as_action(to_set) {
+                    if exit.to_id != 0 && plays_as_action(&t, to_set) {
                         assert!(t.actions.clips.contains_key(&exit.to_id), "{pack} {}: the exit's clip is not in the table", clip.name);
                     }
                 }

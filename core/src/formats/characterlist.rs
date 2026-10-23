@@ -75,12 +75,53 @@ impl Spec {
     }
 
     pub fn pack_file(&self, game_dir: &Path) -> PathBuf {
-        game_dir.join("characters").join(format!("{}.str", self.pack))
+        pack_file(game_dir, &self.pack)
     }
 
     /// The character's sound events.
     pub fn sound_events(&self, game_dir: &Path) -> PathBuf {
-        game_dir.join("characters").join("eng").join(format!("{}.fev", self.audio))
+        match elsewhere(&self.audio) {
+            Some(e) => game_dir.join(e.sounds),
+            None => game_dir.join("characters").join("eng").join(format!("{}.fev", self.audio)),
+        }
+    }
+}
+
+/// A character the install keeps outside `characters\`: a boss whose Character exists only in his
+/// mission's pack, as the embedded scene (`data`) of the CharacterDefinition a CharacterSpawnManager
+/// spawns. The scene has the shape of a character pack's data object (a root whose `things` hold the
+/// robot Object and the Character), so it is read the same way. [data]
+pub struct Elsewhere {
+    /// The name `--character` and `Spec::pack` give him.
+    pub pack: &'static str,
+    /// The pack that holds his data, models and textures, under the install.
+    pub file: &'static str,
+    /// The embedded scene's name (its object label is the CRC-32 of it).
+    pub scene: &'static str,
+    /// The sound events his clips and Character name.
+    pub sounds: &'static str,
+}
+
+/// Devastator: `CharDef_Devastator` under `Devastator_CranialCircuits` in the Cairo City boss
+/// mission's data chunk 1; his model blob (572b354e) and animation set (`devastator_animset`, 14
+/// clips) are in the same pack, his sounds in the mission's events. Not in the game's list and in
+/// no `characters\` pack. [data 2026-10-22, `notes\roster-plan.md` "Devastator"]
+pub const ELSEWHERE: &[Elsewhere] = &[Elsewhere {
+    pack: "devastator",
+    file: r"levels\cairo_city\missions\cairo_city_a_boss\mission.str",
+    scene: "devastator_basepose",
+    sounds: r"levels\cairo_city\missions\cairo_city_a_boss\eng\mission.fev",
+}];
+
+pub fn elsewhere(pack: &str) -> Option<&'static Elsewhere> {
+    ELSEWHERE.iter().find(|e| e.pack.eq_ignore_ascii_case(pack))
+}
+
+/// The pack that holds a character: `characters\<pack>.str`, or the mission pack of one kept elsewhere.
+pub fn pack_file(game_dir: &Path, pack: &str) -> PathBuf {
+    match elsewhere(pack) {
+        Some(e) => game_dir.join(e.file),
+        None => game_dir.join("characters").join(format!("{pack}.str")),
     }
 }
 

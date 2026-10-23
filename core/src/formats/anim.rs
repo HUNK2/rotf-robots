@@ -463,6 +463,12 @@ impl Blend for [f32; 4] {
 }
 
 impl<T: Blend> Track<T> {
+    /// A track with these keys: `times` in ticks, rising, one value each.
+    pub fn from_keys(times: Vec<f32>, values: Vec<T>) -> Self {
+        debug_assert_eq!(times.len(), values.len());
+        Self { times, values }
+    }
+
     fn push(&mut self, time: f32, value: T) {
         // Keys arrive in the order the stream needs them, which is by time within one track.
         let at = self.times.partition_point(|&t| t <= time);

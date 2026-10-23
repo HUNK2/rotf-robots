@@ -162,7 +162,7 @@ fn resized(source: &RgbaImage, width: u32, height: u32, kind: MapKind) -> RgbaIm
 /// Add 2x/4x levels in stored-value space, matching the existing shaders' sampling.
 /// This is interpolation: it does not recover missing detail or redraw UV islands.
 pub fn upscale(source: &Texture, factor: u32, kind: MapKind) -> Result<Texture, String> {
-    // The user selected faithful 4x enhancement; the renderer also offers 1x/2x.
+    // The game uses 2x by default (the user, 2026-10-23) and offers 4x and 1x (the originals).
     if !matches!(factor, 2 | 4)
         || source.faces != 1
         || source.width == 0
