@@ -59,10 +59,13 @@ pub struct CharacterData {
     /// Sound events the port gives him beyond what his data names (Devastator's,
     /// `giant::SOUNDS`), to be loaded with the rest. Empty from the pack.
     pub extra_sounds: Vec<u32>,
+    /// [port design] What Grindor's cinematic wave borrows (`crate::energon_wave::read`), put
+    /// in by the game for a character holding his cannon. None from the pack.
+    pub energon: Option<crate::energon_wave::Dressing>,
 }
 
 /// An object's own `ShockWave` attachments and their nodes. [data]
-fn read_shockwaves(object: Node) -> Vec<(usize, crate::shockwave::Def)> {
+pub(crate) fn read_shockwaves(object: Node) -> Vec<(usize, crate::shockwave::Def)> {
     object
         .get("attachments")
         .into_iter()
@@ -442,7 +445,7 @@ fn read_sounds(character: Node) -> Sounds {
 
 /// The first node under `node` whose object label is `label`, depth first. Depth 40 is deeper than
 /// a CharacterSpawnManager's definition sits (about 12 objects down).
-pub(crate) fn find_label<'a>(node: Node<'a>, label: u32, depth: u32, seen: &mut std::collections::HashSet<usize>) -> Option<Node<'a>> {
+pub fn find_label<'a>(node: Node<'a>, label: u32, depth: u32, seen: &mut std::collections::HashSet<usize>) -> Option<Node<'a>> {
     if depth > 40 || node.offset().is_some_and(|o| !seen.insert(o)) {
         return None;
     }
@@ -564,6 +567,7 @@ pub fn load(game_dir: &Path, pack_name: &str) -> Result<CharacterData, String> {
         weapon_effects,
         shockwaves,
         extra_sounds: Vec::new(),
+        energon: None,
     })
 }
 

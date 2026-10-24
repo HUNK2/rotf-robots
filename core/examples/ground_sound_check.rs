@@ -162,7 +162,7 @@ fn main() {
         let all = data.animations.sets.values().flatten().chain(data.vehicle_animations.iter());
         let cues: Vec<_> = all.flat_map(|r| r.clip.iter().flat_map(|c| c.sound_events.iter().map(|e| e.cue))).collect();
         for cue in &cues {
-            if let SoundCue::Play { id, auto_stop: false } = *cue
+            if let SoundCue::Play { id, auto_stop: false, .. } = *cue
                 && library.has(id) && library.infinite(id)
             {
                 let stops = cues.iter().filter(|c| matches!(c, SoundCue::Stop { id: s } if *s == id)).count();

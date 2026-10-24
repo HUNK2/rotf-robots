@@ -158,6 +158,21 @@ impl Domain {
             Domain::Unread(_) => None,
         }
     }
+
+    /// Every value it draws times `k` (`Template::scaled`).
+    fn scaled(self, k: f32) -> Self {
+        match self {
+            Domain::Point(v) => Domain::Point(v * k),
+            Domain::Box { min, max } => Domain::Box { min: min * k, max: max * k },
+            Domain::Bump { min, max } => Domain::Bump { min: min * k, max: max * k },
+            Domain::Circle { center, normal, radius } => Domain::Circle { center: center * k, normal, radius: radius * k },
+            Domain::Disc { center, normal, radius } => Domain::Disc { center: center * k, normal, radius: radius * k },
+            Domain::Sphere { center, radius } => Domain::Sphere { center: center * k, radius: radius * k },
+            Domain::SphereSurface { center, radius } => Domain::SphereSurface { center: center * k, radius: radius * k },
+            Domain::Line { min, max } => Domain::Line { min: min * k, max: max * k },
+            Domain::Unread(id) => Domain::Unread(id),
+        }
+    }
 }
 
 fn bump(u: f32) -> f32 {
@@ -586,6 +601,38 @@ impl Template {
         out.sort();
         out.dedup();
         out
+    }
+
+    /// [port design] The effect `k` times as large, its timing and counts unchanged (Grindor's
+    /// cinematic wave, `energon_wave`), for a place scaled by `k`: the place already scales where
+    /// particles are made and how fast they leave (`Group::emit`), and a world-space element's
+    /// pushes turned by it (`Forc` with `LocalSpace`); this scales the rest -- the sizes (slots 1,
+    /// 2 and 7), their growth (`LnSc`, `LScW`, `LScH`), the world-space pushes, the attractors'
+    /// pull (a distance cubed over a time squared) and the template's radius.
+    pub fn scaled(&self, k: f32) -> Self {
+        let mut t = self.clone();
+        t.radius *= k;
+        for e in &mut t.elements {
+            let local = e.local_space;
+            for action in &mut e.actions {
+                match &mut action.kind {
+                    Kind::Burst { slots, .. }
+                    | Kind::Source { slots, .. }
+                    | Kind::Intermittent { slots, .. }
+                    | Kind::Eject { slots, .. }
+                    | Kind::RandomSpawn { slots, .. } => {
+                        for n in [1, 2, 7] {
+                            slots[n] = slots[n].map(|d| d.scaled(k));
+                        }
+                    }
+                    Kind::LinearScale { delta } | Kind::LinearScaleWidth { delta } | Kind::LinearScaleHeight { delta } => *delta *= k,
+                    Kind::Force { acc, local: false } if !local => *acc *= k,
+                    Kind::PointAttractor { force, .. } => *force *= k * k * k,
+                    _ => {}
+                }
+            }
+        }
+        t
     }
 }
 
@@ -1179,6 +1226,52 @@ mod tests {
         assert!(seen_fading && most == 1);
         // The element's group goes one update after its end, 0.3 s.
         assert!((effect.time - (0.3 + DT)).abs() < 2.0 * DT, "{}", effect.time);
+    }
+
+    /// [port design] A scaled template at a place scaled the same is the effect blown up: each
+    /// particle `k` times as far out, as fast and as large, at the same age.
+    #[test]
+    fn a_scaled_template_at_a_scaled_place_is_the_effect_blown_up() {
+        let t = Template {
+            radius: 2.0,
+            elements: vec![Element {
+                max_particles: 8,
+                start: 0.0,
+                end: 1.0,
+                actions: vec![
+                    Action { start: 0.0, end: 0.1, kind: Kind::Burst { count: 4.0, slots: slots(&[
+                        (0, Domain::Sphere { center: Vec3::ZERO, radius: 1.0 }),
+                        (1, Domain::Box { min: Vec3::splat(0.5), max: Vec3::splat(1.5) }),
+                        (9, one(2.0)),
+                        (11, Domain::Box { min: Vec3::new(-1.0, -1.0, 2.0), max: Vec3::new(1.0, 1.0, 4.0) }),
+                    ]) } },
+                    always(Kind::LinearScale { delta: 2.0 }),
+                    always(Kind::Force { acc: Vec3::new(0.0, 0.0, -9.8), local: false }),
+                    always(Kind::Move),
+                    always(Kind::Life),
+                ],
+                ..Default::default()
+            }],
+            ..Default::default()
+        };
+        let (at, k) = (Vec3::new(10.0, 5.0, 1.0), 3.0);
+        let big = t.scaled(k);
+        assert_eq!(big.radius, 6.0);
+        let small_place = Affine3A::from_translation(at);
+        let big_place = Affine3A::from_scale_rotation_translation(Vec3::splat(k), glam::Quat::IDENTITY, at);
+        let (mut a, mut b) = (Effect::new(&t), Effect::new(&big));
+        let (mut ra, mut rb) = (Rng(7), Rng(7));
+        for _ in 0..30 {
+            a.step(&t, &small_place, DT, &mut ra);
+            b.step(&big, &big_place, DT, &mut rb);
+        }
+        let (ga, gb) = (a.group(0).unwrap(), b.group(0).unwrap());
+        assert_eq!((ga.particles.len(), gb.particles.len()), (4, 4));
+        for (p, q) in ga.particles.iter().zip(&gb.particles) {
+            assert!(((q.pos - at) - (p.pos - at) * k).length() < 1e-3, "{p:?} {q:?}");
+            assert!((q.velocity - p.velocity * k).length() < 1e-3);
+            assert!((q.radius - p.radius * k).abs() < 1e-4 && q.age == p.age);
+        }
     }
 
     #[test]

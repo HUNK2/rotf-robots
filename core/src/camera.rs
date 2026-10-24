@@ -922,15 +922,24 @@ impl Camera {
             };
             self.fades.step(UPDATE);
         }
-        // Carried on from the last update at the rate it changed by, so the camera is where
-        // the original's would be at this moment rather than an update behind him.
-        let ahead = (self.clock / UPDATE).clamp(0.0, 1.0);
+        Self::between(&self.before, &self.now, (self.clock / UPDATE).clamp(0.0, 1.0), target.motion)
+    }
+
+    /// The view drawn `ahead` (0 to 1) of an update into the next, from the last two updates.
+    /// [assumed port design] The camera's own moves are blended between its last two updates
+    /// (an update late), and the eye is carried on by the target's travel over one update, so it
+    /// keeps up with him: following a steady target it is where it would be at this moment.
+    /// Carrying the camera on at its OWN rate (the port's earlier rule) overshot every time a move
+    /// stopped, and the next update snapped it back: a 30 Hz sawtooth of up to 1.4 m when a flyer's
+    /// change of form drops the look height 10 m (`notes\status.md`, 2026-10-24). How the game
+    /// draws its camera between updates is not read; settles: that read, or a recording at display
+    /// rate.
+    fn between(before: &View, now: &View, ahead: f32, motion: Vec3) -> View {
         View {
-            eye: self.now.eye + (self.now.eye - self.before.eye) * ahead,
-            forward: (self.now.forward + (self.now.forward - self.before.forward) * ahead)
-                .normalize_or(self.now.forward),
-            fov: self.now.fov + (self.now.fov - self.before.fov) * ahead,
-            roll: self.now.roll + (self.now.roll - self.before.roll) * ahead,
+            eye: before.eye.lerp(now.eye, ahead) + motion * UPDATE,
+            forward: before.forward.lerp(now.forward, ahead).normalize_or(now.forward),
+            fov: before.fov + (now.fov - before.fov) * ahead,
+            roll: before.roll + (now.roll - before.roll) * ahead,
         }
     }
 
@@ -2978,5 +2987,41 @@ mod tests {
             "{}",
             corner.point
         );
+    }
+}
+
+#[cfg(test)]
+mod between_updates {
+    use super::*;
+
+    fn at(z: f32) -> View {
+        View { eye: Vec3::new(0.0, -10.0, z), forward: Vec3::Y, fov: 60.0, roll: 0.0 }
+    }
+
+    #[test]
+    fn a_move_that_stops_is_not_carried_past_where_it_stopped() {
+        // The camera fell 3 m in its last update and the next update has it stopped there: the
+        // frames between must stay between the two, never under the place it stopped at.
+        let (before, now) = (at(8.0), at(5.0));
+        for a in [0.0, 0.25, 0.5, 0.75, 1.0] {
+            let z = Camera::between(&before, &now, a, Vec3::ZERO).eye.z;
+            assert!((5.0..=8.0).contains(&z), "ahead {a}: {z}");
+        }
+        let still = Camera::between(&now, &now, 0.75, Vec3::ZERO);
+        assert_eq!(still.eye.z, 5.0);
+    }
+
+    #[test]
+    fn following_a_steady_target_it_is_where_it_would_be_at_this_moment() {
+        // A target going 20 m/s along y, the camera keeping its distance: after `ahead` of an
+        // update the camera is that much further on, as the old carry-on gave.
+        let v = Vec3::new(0.0, 20.0, 0.0);
+        let before = at(5.0);
+        let now = View { eye: before.eye + v * UPDATE, ..before };
+        for a in [0.0, 0.5, 1.0] {
+            let eye = Camera::between(&before, &now, a, v).eye;
+            let want = now.eye + v * UPDATE * a;
+            assert!((eye - want).length() < 1e-4, "ahead {a}: {eye} want {want}");
+        }
     }
 }

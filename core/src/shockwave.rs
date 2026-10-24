@@ -13,6 +13,11 @@
 //! power core's in `shanghai_03_waterfront_a_core`, others in the Cairo and Deep Six missions,
 //! and one each in `megatronflight` / `optimusflight` (no material and no damage: they do
 //! nothing a player sees).
+//!
+//! Beyond the game [port design]: a ring may be limited to an `Arc` (it then hurts and draws
+//! only inside it) and the object may carry a `Falloff` (damage and push weaken as the ring
+//! runs). Neither is in the game's data; with neither set a ring is the game's. They are for
+//! Grindor's cinematic wave (`energon_wave.rs`, `notes\grindor-cinematic-wave.md`).
 
 use crate::damage::{Actor, Packet};
 use crate::formats::lxb::Node;
@@ -153,6 +158,60 @@ pub struct Ring {
     pub radius: f32,
     /// The game time it was started (ring `+0xd0`), carried in its damage messages.
     pub start_time: f32,
+    /// [port design] Only this part of the ring is there; none: the whole ring (the game's).
+    pub arc: Option<Arc>,
+}
+
+/// [port design] Part of a ring: the angles within `half_angle` of `heading`, a flat unit
+/// direction from the ring's centre. Not in the game.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Arc {
+    pub heading: Vec2,
+    pub half_angle: f32,
+}
+
+impl Arc {
+    /// Around the flat part of `way`; none when `way` has no flat part.
+    pub fn new(way: Vec3, half_angle: f32) -> Option<Self> {
+        let flat = way.truncate();
+        (flat.length() > 1e-6).then(|| Self { heading: flat.normalize(), half_angle })
+    }
+
+    /// The heading as the drawing measures angles: a point at angle a lies at (sin a, cos a).
+    pub fn angle(&self) -> f32 {
+        self.heading.x.atan2(self.heading.y)
+    }
+
+    /// Whether a thing at flat offset `off` from the centre, `radius` wide, is inside: its
+    /// angle off the heading, less the angle its radius covers at that distance.
+    pub fn contains(&self, off: Vec2, radius: f32) -> bool {
+        let distance = off.length();
+        if distance <= radius {
+            return true;
+        }
+        let off_heading = self.heading.angle_to(off).abs();
+        let covers = (radius / distance).clamp(0.0, 1.0).asin();
+        off_heading - covers <= self.half_angle
+    }
+}
+
+/// [port design] Damage and push by how far a ring has run (`t`, 0 at `startRadius` and 1 at
+/// `fullRadius`): full up to `full_until`, then straight down to `end_scale` at the end. Not in
+/// the game.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Falloff {
+    pub full_until: f32,
+    pub end_scale: f32,
+}
+
+impl Falloff {
+    pub fn scale(&self, t: f32) -> f32 {
+        if t <= self.full_until || self.full_until >= 1.0 {
+            return 1.0;
+        }
+        let s = ((t - self.full_until) / (1.0 - self.full_until)).min(1.0);
+        1.0 + (self.end_scale - 1.0) * s
+    }
 }
 
 /// A character's size class (`character +0x140 -> +0x78`): 0 small, 1 large. [game]
@@ -203,17 +262,36 @@ pub struct ShockWave {
     pub rings: Vec<Ring>,
     /// Who any living ring has hurt (`+0xa4`), cleared when the last ring goes.
     hurt: Vec<u32>,
+    /// [port design] Weakens damage and push as a ring runs; none: the game's, all the way.
+    pub falloff: Option<Falloff>,
 }
 
 impl ShockWave {
     pub fn new(def: Def) -> Self {
-        Self { def, rings: Vec::new(), hurt: Vec::new() }
+        Self { def, rings: Vec::new(), hurt: Vec::new(), falloff: None }
     }
 
     /// The Trigger: a new ring at the object's place. The caller sweeps the ground probe
     /// (`PROBE_*`) and passes what it hit to `ground`.
     pub fn trigger(&mut self, position: Vec3, time: f32) {
-        self.rings.push(Ring { centre: position, radius: self.def.start_radius, start_time: time });
+        self.rings.push(Ring { centre: position, radius: self.def.start_radius, start_time: time, arc: None });
+    }
+
+    /// [port design] A Trigger whose ring is only `arc`.
+    pub fn trigger_arc(&mut self, position: Vec3, time: f32, arc: Arc) {
+        self.rings.push(Ring { centre: position, radius: self.def.start_radius, start_time: time, arc: Some(arc) });
+    }
+
+    /// How far a ring of radius `r` has run, 0 at `startRadius` and 1 at `fullRadius`.
+    fn run(&self, r: f32) -> f32 {
+        let d = &self.def;
+        (r - d.start_radius) / (d.full_radius - d.start_radius)
+    }
+
+    /// [port design] The share of the damage and push a ring of radius `r` deals (1 without a
+    /// `Falloff`).
+    pub fn strength(&self, r: f32) -> f32 {
+        self.falloff.map_or(1.0, |f| f.scale(self.run(r)))
     }
 
     /// The ground probe of ring `i` hit at height `z`.
@@ -275,16 +353,17 @@ impl ShockWave {
                     Some(Size::Large) if d.damage_type_large != 0 => d.damage_type_large,
                     _ => d.damage_type,
                 };
+                let strength = self.strength(ring.radius);
                 let hit = Hit {
                     target: c.id,
                     origin: ring.centre,
                     start_time: ring.start_time,
                     packet: Packet {
                         source: owner,
-                        amount: d.damage,
+                        amount: d.damage * strength,
                         flags,
                         direction,
-                        knockback_speed: d.special.knock_back_speed,
+                        knockback_speed: d.special.knock_back_speed * strength,
                         knockback_angle: d.special.knock_back_angle,
                         stun_time: d.special.stun_time,
                         slow_time: d.special.slow_time,
@@ -292,7 +371,7 @@ impl ShockWave {
                         heat: d.special.heat,
                         headshot: false,
                     },
-                    force: if d.damage > 0.0 { direction * 10000.0 } else { Vec3::ZERO },
+                    force: if d.damage > 0.0 { direction * 10000.0 * strength } else { Vec3::ZERO },
                 };
                 if deliver(&hit) {
                     self.hurt.push(c.id);
@@ -314,6 +393,8 @@ impl ShockWave {
     /// score is `|distance - ring radius|` [game 007996c0 l.27 fabs of (dist - ESI[7])]; the
     /// query's ESI[7] is the ring's current radius, stored by the update [game 00805410 l.44-50:
     /// `local_4c = local_48 = fVar19`, the radius]. The under-1000 test is kept.
+    /// [port design] A ring with an `Arc` also leaves out what is outside it, before the four
+    /// are taken, so things behind the arc do not use up its slots.
     fn query<'a>(&self, ring: &Ring, candidates: &'a [Candidate]) -> Vec<&'a Candidate> {
         let (inner, outer) = self.band(ring.radius);
         candidates
@@ -323,6 +404,7 @@ impl ShockWave {
                 let distance = (off.truncate().length() - c.radius).abs();
                 let score = (distance - ring.radius).abs();
                 inner < distance && distance < outer && off.z.abs() < ring.radius && score < 1000.0
+                    && ring.arc.is_none_or(|arc| arc.contains(off.truncate(), c.radius))
             })
             .take(MAX_TARGETS)
             .collect()
@@ -348,17 +430,23 @@ impl ShockWave {
     }
 
     /// Quads around the ring: `startSegments` growing to `fullSegments`, rounded. [game]
+    /// [port design] An arc keeps the ring's density: its share of that count, at least one.
     pub fn segments(&self, ring: &Ring) -> i32 {
         let d = &self.def;
         let t = (ring.radius - d.start_radius) / (d.full_radius - d.start_radius);
-        ((d.full_segments - d.start_segments) as f32 * t + d.start_segments as f32 + 0.5) as i32
+        let n = ((d.full_segments - d.start_segments) as f32 * t + d.start_segments as f32 + 0.5) as i32;
+        match ring.arc {
+            Some(arc) if n > 0 => ((n as f32 * arc.half_angle * 2.0 / std::f32::consts::TAU + 0.5) as i32).max(1),
+            _ => n,
+        }
     }
 
     /// The band's mesh (`FUN_00806380`), nothing when the ring is invisible or the object
     /// has no material. From angle -pi, a point at angle a lies at (sin a, cos a) x radius;
     /// each quad is inner and outer at a, then at the next angle, the normals leaning in and
     /// out at 45 degrees, u around the ring 0..1, v 0 inside and 1 outside; the triangles
-    /// are 0 2 1, 1 2 3. [game]
+    /// are 0 2 1, 1 2 3. [game] [port design] An arc runs from its heading less its half angle
+    /// to its heading plus it, u 0..1 across the arc.
     pub fn mesh(&self, ring: &Ring, vertices: &mut Vec<Vertex>, indices: &mut Vec<u32>) {
         let alpha = self.alpha(ring);
         if alpha <= 0.0 || self.def.material.is_none() {
@@ -375,11 +463,14 @@ impl ShockWave {
         let outer = inner + width;
         let c = ring.centre;
         let step = 1.0 / n as f32;
-        let mut angle = -std::f32::consts::PI;
+        let (mut angle, span) = match ring.arc {
+            Some(arc) => (arc.angle() - arc.half_angle, arc.half_angle * 2.0),
+            None => (-std::f32::consts::PI, std::f32::consts::TAU),
+        };
         let (mut s0, mut c0) = angle.sin_cos();
         let mut u0 = 0.0f32;
         for _ in 0..n {
-            angle += step * std::f32::consts::TAU;
+            angle += step * span;
             let (s1, c1) = angle.sin_cos();
             let u1 = u0 + step;
             let at = |s: f32, co: f32, r: f32| Vec3::new(s * r + c.x, co * r + c.y, c.z);
@@ -547,7 +638,7 @@ mod tests {
     #[test]
     fn fades_and_mesh() {
         let w = ShockWave::new(devastator());
-        let ring = |r| Ring { centre: Vec3::ZERO, radius: r, start_time: 0.0 };
+        let ring = |r| Ring { centre: Vec3::ZERO, radius: r, start_time: 0.0, arc: None };
         assert_eq!(w.alpha(&ring(3.0)), 0.0);
         assert!((w.alpha(&ring(11.5)) - 0.5).abs() < 1e-6);
         assert_eq!(w.alpha(&ring(50.0)), 1.0);

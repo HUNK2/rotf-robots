@@ -311,7 +311,11 @@ impl AttackRef {
 pub enum SoundCue {
     /// `AnimPlaySoundEvent`: a sound event by id; `auto_stop` ends it with the clip. It is
     /// on when the data does not give it (`FUN_0070ccd0`). [game]
-    Play { id: u32, auto_stop: bool },
+    /// `held`: `trackSound`, `autoStop` or `autoKeyOff` given and on (each off when absent here).
+    /// The play handler 005984d0 keeps such a sound in its object's table by id, and a later
+    /// play of an id the table still holds reuses that sound instead of starting another
+    /// (the query 0059aa00 before the start; the insert 0059aac0). [game]
+    Play { id: u32, auto_stop: bool, held: bool },
     /// `AnimStopSoundEvent`.
     Stop { id: u32 },
     /// `FootStepEvent`: named foot, with a material probe before its sound.
@@ -523,7 +527,10 @@ fn read_sound_events(keys: Node, out: &mut Vec<SoundEvent>) {
         let Some(event) = key.get("value") else { continue };
         let id = || event.get("id").and_then(Node::int).map(|h| h as u32).filter(|&h| h != 0);
         let cue = match event.type_name() {
-            Some("AnimPlaySoundEvent") => id().map(|id| SoundCue::Play { id, auto_stop: event.get("autoStop").and_then(Node::int) != Some(0) }),
+            Some("AnimPlaySoundEvent") => id().map(|id| {
+                let on = |name| event.get(name).and_then(Node::int).is_some_and(|v| v != 0);
+                SoundCue::Play { id, auto_stop: event.get("autoStop").and_then(Node::int) != Some(0), held: on("trackSound") || on("autoStop") || on("autoKeyOff") }
+            }),
             Some("AnimStopSoundEvent") => id().map(|id| SoundCue::Stop { id }),
             Some("FootStepEvent") => event.get("side").and_then(|n| n.enum_hash().or_else(|| n.int().map(|v| v as u32)))
                 .map(|side| SoundCue::FootStep { side }),

@@ -2358,6 +2358,37 @@ fn advance(s: &mut State, input: &Input, t: &Tuning, arena: &dyn World, dt: f32)
         }
     }
 
+    // A world with no physics runs the owner's ground test's landing here (008524b0 S8, the branch
+    // that keeps him grounded: `physics_avatar::ground_test`, which a level runs in `step_avatar`).
+    // While MoveMode is the mode (+0x3e4) and the ground flag from the update before is set, his
+    // feet up to 2.5 m over the ground are pulled down at 30 times the height, cut by 0.8, and a
+    // climb over 1 m/s that this would cut by more than 20 is set to 1 m/s. That is what stops the
+    // launch the fall state starts out of the companion at the end of a fly exit (008740e0
+    // l.100-104, HIGH_STANDING_JUMP / LONG_JUMP at 30 m/s): MoveMode follows one update later on
+    // the lagging flag, and without this he rose 14 m and came back down. [game 008524b0]
+    // [assumed] the arena's ground is level under him for the slope term (the probe's normal is
+    // (0, 0, 1)), and the probe's height is the feet over `World::floor` at the start of the
+    // update; no contact rules him out (the arena keeps no contacts). settles: nothing to settle
+    // on the flat arena; a sloped arena piece would need the floor's normal.
+    // The branch also keeps the ground flag set (STEP+0x26c = 1), so the next update pulls again.
+    let mut held_down = false;
+    if s.mode == Mode::Move && s.ground_flag() {
+        let gain = s.pos.z - arena.floor(s.pos.x, s.pos.y, s.pos.z);
+        if gain > 0.0 && gain <= 2.5 {
+            held_down = true;
+            let mut vn = -(gain * 30.0);
+            if vn < 0.0 {
+                vn *= 0.8;
+            }
+            if 1.0 < s.vel.z && 20.0 < s.vel.z - vn {
+                vn = 1.0;
+            }
+            if vn <= s.vel.z {
+                s.vel.z = vn;
+            }
+        }
+    }
+
     // Integrate, then settle against the arena. In the air the height follows the exact arc for
     // steady gravity, so a jump peaks where its launch speed says whatever the step length.
     let airborne = matches!(s.mode, Mode::Jump(_))
@@ -2482,7 +2513,7 @@ fn advance(s: &mut State, input: &Input, t: &Tuning, arena: &dyn World, dt: f32)
     }
     let contact = match s.mode {
         Mode::Drive => !s.car.airborne,
-        _ => s.pos.z <= floor + 0.01 && s.vel.z <= 0.0,
+        _ => held_down || (s.pos.z <= floor + 0.01 && s.vel.z <= 0.0),
     };
     touch(s, contact, dt);
     tilt(s, t, arena, dt);
@@ -8818,6 +8849,40 @@ mod rule_variable_tests {
             assert!(exited && landed, "{pack}: exited {exited} landed {landed}");
             assert!(!s.car_mode && s.mode == Mode::Stand, "{pack}: {:?} car_mode {}", s.mode, s.car_mode);
             assert!(highest_after < 2.0, "{pack}: rose {highest_after} after landing");
+        }
+    }
+
+    /// The same with the stick held forward through the change back, as a player walking off a
+    /// landing does: the fall state's launch out of the companion (30 m/s, 008740e0) is followed by
+    /// MoveMode, and the ground test's landing (008524b0) caps the climb at 1 m/s and pulls him down.
+    /// Before, MoveMode kept the 30 m/s and he rose 14 m and fell back (the user's "rubber band").
+    #[test]
+    fn leaving_flight_on_the_move_does_not_spring_up_after_the_change() {
+        for (pack, name) in [("blackout", "Blackout"), ("starscream", "Starscream")] {
+            let Some((t, mut s)) = flying_jet(pack, name) else { return };
+            let arena = Arena::default();
+            let walking = Input { stick: Vec2::Y, pad_stick: Vec2::Y, ..Default::default() };
+            let mut landed = false;
+            let mut highest_after = 0.0f32;
+            let mut in_the_air = 0;
+            for _ in 0..250 {
+                step(&mut s, &walking, &t, &arena, GAME_UPDATE);
+                let state = s.control_state(&t).unwrap_or("");
+                if state.starts_with("stateFlyExit") && s.mode == Mode::Unfold && s.pos.z < 0.05 {
+                    landed = true;
+                }
+                if landed {
+                    highest_after = highest_after.max(s.pos.z);
+                    if s.pos.z > 0.05 {
+                        in_the_air += 1;
+                    }
+                }
+            }
+            assert!(landed, "{pack}: never landed out of the exit");
+            assert_eq!(s.mode, Mode::Move, "{pack}: walks on after the change");
+            // One update of the launch (30 m/s for 0.032 s) and the capped update after it.
+            assert!(highest_after < 1.1, "{pack}: rose {highest_after} after landing");
+            assert!(in_the_air <= 4, "{pack}: {in_the_air} updates off the ground after landing");
         }
     }
 

@@ -682,7 +682,7 @@ mod tests {
     #[test]
     fn sound_cues_include_start_end_and_loop_tail_without_repeating_first_pass_only_keys() {
         use crate::formats::anim::SoundEvent;
-        let cue = |time, id, rerun| SoundEvent { time, cue: SoundCue::Play { id, auto_stop: true }, rerun };
+        let cue = |time, id, rerun| SoundEvent { time, cue: SoundCue::Play { id, auto_stop: true, held: false }, rerun };
         let mut r = AnimRef { speed: 1.0, looping: true,
             clip: Some(Clip { length: 10.0, sound_events: vec![cue(0.0, 1, true), cue(2.0, 2, false), cue(9.0, 3, true)], ..Default::default() }),
             ..Default::default() };
