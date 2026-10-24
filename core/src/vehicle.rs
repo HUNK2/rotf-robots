@@ -68,6 +68,22 @@ impl Default for Chassis {
     }
 }
 
+/// The wheel (0 front left, 1 front right, 2 rear left, 3 rear right) a model node of that
+/// name stands for, by the CRC-32 of its name: the tyres, Megatron's treads and the middle
+/// axles. A skid mark finds its wheel by its `tireName` this way (`skidmark_init` 0080acb0), and
+/// the wheel pose by each tyre's name (`drive_render_wheel` 008601d0); both go through 01185740,
+/// which `Mid` and `Mid2` give the rear pair and `Mid1` the front. [game]
+pub fn wheel_of_node(name: u32) -> Option<usize> {
+    use crate::formats::hash::crc32;
+    const NAMES: [(&[u8], usize); 14] = [
+        (b"Tire_Front_L", 0), (b"Tread_Front_L", 0), (b"Tire_Mid1_L", 0),
+        (b"Tire_Front_R", 1), (b"Tread_Front_R", 1), (b"Tire_Mid1_R", 1),
+        (b"Tire_Rear_L", 2), (b"Tread_Back_L", 2), (b"Tire_Mid_L", 2), (b"Tire_Mid2_L", 2),
+        (b"Tire_Rear_R", 3), (b"Tread_Back_R", 3), (b"Tire_Mid_R", 3), (b"Tire_Mid2_R", 3),
+    ];
+    NAMES.iter().find(|(n, _)| crc32(n) == name).map(|&(_, wheel)| wheel)
+}
+
 pub fn rotation(yaw: f32, pitch: f32, roll: f32) -> Quat {
     Quat::from_rotation_z(yaw) * Quat::from_rotation_x(pitch) * Quat::from_rotation_y(roll)
 }

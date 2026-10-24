@@ -1228,9 +1228,17 @@ fn channel_mut(clip: &mut Clip, name: u32) -> &mut Channel {
     &mut clip.channels[i]
 }
 
+/// Whether a loaded character is Devastator, the one this binding is for: his pack's `nameID`.
+/// Not "his object has `ShockWave`s": `optimusflight` and `megatronflight` carry one each too
+/// (no damage, nothing drawn) [data], and taking that for him made both walk-only giants with
+/// his pods in place of their own guns and no HUD (the user's report, 2026-10-25).
+pub fn is_giant(data: &crate::character::CharacterData) -> bool {
+    data.name_id == crc32(b"Devastator")
+}
+
 /// Makes the loaded character a playable Devastator: his machine's extra sets as actions, the
 /// jump off, the camera scaled to his size, and his shockwaves. Called only for him
-/// (`character::CharacterData::shockwaves` is his), on clips already `reroot`ed.
+/// (`is_giant`), on clips already `reroot`ed.
 pub fn fit(t: &mut Tuning, animations: &AnimSet, robot: &ObjectDef, shockwaves: &[(usize, Def)]) {
     // His turns play `TurnSet`, his special `PlayAnimSet`: sets no other robot plays as an
     // action. [data]

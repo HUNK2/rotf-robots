@@ -1,14 +1,15 @@
 //! The aim offset clips a clip carries (`additiveAnimFileList`, `Down` then `Up`): each
 //! one's length and, for every node it has a channel for, its position and turn at the
 //! first and the last tick. Without a clip id: which clips of the set carry any.
-//! `cargo run -p tf2-core --example aim_peek -- <Set> [Id]`.
+//! `cargo run -p tf2-core --example aim_peek -- <Set> [Id] [pack] [gun node]` (the pack
+//! defaults to `bumblebee`, the node to `WeaponAttachment_Arm_R`).
 
 use std::path::Path;
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let dir = tf2_core::install::dir_string();
-    let data = tf2_core::character::load(Path::new(&dir), "bumblebee").expect("load");
+    let data = tf2_core::character::load(Path::new(&dir), args.get(2).map_or("bumblebee", String::as_str)).expect("load");
     let Some(id) = args.get(1) else {
         for (name, set) in &data.animations.sets {
             if !args.is_empty() && *name != args[0] {
@@ -26,7 +27,7 @@ fn main() {
     // laid on by a share, as the engine lays it on.
     if let Some(base) = &r.clip {
         let rig = tf2_core::pose::Rig::new(&data.robot);
-        let node = data.robot.nodes.iter().position(|n| n.name == "WeaponAttachment_Arm_R").expect("weapon node");
+        let node = data.robot.nodes.iter().position(|n| n.name == args.get(3).map_or("WeaponAttachment_Arm_R", String::as_str)).expect("weapon node");
         let head = data.robot.nodes.iter().position(|n| n.name == "Head").expect("head");
         for (i, over) in r.aim_offsets.iter().enumerate() {
             for weight in [0.0, 0.5, 1.0] {

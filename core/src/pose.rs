@@ -61,21 +61,18 @@ impl Rig {
         for (i,&(mut scale,mut rotation,mut position)) in self.rest.iter().enumerate() {
             let name=self.name_hashes[i];
             if name!=ROOT_CHANNEL {
-                if let Some((clip,looping,tick))=base && let Some(channel)=clip.channel(name) {
-                    if let Some(p)=channel.position.sample(tick,clip.length,looping) {position=Vec3::from(p);}
-                    if let Some(q)=channel.rotation.sample(tick,clip.length,looping) {rotation=stored_turn(q);}
-                    if let Some(s)=channel.scale.sample(tick,clip.length,looping) {scale=Vec3::from(s);}
+                // No move, no turn and scale 1 where unkeyed, as `pose`. [game 0053b520]
+                if let Some((clip,looping,tick))=base && let Some((p,q,s))=clip.channel(name).and_then(|c|c.local(tick,clip.length,looping)) {
+                    (position,rotation,scale)=(Vec3::from(p),stored_turn(q),Vec3::from(s));
                 }
-                if let Some(channel)=over.channel(name) {
-                    if let Some(p)=channel.position.sample(tick,over.length,looping) {
-                        position=if additive {offset_position(position,Vec3::from(p),weight)} else {position.lerp(Vec3::from(p),weight)};
-                    }
-                    if let Some(q)=channel.rotation.sample(tick,over.length,looping) {
-                        rotation=if additive {offset_turn(rotation,stored_turn(q),weight)} else {blend_turn(rotation,stored_turn(q),weight)};
-                    }
-                    if let Some(s)=channel.scale.sample(tick,over.length,looping) {
-                        scale=if additive {offset_scale(scale,Vec3::from(s),weight)} else {scale.lerp(Vec3::from(s),weight)};
-                    }
+                if !additive && let Some((p,q,s))=over.channel(name).and_then(|c|c.local(tick,over.length,looping)) {
+                    position=position.lerp(Vec3::from(p),weight);
+                    rotation=blend_turn(rotation,stored_turn(q),weight);
+                    scale=scale.lerp(Vec3::from(s),weight);
+                } else if let Some(channel)=over.channel(name).filter(|_|additive) {
+                    if let Some(p)=channel.position.sample(tick,over.length,looping) {position=offset_position(position,Vec3::from(p),weight);}
+                    if let Some(q)=channel.rotation.sample(tick,over.length,looping) {rotation=offset_turn(rotation,stored_turn(q),weight);}
+                    if let Some(s)=channel.scale.sample(tick,over.length,looping) {scale=offset_scale(scale,Vec3::from(s),weight);}
                 }
             }
             let local=Affine3A::from_scale_rotation_translation(scale,rotation,position);
@@ -112,17 +109,16 @@ impl Rig {
         let mut out: Vec<Affine3A> = Vec::with_capacity(self.rest.len());
         for (i, &(mut scale, mut rotation, mut position)) in self.rest.iter().enumerate() {
             let name = self.name_hashes[i];
-            if let Some(channel) = clip.channel(name) {
-                if let Some(p) = channel.position.sample(tick, clip.length, looping).filter(|_| name != ROOT_CHANNEL) {
+            // No move, no turn and scale 1 where the channel keys none: the game's output starts
+            // there (0053b520) and is written whole (00544e00). [game] (`Channel::local`,
+            // `game/src/animation.rs` `sample`)
+            if let Some((p, q, s)) = clip.channel(name).and_then(|c| c.local(tick, clip.length, looping)) {
+                if name != ROOT_CHANNEL {
                     position = Vec3::from(p);
-                }
-                if let Some(q) = channel.rotation.sample(tick, clip.length, looping).filter(|_| name != ROOT_CHANNEL) {
                     // Stored for row-vector matrices: the conjugate for column vectors.
                     rotation = Quat::from_xyzw(-q[0], -q[1], -q[2], q[3]);
                 }
-                if let Some(s) = channel.scale.sample(tick, clip.length, looping) {
-                    scale = Vec3::from(s);
-                }
+                scale = Vec3::from(s);
             }
             let local = Affine3A::from_scale_rotation_translation(scale, rotation, position);
             out.push(match self.parents[i] {
@@ -141,16 +137,12 @@ impl Rig {
         let mut out: Vec<Affine3A> = Vec::with_capacity(self.rest.len());
         for (i, &(mut scale, mut rotation, mut position)) in self.rest.iter().enumerate() {
             let name = self.name_hashes[i];
-            if let Some(channel) = clip.channel(name) {
-                if let Some(p) = channel.position.sample(tick, clip.length, looping).filter(|_| name != ROOT_CHANNEL) {
+            if let Some((p, q, s)) = clip.channel(name).and_then(|c| c.local(tick, clip.length, looping)) {
+                if name != ROOT_CHANNEL {
                     position = Vec3::from(p);
-                }
-                if let Some(q) = channel.rotation.sample(tick, clip.length, looping).filter(|_| name != ROOT_CHANNEL) {
                     rotation = Quat::from_xyzw(-q[0], -q[1], -q[2], q[3]);
                 }
-                if let Some(s) = channel.scale.sample(tick, clip.length, looping) {
-                    scale = Vec3::from(s);
-                }
+                scale = Vec3::from(s);
             }
             if let Some(channel) = over.channel(name).filter(|_| name != ROOT_CHANNEL) {
                 if let Some(p) = channel.position.sample(over_tick, over.length, false) {
@@ -176,16 +168,12 @@ impl Rig {
         let mut out: Vec<Affine3A> = Vec::with_capacity(self.rest.len());
         for (i, &(mut scale, mut rotation, mut position)) in self.rest.iter().enumerate() {
             let name = self.name_hashes[i];
-            if let Some(channel) = clip.channel(name) {
-                if let Some(p) = channel.position.sample(tick, clip.length, looping).filter(|_| name != ROOT_CHANNEL) {
+            if let Some((p, q, s)) = clip.channel(name).and_then(|c| c.local(tick, clip.length, looping)) {
+                if name != ROOT_CHANNEL {
                     position = Vec3::from(p);
-                }
-                if let Some(q) = channel.rotation.sample(tick, clip.length, looping).filter(|_| name != ROOT_CHANNEL) {
                     rotation = stored_turn(q);
                 }
-                if let Some(s) = channel.scale.sample(tick, clip.length, looping) {
-                    scale = Vec3::from(s);
-                }
+                scale = Vec3::from(s);
             }
             if let Some(channel) = over.channel(name).filter(|_| name != ROOT_CHANNEL) {
                 if let Some(p) = channel.position.sample(0.0, over.length, false) {

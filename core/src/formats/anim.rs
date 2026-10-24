@@ -58,6 +58,30 @@ pub struct Channel {
     pub own_scale: Track<[f32; 3]>,
 }
 
+impl Channel {
+    /// Whether the clip keys any part of the node. The game starts each channel's output at no
+    /// move, no turn and scale 1 (`0053b520`) and writes the whole of it (`00544e00`), so a part
+    /// the channel does not key is that, not the node's rest. [game] A channel that keys nothing
+    /// at all keeps the rest in the port [assumed]: the jets' and Grindor's `HitFront` hold dozens
+    /// of such channels (spine, clavicles), which no turn would fold flat.
+    pub fn keys_any(&self) -> bool {
+        self.position.is_keyed() || self.rotation.is_keyed() || self.scale.is_keyed() || self.own_scale.is_keyed()
+    }
+
+    /// The node's local (position, rotation as stored, scale) at `tick` by the game's rule
+    /// above, or None to keep the rest. Rotation is as stored: for the game's row vectors.
+    pub fn local(&self, tick: f32, length: f32, looping: bool) -> Option<([f32; 3], [f32; 4], [f32; 3])> {
+        if !self.keys_any() {
+            return None;
+        }
+        Some((
+            self.position.sample(tick, length, looping).unwrap_or([0.0; 3]),
+            self.rotation.sample(tick, length, looping).unwrap_or([0.0, 0.0, 0.0, 1.0]),
+            self.scale.sample(tick, length, looping).unwrap_or([1.0; 3]),
+        ))
+    }
+}
+
 #[derive(Default)]
 pub struct Clip {
     /// Length in ticks.
@@ -471,6 +495,11 @@ impl<T: Blend> Track<T> {
     pub fn from_keys(times: Vec<f32>, values: Vec<T>) -> Self {
         debug_assert_eq!(times.len(), values.len());
         Self { times, values }
+    }
+
+    /// Whether the track has any key (a constant counts).
+    pub fn is_keyed(&self) -> bool {
+        !self.times.is_empty()
     }
 
     fn push(&mut self, time: f32, value: T) {
@@ -981,11 +1010,107 @@ impl Clip {
     pub fn channel(&self, name_hash: u32) -> Option<&Channel> {
         self.names.iter().position(|&n| n == name_hash).map(|i| &self.channels[i])
     }
+
+    /// [deviation, asked for by the user 2026-10-25] A node whose parent's scale falls or rises
+    /// more than `COMPENSATED_RATIO` times between two keys, while the node's own place and scale
+    /// grow the other way to keep it where it is, is given keys every quarter tick across that
+    /// span, so that what is drawn (the parent's scale times the node's place) moves in a
+    /// straight line. Keyed linearly, as the game keys them (00541360), the product bulges:
+    /// Grindor's rear rotor housings in `Trans_V2R_B` (parent 0.089 -> 0.006, place -15 -> -238)
+    /// stand 16 m out at tick 31 (the user's report, 2026-10-25). `parent` gives a channel name's
+    /// parent's. Returns how many spans it changed.
+    pub fn even_out_compensated_scales(&mut self, parent: &dyn Fn(u32) -> Option<u32>) -> usize {
+        const COMPENSATED_RATIO: f32 = 4.0;
+        const STEPS_PER_TICK: f32 = 4.0;
+        let mut changed = 0;
+        for child in 0..self.names.len() {
+            let Some(p) = parent(self.names[child]).and_then(|p| self.names.iter().position(|&n| n == p)) else { continue };
+            let scales = &self.channels[p].scale;
+            let spans: Vec<(f32, f32)> = scales.times.windows(2).zip(scales.values.windows(2))
+                .filter(|(t, v)| {
+                    let (a, b) = (v[0][0].abs().max(1e-6), v[1][0].abs().max(1e-6));
+                    t[1] > t[0] && a.max(b) / a.min(b) > COMPENSATED_RATIO
+                })
+                .map(|(t, _)| (t[0], t[1]))
+                .collect();
+            for (from, to) in spans {
+                let length = self.length;
+                let parent_scale = |t: f32| self.channels[p].scale.sample(t, length, false).unwrap_or([1.0; 3]);
+                let (sa, sb) = (parent_scale(from), parent_scale(to));
+                let steps = ((to - from) * STEPS_PER_TICK).ceil().max(1.0) as usize;
+                let inner: Vec<(f32, [f32; 3])> = (1..steps).map(|k| {
+                    let t = from + (to - from) * k as f32 / steps as f32;
+                    (t, parent_scale(t))
+                }).collect();
+                let even = |track: &mut Track<[f32; 3]>| {
+                    let (Some(a), Some(b)) = (track.sample(from, length, false), track.sample(to, length, false)) else { return false };
+                    // Only a value that grows the other way, so the drawn one stays within a factor
+                    // of 2 while its own changes by more: a part that pops in or out is left alone.
+                    let size = |v: [f32; 3]| (v[0] * v[0] + v[1] * v[1] + v[2] * v[2]).sqrt();
+                    let drawn = |s: [f32; 3], v: [f32; 3]| size(std::array::from_fn(|i| s[i] * v[i]));
+                    if size(a) < 1e-3 || size(b) < 1e-3 || drawn(sa, a) < 1e-4 {
+                        return false;
+                    }
+                    let own = size(b) / size(a);
+                    let kept = drawn(sb, b) / drawn(sa, a);
+                    let opposite = (own > 1.0) != (sb[0].abs() > sa[0].abs());
+                    if !(opposite && (own > 2.0 || own < 0.5) && (0.5..=2.0).contains(&kept)) {
+                        return false;
+                    }
+                    let mut times = Vec::new();
+                    let mut values = Vec::new();
+                    for (&t, &v) in track.times.iter().zip(&track.values) {
+                        if t <= from || t >= to {
+                            times.push(t);
+                            values.push(v);
+                        }
+                    }
+                    let mut keys = Self::evened(a, b, sa, sb, from, to, &inner);
+                    let at = times.partition_point(|&t| t <= from);
+                    for (offset, (t, v)) in keys.drain(..).enumerate() {
+                        times.insert(at + offset, t);
+                        values.insert(at + offset, v);
+                    }
+                    *track = Track::from_keys(times, values);
+                    true
+                };
+                let channel = &mut self.channels[child];
+                let moved = even(&mut channel.position);
+                let sized = even(&mut channel.scale);
+                if moved || sized {
+                    changed += 1;
+                }
+            }
+        }
+        changed
+    }
+
+    /// The keys between `from` and `to` that keep parent scale x value on the straight line from
+    /// `sa` x `a` to `sb` x `b`, at the given times with the parent's scale there.
+    fn evened(a: [f32; 3], b: [f32; 3], sa: [f32; 3], sb: [f32; 3], from: f32, to: f32, inner: &[(f32, [f32; 3])]) -> Vec<(f32, [f32; 3])> {
+        inner.iter().map(|&(t, s)| {
+            let u = (t - from) / (to - from);
+            (t, std::array::from_fn(|i| {
+                let drawn = sa[i] * a[i] + (sb[i] * b[i] - sa[i] * a[i]) * u;
+                if s[i].abs() > 1e-6 { drawn / s[i] } else { a[i] + (b[i] - a[i]) * u }
+            }))
+        }).collect()
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_channel_takes_no_turn_where_it_keys_none_and_an_empty_one_keeps_the_rest() {
+        // Long Haul's left forearm in `Weapon_JumpRising`: a position and no turn. [game 0053b520]
+        let forearm = Channel { position: Track::from_keys(vec![0.0], vec![[2.324, 0.0, 0.0]]), ..Default::default() };
+        assert_eq!(forearm.local(10.0, 30.0, false), Some(([2.324, 0.0, 0.0], [0.0, 0.0, 0.0, 1.0], [1.0; 3])));
+        let turned = Channel { rotation: Track::from_keys(vec![0.0], vec![[0.0, 0.0, 0.6, 0.8]]), ..Default::default() };
+        assert_eq!(turned.local(0.0, 30.0, false), Some(([0.0; 3], [0.0, 0.0, 0.6, 0.8], [1.0; 3])));
+        assert_eq!(Channel::default().local(0.0, 30.0, false), None);
+    }
 
     #[test]
     fn half_floats_decode() {

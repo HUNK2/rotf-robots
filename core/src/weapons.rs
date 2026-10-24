@@ -756,6 +756,11 @@ pub struct WeaponTuning {
     /// A flamethrower's `damagePerSecond` and `damageTicsPerSecond` (loader `FUN_007bf710`).
     pub flame_damage_per_second: f32,
     pub flame_ticks_per_second: f32,
+    /// A flamethrower's heat comes by time while it burns, not by the round (`WeaponState::burn`):
+    /// its update adds `weapon_heat_increment` (`heatMeterIncrementPerRound`) times dt each update
+    /// (0074c36a-0074c385: slot `+0xfc` 007a9610, then `+0x100` = `weapon_add_heat` 007a90c0),
+    /// and it never fires through 007ae010. [game]
+    pub heat_by_time: bool,
     /// `listenToWeaponAnimEvent` (attribute `+0x5c`, weapon slot `+0x34` `0074f300`): true, the
     /// weapon manager leaves showing, hiding and setting it "out" to the arm clip's
     /// `WeaponAttachmentEvent` (`007b4680`); false, the manager does them at once (`007b2b40`,
@@ -1027,6 +1032,7 @@ fn tuning_from(node: Node, kind: Kind) -> WeaponTuning {
         Kind::Flame => {
             t.flame_damage_per_second = num("damagePerSecond");
             t.flame_ticks_per_second = num("damageTicsPerSecond");
+            t.heat_by_time = true;
         }
         // The launcher's numbers are read by `turret::read_launcher`, not here. [game]
         Kind::Turret => {}
@@ -1313,6 +1319,14 @@ impl Weapon {
         if self.heat >= t.heat_capacity { self.overheated_left = t.overheat_period; self.heat_wait=0.0; }
         else { self.heat_wait = t.heat_cooldown_til_decrement; }
     }
+
+    /// One update of a burning flamethrower (`heat_by_time`): `heatMeterIncrementPerRound` times
+    /// the update's length, which also restarts the wait before the heat falls, so a held flame
+    /// climbs 15 a second and reaches the overheat in 6.7 s. [game 0074c36a-0074c385, 007a90c0]
+    /// Called before the update's heat step, as the flame's update does (0074c200 step 8).
+    pub fn burn(&mut self, t: &WeaponTuning, dt: f32) {
+        self.add_heat(t, t.heat_per_round * dt);
+    }
     /// The heat meter, 0 to 1; full while locked.
     pub fn heat_fraction(&self, t: &WeaponTuning) -> f32 {
         if self.overheated_left > 0.0 { 1.0 } else { (self.heat / t.heat_capacity.max(1e-3)).clamp(0.0, 1.0) }
@@ -1423,6 +1437,11 @@ impl Weapon {
         self.count_burst(t);
         self.heat_at_fire = self.heat;
         self.sounds_cut = false;
+        // A flamethrower's "round" (the port's pacing of its refusal and sound) adds no heat:
+        // it heats while it burns (`burn`). [game 0074c200, 0074cd20]
+        if t.heat_by_time {
+            return Fired::Rounds(1);
+        }
         self.heat += t.heat_per_round;
         if self.heat < t.heat_capacity {
             self.heat_wait = t.heat_cooldown_til_decrement;
@@ -4293,6 +4312,44 @@ mod tests {
             // Updates 0, 5, 10 ... of the 62 in two seconds.
             assert!((12..=13).contains(&total), "{total} rounds at {frame} a frame");
         }
+    }
+
+    /// Long Haul's flamethrower heats by time while it burns, not by its one-a-second "rounds"
+    /// (`heat_by_time`, `burn`): held, it climbs 15 a second with no fall in between and locks at
+    /// its capacity of 100 after 6.7 s, for its 4 s overheat. [game 0074c36a, 007a90c0] [data]
+    /// Before (the user's report, 2026-10-25), 15 a round once a second fell back to 0 within
+    /// half a second: it never built up.
+    #[test]
+    fn a_burning_flame_heats_by_time_and_overheats() {
+        let def = WeaponDef { attribute: crate::formats::hash::crc32(b"LongHaul_FlameThrowerAttribute"), ..WeaponDef::test(Kind::Flame) };
+        let Ok(mut tunings) = load(crate::install::dir(), &[def]) else { return };
+        let t = tunings.remove(0);
+        assert!(t.heat_by_time && t.heat_per_round == 15.0 && t.heat_capacity == 100.0 && t.overheat_period == 4.0);
+        let mut w = Weapon::default();
+        let mut locked_at = None;
+        for update in 1..=300 {
+            w.step(&t, true, DT);
+            if w.overheated_left <= 0.0 && w.heat < t.heat_capacity {
+                w.burn(&t, DT);
+            }
+            if update == 94 {
+                // 3 s held: 15 a second, with no fall while it burns.
+                assert!((w.heat - 15.0 * 94.0 * DT).abs() < 0.01, "{}", w.heat);
+            }
+            if locked_at.is_none() && w.overheated_left > 0.0 {
+                locked_at = Some(update as f32 * DT);
+            }
+        }
+        let locked_at = locked_at.expect("the held flame overheats");
+        assert!((locked_at - 100.0 / 15.0).abs() < 2.0 * DT, "locked at {locked_at} s");
+        // Let go, it falls as any weapon's heat does.
+        let mut cool = Weapon { heat: 50.0, ..Weapon::default() };
+        cool.burn(&t, DT);
+        let hot = cool.heat;
+        for _ in 0..20 {
+            cool.step(&t, false, DT);
+        }
+        assert!(cool.heat < hot, "{} after {hot}", cool.heat);
     }
 
     #[test]

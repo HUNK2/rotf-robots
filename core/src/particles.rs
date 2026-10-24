@@ -666,6 +666,16 @@ pub struct Group {
     /// What the sources carry between updates (group `+0x80`): the fraction of a particle
     /// a steady source still owes, or under zero once a burst has gone off.
     carry: f32,
+    /// [assumed port design] Each steady source's own carry, by its place among the element's
+    /// actions, in place of the group's one (`carry`, which bursts still use). The game's
+    /// `SrcA` count reads and writes the group's `+0x80` (00ac3470, 008384d0 / 008384e0), so two
+    /// sources of one element share it. Stepped at the port's even 1/60 s, two equal sources
+    /// then lock: the second always tips the carry over and makes every particle, the first
+    /// none (Grindor's boost: left and right exhausts in one element, rates 5 and 10, so the
+    /// left made nothing; the user's report, 2026-10-25). With the game's uneven frame steps the
+    /// lock breaks and both make theirs. Settles: the game's particle step (the frame's time or
+    /// a fixed one) and Grindor's left exhaust in the original.
+    carries: Vec<f32>,
     /// An `Intt` source's clock and whether it is on.
     gap: (f32, bool),
     /// At or past the element's `end`: removed at the next update.
@@ -730,8 +740,11 @@ impl Group {
     fn update(&mut self, element: &Element, time: f32, dt: f32, place: &Affine3A, moved: Vec3, emitting: bool, scale: f32, rng: &mut Rng) {
         let running = |action: &Action| action.start <= time && time <= action.end;
         let sources = element.actions.iter().take_while(|a| a.is_source()).count();
+        if self.carries.len() < sources {
+            self.carries.resize(sources, 0.0);
+        }
         if emitting {
-            for action in element.actions[..sources].iter().filter(|a| running(a)) {
+            for (index, action) in element.actions[..sources].iter().enumerate().filter(|(_, a)| running(a)) {
                 match &action.kind {
                     Kind::Burst { count, slots } => {
                         if self.carry >= 0.0 {
@@ -741,9 +754,9 @@ impl Group {
                         }
                     }
                     Kind::Source { rate, slots } => {
-                        let owed = rate * scale * SOURCE_SHARE * dt + self.carry;
+                        let owed = rate * scale * SOURCE_SHARE * dt + self.carries[index];
                         let count = owed as i32;
-                        self.carry = owed - count as f32;
+                        self.carries[index] = owed - count as f32;
                         self.emit(slots, count.max(0) as usize, element, place, None, rng);
                     }
                     Kind::Intermittent { rate, on, off, slots } => {
@@ -757,25 +770,25 @@ impl Group {
                             self.gap.1 = !self.gap.1;
                         }
                         if self.gap.1 {
-                            let owed = rate * scale * step + self.carry;
+                            let owed = rate * scale * step + self.carries[index];
                             let count = owed as i32;
-                            self.carry = owed - count as f32;
+                            self.carries[index] = owed - count as f32;
                             self.emit(slots, count.max(0) as usize, element, place, None, rng);
                         }
                     }
                     Kind::Eject { rate, speed_coeff, min_speed, slots } => {
                         // The count is taken, and the fraction kept, whether or not the
                         // emitter moved enough for the particles to be made.
-                        let owed = rate * scale * SOURCE_SHARE * dt + self.carry;
+                        let owed = rate * scale * SOURCE_SHARE * dt + self.carries[index];
                         let count = owed as i32;
-                        self.carry = owed - count as f32;
+                        self.carries[index] = owed - count as f32;
                         if count > 0 && *min_speed <= moved.length() {
                             let leaving = moved * (speed_coeff / dt);
                             self.emit(slots, count as usize, element, place, Some((moved, leaving)), rng);
                         }
                     }
                     Kind::RandomSpawn { wait, slots } => {
-                        let mut clock = self.carry - dt;
+                        let mut clock = self.carries[index] - dt;
                         let mut count = 0;
                         while clock <= 0.0 {
                             count += 1;
@@ -784,7 +797,7 @@ impl Group {
                             }
                             clock += wait.as_ref().and_then(|d| d.number(rng)).unwrap_or(0.0);
                         }
-                        self.carry = clock;
+                        self.carries[index] = clock;
                         self.emit(slots, count, element, place, None, rng);
                     }
                     _ => {}
@@ -1318,6 +1331,27 @@ mod tests {
         }
         assert!((9..=10).contains(&made), "{made}");
         assert!(before <= 2);
+    }
+
+    /// [assumed port design] Two equal steady sources of one element, one either side (Grindor's
+    /// boost: x -1.61 and +1.6, rate 5), each make their own: a shared carry stepped at an even
+    /// 1/60 s gave the second every particle and the first none (`Group::carries`).
+    #[test]
+    fn two_sources_of_one_element_both_make_their_share() {
+        let side = |x: f32| Action { start: 0.0, end: 10.0, kind: Kind::Source { rate: 5.0, slots: slots(&[(0, Domain::Point(Vec3::X * x)), (9, one(5.0))]) } };
+        let t = Template {
+            elements: vec![Element { max_particles: 100, end: 10.0, local_space: true, actions: vec![side(-1.6), side(1.6), always(Kind::Life)], ..Default::default() }],
+            ..Default::default()
+        };
+        let mut effect = Effect::new(&t);
+        let mut rng = Rng(1);
+        for _ in 0..120 {
+            effect.step(&t, &Affine3A::IDENTITY, DT, &mut rng);
+        }
+        let particles = &effect.group(0).unwrap().particles;
+        let (left, right) = (particles.iter().filter(|p| p.pos.x < 0.0).count(), particles.iter().filter(|p| p.pos.x > 0.0).count());
+        // Two seconds at 5 a second each.
+        assert!((9..=10).contains(&left) && (9..=10).contains(&right), "left {left}, right {right}");
     }
 
     #[test]

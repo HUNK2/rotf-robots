@@ -542,8 +542,29 @@ pub fn load(game_dir: &Path, pack_name: &str) -> Result<CharacterData, String> {
     // The car model's clips also go in the animation set under their own set name, so the
     // special's clip is found by set and id like the robot's (`Actions::VEHICLE_SET`). [data]
     animations.sets.insert(crate::tuning::Actions::VEHICLE_SET.to_owned(), vehicle_set);
+    left_cannon_on_its_barrel(name_id, &mut weapon_defs, &mut weapon_objects);
+    // [deviation] Compensated scales drawn in a straight line (`Clip::even_out_compensated_scales`),
+    // for Grindor only: the user's report is his, it clears all 30 of his spikes over 2 m
+    // (`clip_spikes blackout 2`), and on Starscream (29 spans) it clears some and makes a new one
+    // (his thrust flaps in `Trans_V2R_Hover`, 3.9 m). `TF_NO_EVEN` leaves the clips as the data has
+    // them, for comparing.
+    let robot = robot.ok_or("pack has no robot object")?;
+    let mut evened = 0;
+    let even = name_id == crate::formats::hash::crc32(b"Blackout") && std::env::var_os("TF_NO_EVEN").is_none();
+    for (set, refs) in animations.sets.iter_mut().filter(|_| even) {
+        let on = if set == crate::tuning::Actions::VEHICLE_SET { vehicle.as_ref() } else { Some(&robot) };
+        if let Some(object) = on {
+            evened += even_out_compensated_scales(refs.iter_mut(), object);
+        }
+    }
+    if let Some(car) = vehicle.as_ref().filter(|_| even) {
+        evened += even_out_compensated_scales(vehicle_animations.iter_mut(), car);
+    }
+    if evened > 0 && std::env::var_os("TF_EVEN_LOG").is_some() {
+        eprintln!("{pack_name}: {evened} compensated scale spans evened out");
+    }
     Ok(CharacterData {
-        robot: robot.ok_or("pack has no robot object")?,
+        robot,
         vehicle,
         animations,
         vehicle_animations,
@@ -571,11 +592,81 @@ pub fn load(game_dir: &Path, pack_name: &str) -> Result<CharacterData, String> {
     })
 }
 
+/// Each clip's compensated scales evened out against `object`'s hierarchy; how many spans changed.
+pub fn even_out_compensated_scales<'a>(clips: impl Iterator<Item = &'a mut AnimRef>, object: &ObjectDef) -> usize {
+    let parent = |name: u32| {
+        let node = object.nodes.iter().find(|n| n.name_hash == name)?;
+        node.parent.map(|p| object.nodes[p].name_hash)
+    };
+    clips.filter_map(|r| r.clip.as_mut()).map(|clip| clip.even_out_compensated_scales(&parent)).sum()
+}
+
+/// The node Ironhide's left cannons hang on: the front of his left barrel, as `Weapon_R_FX_Attach`
+/// is of his right. [data]
+const IRONHIDE_LEFT_CANNON: u32 = crate::formats::hash::crc32(b"Weapon_L_FX_Attach");
+
+/// [deviation, asked for by the user 2026-10-25] Ironhide's left cannons fire from the front of the
+/// barrel. In his data all three left-hand weapons share one invisible object whose FireDummy and
+/// MuzzleFlashDummy sit at (1.33, -0.29, -0.68), a place made for `ObjectAttachment_Hand_L` (the
+/// one of them hung there): on that node it lands within 0.2 m of the barrel's mouth. The two hung
+/// on `Weapon_L_FX_Attach`, a bone turned a quarter round from the hand, put their flash, smoke and
+/// rounds 1.4 m inboard by his left hand, and the original's link (007b4f20 -> 0056c9b0,
+/// LinkConstraint 0056c2f0, no offset) does the same as read. Here those two objects' dummies sit
+/// at the object's origin, the bone itself, as his right cannons' do in the data.
+fn left_cannon_on_its_barrel(name_id: u32, defs: &mut [WeaponDef], objects: &mut [Option<ObjectDef>]) {
+    if name_id != crate::formats::hash::crc32(b"Ironhide") {
+        return;
+    }
+    for (def, object) in defs.iter_mut().zip(objects.iter_mut()) {
+        let Some(object) = object.as_mut().filter(|_| def.bone == IRONHIDE_LEFT_CANNON) else { continue };
+        for node in object.nodes.iter_mut().filter(|n| n.name.contains("Dummy")) {
+            node.bind[3] = [0.0; 3];
+        }
+        def.muzzle = glam::Vec3::ZERO;
+        def.barrels = [glam::Vec3::ZERO; 3];
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::formats::hash::crc32;
     use crate::melee::surface;
+
+    #[test]
+    fn grindors_rear_rotor_housing_no_longer_flies_out_as_he_changes_back() {
+        if crate::install::missing() { return; }
+        let data = load(crate::install::dir(), "blackout").unwrap();
+        let car = data.vehicle.as_ref().unwrap();
+        let rig = crate::pose::Rig::new(car);
+        let clip = data.vehicle_animations.iter().find(|r| r.id == "Trans_V2R_B").and_then(|r| r.clip.as_ref()).unwrap();
+        let node = car.nodes.iter().position(|n| n.name == "Rotorhousing_Back_L").unwrap();
+        let at = |t: f32| rig.pose(clip, false, t)[node].translation;
+        // The data's keys put it 16 m out at tick 31, half way between two places 0.2 m apart.
+        for t in [30.5, 31.0, 31.5] {
+            let mid = (at(t - 0.5) + at(t + 0.5)) * 0.5;
+            assert!((at(t) - mid).length() < 0.5, "tick {t}: {:?} against {mid:?}", at(t));
+        }
+        assert!((at(31.0) - (at(30.0) + at(32.0)) * 0.5).length() < 0.5);
+    }
+
+    #[test]
+    fn ironhides_left_cannons_fire_from_their_barrel_and_the_hand_weapon_keeps_its_place() {
+        if crate::install::missing() { return; }
+        let data = load(crate::install::dir(), "ironhide").unwrap();
+        let mut on_cannon = 0;
+        for (def, object) in data.weapons.iter().zip(&data.weapon_objects) {
+            let Some(object) = object else { continue };
+            let dummy = object.nodes.iter().find(|n| n.name == "FireDummy").map(|n| n.bind[3]);
+            if def.bone == IRONHIDE_LEFT_CANNON {
+                on_cannon += 1;
+                assert_eq!((def.muzzle, dummy), (glam::Vec3::ZERO, Some([0.0; 3])));
+            } else if def.bone == crc32(b"ObjectAttachment_Hand_L") {
+                assert!((def.muzzle - glam::Vec3::new(1.33, -0.29, -0.68)).length() < 0.02, "{:?}", def.muzzle);
+            }
+        }
+        assert_eq!(on_cannon, 2);
+    }
 
     #[test]
     fn anonymous_spawn_players_supply_the_punch_and_missile_sounds() {
@@ -612,6 +703,28 @@ mod tests {
         let walk = data.animations.find("WalkSet", "Walk").and_then(|r| r.clip.as_ref()).unwrap();
         println!("devastator: {} nodes, walk {:.2} m/s, {} meshes", data.robot.nodes.len(), walk.forward_speed(), data.library.meshes.len());
         assert!(walk.forward_speed() > 0.0);
+    }
+
+    /// `optimusflight` and `megatronflight` carry one damage-less `ShockWave` each on their
+    /// robot object, Devastator two of 25 [data]: only he is the giant (`giant::is_giant`).
+    /// Keying the giant on "has ShockWaves" made both flyers walk-only (2026-10-25).
+    #[test]
+    fn only_devastator_is_the_giant() {
+        let dir = crate::install::dir();
+        if !dir.join("characters").is_dir() || !dir.join(crate::formats::characterlist::ELSEWHERE[0].file).is_file() {
+            return;
+        }
+        for pack in ["bumblebee", "optimus", "ratchet", "ironhide", "megatron", "longhaul", "audir8", "jetfire", "firestorm",
+            "starscream", "blackout", "optimusflight", "megatronflight", "devastator"] {
+            let data = load(dir, pack).unwrap();
+            let waves = match pack {
+                "optimusflight" | "megatronflight" => 1,
+                "devastator" => 2,
+                _ => 0,
+            };
+            assert_eq!(data.shockwaves.len(), waves, "{pack}");
+            assert_eq!(crate::giant::is_giant(&data), pack == "devastator", "{pack}");
+        }
     }
 
     /// Starscream's special makes his weapons fire their `chargeMaxProjectileObj` (007ae010,
@@ -835,6 +948,23 @@ mod tests {
         assert_eq!(road("Sand"), event("VEH_ROAD_SAND"));
         assert_eq!(road("a surface no entry lists"), event("VEH_ROAD_PAVE"));
         assert_eq!(Some(data.sounds.suspension), event("VEH_SUSPENSION_SM"));
+    }
+
+    /// Megatron's tank lays its marks from its treads: `tireName` names `Tread_Back_L`... on
+    /// nodes of his vehicle, one for each wheel by the game's map (`vehicle::wheel_of_node`,
+    /// 01185740). [data] [game] They were dropped when only the tyres' names counted (the
+    /// user's report, 2026-10-25: "no trail when in vehicle mode").
+    #[test]
+    fn megatrons_marks_are_his_treads_one_a_wheel() {
+        if crate::install::missing() { return; }
+        let Ok(data) = load(crate::install::dir(), "megatron") else { return };
+        let tank = data.vehicle.as_ref().unwrap();
+        let mut wheels: Vec<usize> = tank.skid_marks.iter().map(|m| {
+            assert!(tank.nodes.iter().any(|n| n.name_hash == m.tyre), "{:#010x} is a node of the tank", m.tyre);
+            crate::vehicle::wheel_of_node(m.tyre).expect("a tread the map knows")
+        }).collect();
+        wheels.sort();
+        assert_eq!(wheels, [0, 1, 2, 3]);
     }
 
     /// Needs the game install.

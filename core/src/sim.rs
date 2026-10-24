@@ -525,13 +525,27 @@ impl Arena {
         let mut hit = false;
         // [stand-in] The upright cylinder meets the ramp's vertical sides at their local
         // height. The planar top is handled by floor/follow_floor, not a bounding box.
-        let ramp_sides = self.ramps.iter().filter_map(|r| {
+        // An edge another surface meets within a step of its top is no side at all: the
+        // hill's and the rollers' crests, where two wedges join at one height. Taken for a wall,
+        // it stopped a body whose radius reaches it while his feet are still more than a step
+        // down the slope (radius times slope over 0.6: Long Haul's and Jetfire's 4 m on the
+        // hill's 0.2, 2026-10-25); narrower bodies stepped past it within one update.
+        let joined = |p: Vec2, top: f32, ramp: Option<usize>, b: Option<&Box3>| {
+            self.ramps.iter().enumerate().any(|(j, o)| Some(j) != ramp && o.contains(p) && (o.top(p) - top).abs() <= STEP_HEIGHT)
+                || self.boxes.iter().any(|o| b.is_none_or(|b| !std::ptr::eq(b, o)) && p.cmpge(o.min.truncate()).all()
+                    && p.cmple(o.max.truncate()).all() && (o.max.z - top).abs() <= STEP_HEIGHT)
+        };
+        let ramp_sides = self.ramps.iter().enumerate().filter_map(|(i, r)| {
             let p = pos.truncate().clamp(r.min, r.max);
             let top = r.top(p);
-            (top > pos.z + STEP_HEIGHT && r.base < pos.z + height)
+            (top > pos.z + STEP_HEIGHT && r.base < pos.z + height && !joined(p, top, Some(i), None))
                 .then_some(Box3 { min: r.min.extend(r.base), max: r.max.extend(top) })
         }).collect::<Vec<_>>();
-        for b in self.boxes.iter().chain(&ramp_sides) {
+        let boxes = self.boxes.iter().filter(|b| {
+            let p = pos.truncate().clamp(b.min.truncate(), b.max.truncate());
+            !joined(p, b.max.z, None, Some(*b))
+        }).collect::<Vec<_>>();
+        for b in boxes.into_iter().chain(&ramp_sides) {
             if b.max.z <= pos.z + STEP_HEIGHT || b.min.z >= pos.z + height {
                 continue;
             }

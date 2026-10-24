@@ -21,6 +21,8 @@ const BIAS: f32 = 0.03;
 const REACH_MARGIN: f32 = 0.001;
 const TURN_RATE: f32 = 24.0;
 const UPDATE: f32 = 0.032; // [game] Simulation cadence.
+/// The share of its way back up the body's lowering takes an update (`FootIk::apply`). [assumed port design]
+const BODY_RISE: f32 = 0.15;
 
 #[derive(Clone, Debug)]
 pub struct Leg {
@@ -471,13 +473,25 @@ impl FootIk {
                 for i in 0..count {
                     self.offsets[i] += (desired[i] - self.offsets[i]) * 0.5;
                 }
+                // [assumed port design] The body follows its lowest limb down at the limbs' own
+                // halving, and back up at `BODY_RISE` an update: going up a slope the lowest foot is
+                // the one behind, which changes every stride, so set straight to it the body jumped
+                // 0.2 to 0.4 m twice a stride on long legs (Breakaway, Starscream; the user's report,
+                // 2026-10-25). The game, as read, lowers no body (`notes/foot-ik.md`).
+                let target = self.offsets.iter().copied().fold(0.0_f32, f32::min);
+                self.body += (target - self.body) * if target < self.body { 0.5 } else { BODY_RISE };
             }
         }
         for (i, turn) in turns.iter().enumerate() {
             self.turns[i] = self.turns[i].slerp(*turn, (dt * TURN_RATE).min(1.0));
-            if !supported[i] {
-                // settles: 0073db50's lost-probe branch (the callback / filter path is unresolved: `notes/foot-ik.md`).
-                // [assumed] A lost probe releases its foot immediately.
+            // settles: 0073db50's lost-probe branch (the callback / filter path is unresolved: `notes/foot-ik.md`).
+            // [assumed] A lost probe (a foot swung more than the probe's 1.5 m over the ground) lets
+            // its lift go back to none by the same halving as any other (`desired` is 0 for it), its
+            // sole turning back level: released at once, a downhill foot's -0.35 to -0.44 m came off
+            // in one update as it lifted, and the body's lowering with it, so long-legged robots'
+            // legs jumped on every stride up a slope (Breakaway, Starscream; the user's report,
+            // 2026-10-25, `core\examples\foot_ik_ramp.rs`). A heavy body's limb is still released.
+            if !supported[i] && rig.weight.is_some() {
                 self.offsets[i] = 0.0;
                 self.turns[i] = Quat::IDENTITY;
                 self.speeds[i] = 0.0;
@@ -488,15 +502,13 @@ impl FootIk {
             self.reset();
             return;
         }
-        if rig.weight.is_none() {
-            self.body = self.offsets.iter().copied().fold(0.0_f32, f32::min);
-        }
         let lower = self.body;
         let body_parent = parents[rig.body].map_or(Affine3A::IDENTITY, |p| world[p]);
         local[rig.body].translation +=
             glam::Vec3A::from(body_parent.inverse().transform_vector3(Vec3::Z * lower));
         for (i, leg) in rig.legs.iter().enumerate() {
-            if !supported[i] {
+            // A released foot still easing back is solved to its easing lift (above).
+            if !supported[i] && (rig.weight.is_some() || self.offsets[i].abs() < 1e-4) {
                 continue;
             }
             let (_, rotation, position) = world[leg.foot].to_scale_rotation_translation();
@@ -887,5 +899,36 @@ mod tests {
         );
         assert_eq!(pose, base);
         assert_eq!(ik.offsets, vec![0.0; 2]);
+    }
+
+    /// [assumed port design] A foot that swings out of the probe's reach eases its lift back by the
+    /// halving, and the body comes back up after it at `BODY_RISE`: neither jumps in one update
+    /// (Breakaway's and Starscream's legs on the arena's wedges, the user's report, 2026-10-25).
+    #[test]
+    fn a_foot_lifted_off_a_slope_does_not_snap_the_body() {
+        let (rig, base, parents) = fixture();
+        let ramp = Ramp { min: Vec2::splat(-10.0), max: Vec2::splat(10.0), base: 0.0, height: 8.0, slope: Vec2::new(0.3, 0.0) };
+        let arena = Arena { ramps: vec![ramp], ..Default::default() };
+        let mut ik = FootIk::default();
+        let root = Affine3A::from_translation(Vec3::new(0.0, 0.0, 11.0));
+        let mut pose = base.clone();
+        for _ in 0..20 {
+            pose.clone_from_slice(&base);
+            ik.apply(&rig, &mut pose, &parents, root, true, 0.032, &arena);
+        }
+        let body = ik.body_lift();
+        let lowest = ik.offsets.iter().copied().fold(0.0_f32, f32::min);
+        assert!(body < -0.05 && (body - lowest).abs() < 0.01, "settled: body {body}, lowest foot {lowest}");
+        // The lower foot swings 3 m up, out of the probe's 1.5 m.
+        let low = if ik.offsets[0] < ik.offsets[1] { 0 } else { 1 };
+        let world = accumulate(&base, &parents);
+        let parent = parents[rig.legs[low].foot].map_or(Affine3A::IDENTITY, |p| world[p]);
+        let mut lifted = base.clone();
+        lifted[rig.legs[low].foot].translation += glam::Vec3A::from(parent.inverse().transform_vector3(Vec3::Z * 3.0));
+        let was = ik.offsets[low];
+        pose.clone_from_slice(&lifted);
+        ik.apply(&rig, &mut pose, &parents, root, true, 0.032, &arena);
+        assert!((ik.offsets[low] - was * 0.5).abs() < 1e-4, "eased, not released: {} from {was}", ik.offsets[low]);
+        assert!(ik.body_lift() <= body * (1.0 - BODY_RISE) + 1e-4, "the body rose {} from {body}", ik.body_lift());
     }
 }
