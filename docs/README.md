@@ -9,6 +9,8 @@ disagree, the code and its tests are the later word.
 The notes describe behaviour; they contain no game files and no decompiled code. Running anything
 here still needs your own install of the game.
 
+To port the robots into another game, start with [MODDING.md](MODDING.md) instead.
+
 ## How to read them
 
 - **Addresses** (`00867f20`, `FUN_005bcb30`, `+0x324`) are functions, data and structure offsets in

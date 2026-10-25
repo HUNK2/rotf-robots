@@ -1,5 +1,5 @@
 //! Every character of the character list and every mission of the mission list, with the
-//! names `--character` and `--mission` take. Feeds the test launcher (`Play-Test.cmd`).
+//! names `--character` and `--mission` take.
 //!
 //! cargo run -p tf2-core --example list_roster [-- <game dir>]
 use std::path::PathBuf;
