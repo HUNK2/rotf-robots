@@ -107,7 +107,7 @@ impl Ramp {
 
 /// Continuous SAT for an oriented avatar cuboid translating against a static convex
 /// solid. Geometry is exact for the arena's wedges/boxes; Lux contact impulses are
-/// supplied separately by vehicle::Chassis (notes/status.md). [game 006e81e0] settled for the heights: the
+/// supplied separately by vehicle::Chassis. [game 006e81e0] settled for the heights: the
 /// chassis's floor reach is 0.9 of its half height and its centre sits 0.5 above the feet, as 006e81e0 sets
 /// the wrapper's +0x50 and +0x54 (`level_world.rs`, the chassis floor). The SAT here is the port's own; no game
 /// routine is read for it.

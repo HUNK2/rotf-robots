@@ -1,4 +1,4 @@
-//! Camera shakes, as read from the original (`notes\camera.md`, "Shakes"). A shake is a
+//! Camera shakes, as read from the original (`docs/camera.md`, "Shakes"). A shake is a
 //! settings object from `camera.lxb` (`DefaultCameraShake`, `MassiveCameraShake`...)
 //! started by name, at a place or everywhere; each update it draws random angles and
 //! offsets inside limits that fade with its age and with the camera's distance, and chases

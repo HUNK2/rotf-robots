@@ -51,7 +51,7 @@ fn main() {
             input.buttons_down |= 1u64 << button::FLYING_MODE;
         }
         // With a hover update, the stick is held only in hover (the flight before it level).
-        if i >= 20 && hover_at.map_or(true, |_| hovering) {
+        if i >= 20 && hover_at.is_none_or(|_| hovering) {
             input.pad_stick = glam::Vec2::new(0.0, stick_y);
             if hovering {
                 // Hover moves by the world-space stick; the jet faces +y in the empty arena.
@@ -62,7 +62,7 @@ fn main() {
             input.jump = true;
         }
         sim::step(&mut s, &input, &t, &arena, 0.032);
-        if i % every == 0 && hover_at.map_or(true, |h| i + 3 >= h && i <= h + 60) {
+        if i % every == 0 && hover_at.is_none_or(|h| i + 3 >= h && i <= h + 60) {
             println!("t {:5.2} mode {:?} speed {:6.2} vz {:6.2} z {:7.2} horiz {:6.2} | {} clip {:08x} tick {:6.2} control {:?}",
                 i as f32 * 0.032, std::mem::discriminant(&s.mode), s.vel.length(), s.vel.z, s.pos.z,
                 s.vel.truncate().length(), s.control_state(&t).unwrap_or("-"),

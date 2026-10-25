@@ -1,6 +1,6 @@
 //! The AI perceptions (phase 3): Compare, Targeting, Message, Range, Random and Timer, and the
 //! aggregate that combines one entry's links (0082e7e0, with the link evaluator 0082e570).
-//! Source: notes/ai-perceptions.md, and its "Manager rulings" section, which wins over the rest.
+//! Source: the unpublished notes, and its "Manager rulings" section, which wins over the rest.
 //!
 //! Tags as in ai_brain.rs. Perceptions read the world only through `Ctx`. A score takes `&Ctx`,
 //! so the one side effect of scoring (a link's message to the character) goes through `Ctx::emit`.
@@ -37,7 +37,7 @@ pub trait Perception: Send + Sync {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ValueKind {
     pub hash: u32,
-    /// What the value is, from the getter's branch (notes/ai-perceptions.md, third read B and the
+    /// What the value is, from the getter's branch (third read B and the
     /// second read A). "[unknown]" where the branch is not read.
     pub meaning: &'static str,
     /// True when this port computes the value. False: a [stand-in] with no value (score 0).
@@ -198,7 +198,7 @@ pub fn value(value_type: u32, group_id: u32, ctx: &Ctx) -> Option<f32> {
         // b85859da (FoeAmbushMode) [game 00830a76..00830ac4, fifth read 10]: 1 or 0 with a foe, no
         // value without one. The ambush test (00824430) is [assumed].
         0xb85859da => s.foe_distance.map(|_| if s.foe_ambush { 1.0 } else { 0.0 }),
-        // 5ada9b7c (Range) [game 00831799..00831841, settled 2026-10-13 in notes/mission-attack-escort-trace.md]:
+        // 5ada9b7c (Range) [game 00831799..00831841, settled 2026-10-13 in the unpublished notes]:
         // no value (FLT_MAX) unless bit 5 of char+0x14c is set (was_hit) and state+0xc - char+0x1f0 <= 0
         // (hit_reaction_over: inside the hit window); then 0.001. Range 0..15 scores 1 for it, and the
         // brain-level link is inverted, so an undamaged enemy passes and a hit one is rejected.
@@ -495,7 +495,7 @@ pub struct Link {
     pub message: u32,
     pub arg: u32,
     /// The link's invert byte (`link+0x14`, the data's invertPriority) [game 0082e570 disasm
-    /// 0082e5a5..0082e5f1, notes/ai-brain.md R2]: the score is inverted after its message is sent.
+    /// 0082e5a5..0082e5f1, the unpublished notes R2]: the score is inverted after its message is sent.
     pub invert: bool,
 }
 
@@ -582,11 +582,10 @@ impl Aggregate {
                         best = s;
                     }
                 }
-                CALC_MIN => {
-                    if best > s {
+                CALC_MIN
+                    if best > s => {
                         best = s;
                     }
-                }
                 _ => {}
             }
         }

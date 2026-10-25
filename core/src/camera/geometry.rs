@@ -161,7 +161,7 @@ pub(super) fn arena_sweep(
         // [game] On a level the ball is swept by the game's own sphere test, against what
         // sends CAMERA (the mask the three cameras pass to 005be5a0). The contact point and
         // normal are the port's, a few centimetres and degrees off the original's
-        // (`notes\collision-sphere-sweep.md`).
+        // (`docs/collision-sphere-sweep.md`).
         if let Some(hit) = level.sweep(from, to, radius, crate::collision_masks::CAMERA) {
             keep(Hit {
                 point: hit.point,

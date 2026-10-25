@@ -3,7 +3,7 @@
 //! many chassis contacts, and the speed left. A check that the pass neither lets the car through walls
 //! nor drops it through the ground, and does not hold it in the open.
 //!
-//! cargo run --manifest-path C:/Bumblebee/Cargo.toml -p tf2-core --release --example chassis_drive -- [x y] [zone]
+//! cargo run -p tf2-core --release --example chassis_drive -- [x y] [zone]
 use glam::Vec3;
 use tf2_core::level_world::{LevelWorld, NO_FLOOR};
 use tf2_core::sim::{self, Input, Mode, State, World};

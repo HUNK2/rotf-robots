@@ -2,7 +2,7 @@
 //! `physics_contact`) on a level, with every contact printed: which primitive, its kind and masks,
 //! the record's t, normal and point, and whether the floor rule took it.
 //!
-//! cargo run --manifest-path C:/Bumblebee/Cargo.toml -p tf2-core --release --example pencil_probe -- x y z dx dy dz [zone]
+//! cargo run -p tf2-core --release --example pencil_probe -- x y z dx dy dz [zone]
 use glam::Vec3;
 use tf2_core::collision_world::WorldShape;
 use tf2_core::level_world::{LevelWorld, CHARACTER_MASK};
@@ -65,9 +65,8 @@ fn main() {
     let mut p = from + d;
     let hit = tf2_core::sim::World::push_out(&level, &mut p, radius, height);
     println!("stand-in push_out at the unblocked end: hit {hit}, moved to {p:?}");
-    if let Some(i) = nodes.iter().position(|n| n.id == 6016) {
-        if let WorldShape::Cuboid(c) = &level.world.primitives[nodes[i].id].shape {
-            println!("cuboid 6016: half {:?} x {:?}", c.shape.half, c.x);
-        }
+    if let Some(i) = nodes.iter().position(|n| n.id == 6016)
+        && let WorldShape::Cuboid(c) = &level.world.primitives[nodes[i].id].shape {
+        println!("cuboid 6016: half {:?} x {:?}", c.shape.half, c.x);
     }
 }

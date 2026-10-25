@@ -1,5 +1,5 @@
 //! The drive mode's trigger filter and drift turbo, read from the installed executable.
-//! See `notes/driving.md`, "Assumptions replaced (2026-10-07)".
+//! See `docs/driving.md`, "Assumptions replaced (2026-10-07)".
 
 use crate::tuning::DriveTuning;
 

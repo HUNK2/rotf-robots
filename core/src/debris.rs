@@ -1,6 +1,6 @@
 //! Debris: the pieces a damage stage throws when it is built (`lux::Debris`, a component on the Object of a
 //! `DetachLink`; the escort barriers' rocks, cars and rubble, and the five pieces of Bumblebee's micro missile's
-//! blast object). `notes\mission-level-instances.md` "Debris", `work\weapon-audit\r3-debris-done.md`.
+//! blast object). the unpublished notes "Debris", `work\weapon-audit\r3-debris-done.md`.
 //!
 //! [game] 00552930 (the component's ctor, run when the piece's stage is built by 00554830) reads the fields and
 //! launches the piece at once:
@@ -20,6 +20,7 @@
 //! - `inflict_damage` is kept at +0x60, `die_type` at +0x68, `override_collision` as +0x54 bit 0; the parent object's
 //!   handle +0x94 is kept at +0x70 (the damage's source). When die_condition is DEBRIS_DIE_IMPACT or inflict_damage
 //!   is above 0 it listens to its body's contacts (key f1e85af0, handler 005564d0 -> 00554090).
+//!
 //! [game, by absence] `quantity` is read by no code (its hash 9ff31636 is in no instruction): one piece per link.
 //!
 //! [game] Its life after the throw (the activation 00553840, the messages 00553ab0, the update 00553b70, the die
@@ -45,8 +46,8 @@
 //!   body is the piece's own (the test reads `*(pair[0]) + 0x9e` against `pair[1] + 0x9c`); for the roster's data the
 //!   other order gives the same answer (see `bumblebees_missile_pieces_never_hurt_a_character`).
 //! - a contact exists at all only when the two bodies' masks overlap: `(B send & A take) | (B take & A send)` (the
-//!   broad phase 006e5e00, `notes\physics.md` 1.13); the solver pushes them apart only where that also meets
-//!   `0x4d` (`notes\collision-response.md`, lines 44-49).
+//!   broad phase 006e5e00, `docs/physics.md` 1.13); the solver pushes them apart only where that also meets
+//!   `0x4d` (`docs/collision-response.md`, lines 44-49).
 //!
 //! [data] Bumblebee's missile pieces have the preset `DebrisSmall` (sends nothing, takes `PUSH`); a character's limbs
 //! `Character` (sends `PUNCH | WATER`, takes nothing). So a piece never touches a character (no mask meets), the floor
@@ -85,7 +86,7 @@ const FADE_AT_LATEST: f32 = 12.5;
 const PUSH_AGAIN_AFTER: f32 = 0.5;
 /// [game 00553b70] the fade loses this much alpha a second.
 const FADE_RATE: f32 = 2.0;
-/// [game, notes\collision-response.md] the bits a contact's masks must meet in.
+/// [game, docs/collision-response.md] the bits a contact's masks must meet in.
 const RESPONSE: u16 = 0x4d;
 /// The level's floor as the stand-in flight touches it: a `StaticGround` body. [data: the preset table]
 /// [assumed] the floor a piece lands on is of that preset.
@@ -170,6 +171,7 @@ impl DebrisDef {
 pub struct Rng(pub u32);
 
 impl Rng {
+    #[allow(clippy::should_implement_trait)] // the game's own name for it; not an iterator
     pub fn next(&mut self) -> f32 {
         self.0 = self.0.wrapping_mul(0x343fd).wrapping_add(0x269ec3);
         ((self.0 >> 16) & 0x7fff) as f32 / 32768.0
@@ -271,7 +273,7 @@ impl Piece {
     }
 
     /// Whether the piece's body and one with masks `other` make a contact at all: the broad phase keeps a pair whose
-    /// masks overlap RAW, `(A send & B take) | (A take & B send)` (006e5e00, `notes\physics.md` 1.13). [game]
+    /// masks overlap RAW, `(A send & B take) | (A take & B send)` (006e5e00, `docs/physics.md` 1.13). [game]
     /// [assumed] the contact message f1e85af0 (which the melee weapon's PUNCH hits also come by) is sent for every
     /// such pair that touches, not only those whose masks also meet in the response's 0x4d.
     pub fn meets(&self, other: Masks) -> bool {
@@ -347,18 +349,17 @@ impl Piece {
         if self.spin.length_squared() > 0.0 {
             self.turn = (Quat::from_scaled_axis(self.spin * dt) * self.turn).normalize();
         }
-        if let Some(z) = floor(self.pos) {
-            if self.pos.z < z {
-                self.pos.z = z;
-                if self.vel.z < 0.0 {
-                    self.vel.z = -self.vel.z * RESTITUTION;
-                }
-                self.vel.x *= 1.0 - FRICTION;
-                self.vel.y *= 1.0 - FRICTION;
-                self.spin *= 1.0 - FRICTION;
-                // [stand-in] the bounce is the solver's contact with the floor (whatever the masks: it did bounce).
-                let _ = self.contact(STATIC_GROUND);
+        if let Some(z) = floor(self.pos)
+            && self.pos.z < z {
+            self.pos.z = z;
+            if self.vel.z < 0.0 {
+                self.vel.z = -self.vel.z * RESTITUTION;
             }
+            self.vel.x *= 1.0 - FRICTION;
+            self.vel.y *= 1.0 - FRICTION;
+            self.spin *= 1.0 - FRICTION;
+            // [stand-in] the bounce is the solver's contact with the floor (whatever the masks: it did bounce).
+            let _ = self.contact(STATIC_GROUND);
         }
         let resting = self.vel.length() < 0.2;
         self.rest = if resting { self.rest + dt } else { 0.0 };

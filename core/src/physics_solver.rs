@@ -1,4 +1,4 @@
-//! The contact solver of the world step, its static rows (`notes\physics.md` 1.7): a body against
+//! The contact solver of the world step, its static rows (`docs/physics.md` 1.7): a body against
 //! a holder without a body (the level), as the avatar meets it.
 //!
 //! [game] 006df7c0 lines 171-397 build rows from every refreshed contact's slots that overlap
@@ -33,7 +33,7 @@ const ZERO: Lanes = [0.0; 4];
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct SolverBody {
     pub v: Lanes,
-    /// The game's angular velocity: the NEGATIVE of the conventional one (`notes\driving.md`).
+    /// The game's angular velocity: the NEGATIVE of the conventional one (`docs/driving.md`).
     pub w: Lanes,
     pub vp: Lanes,
     pub wp: Lanes,
@@ -60,18 +60,18 @@ impl SolverBody {
     /// an impulse.
     fn apply(&mut self, d: Lanes, d3: f32, r: Lanes) {
         for i in 0..3 {
-            self.v[i] = self.inv_mass[i] * d[i] + self.v[i];
+            self.v[i] += self.inv_mass[i] * d[i];
         }
-        self.v[3] = d3 + self.v[3];
+        self.v[3] += d3;
         let c = cross_pr(d, r);
         rotate_add(&mut self.w, c, &self.inv_inertia);
     }
 
     fn apply_pseudo(&mut self, d: Lanes, d3: f32, r: Lanes) {
         for i in 0..3 {
-            self.vp[i] = d[i] * self.inv_mass[i] + self.vp[i];
+            self.vp[i] += d[i] * self.inv_mass[i];
         }
-        self.vp[3] = d3 + self.vp[3];
+        self.vp[3] += d3;
         let c = cross_pr(d, r);
         rotate_add(&mut self.wp, c, &self.inv_inertia);
     }
@@ -85,7 +85,7 @@ fn cross_pr(p: Lanes, r: Lanes) -> [f32; 3] {
 /// w[j] += (c.y M[1][j] + c.x M[0][j]) + c.z M[2][j], all four lanes.
 fn rotate_add(w: &mut Lanes, c: [f32; 3], m: &[Lanes; 3]) {
     for j in 0..4 {
-        w[j] = ((c[1] * m[1][j] + c[0] * m[0][j]) + c[2] * m[2][j]) + w[j];
+        w[j] += (c[1] * m[1][j] + c[0] * m[0][j]) + c[2] * m[2][j];
     }
 }
 
@@ -230,7 +230,7 @@ pub fn solve_static_friction(bodies: &mut [SolverBody], rows: &mut [StaticRow], 
             p[i] = (f.i1[i] - o1[i]) * f.t1[i] + (f.i2[i] - o2[i]) * f.t2[i];
         }
         for i in 0..4 {
-            b.v[i] = p[i] * b.inv_mass[i] + b.v[i];
+            b.v[i] += p[i] * b.inv_mass[i];
         }
         let c = [p[1] * r[2] - p[2] * r[1], p[2] * r[0] - p[0] * r[2], p[0] * r[1] - p[1] * r[0]];
         rotate_add(&mut b.w, c, &b.inv_inertia);
@@ -290,20 +290,23 @@ pub fn build_static_row(body: &mut SolverBody, index: u16, origin: [f32; 3], wor
         let d = (n[1] * 0.0 + ax[0] * n[0]) + ax[2] * n[2];
         let t = [ax[0] - d * n[0], 0.0 - d * n[1], ax[2] - d * n[2], ax[3] - d * n[3]];
         let t1 = normalize4(t);
+        // The fourth lane is the game's 4-wide cross product as it computes it (zero, or NaN
+        // when the lane is not finite).
+        #[allow(clippy::eq_op)]
         let t2 = [t1[2] * n[1] - t1[1] * n[2], t1[0] * n[2] - t1[2] * n[0], t1[1] * n[0] - t1[0] * n[1], t1[3] * n[3] - t1[3] * n[3]];
         let k1 = k_of(t1);
         let k2 = k_of(t2);
         let inv = |k: Lanes| if k.iter().any(|&x| x != 0.0) { k.map(reciprocal) } else { ZERO };
         let (l1, l2) = (stored[1], stored[2]);
         for i in 0..4 {
-            p[i] = (t2[i] * l2 + t1[i] * l1) + p[i];
+            p[i] += t2[i] * l2 + t1[i] * l1;
         }
         Some(FrictionRow { friction: [friction; 4], inv_k1: inv(k1), inv_k2: inv(k2), t1, t2, i1: [l1; 4], i2: [l2; 4] })
     } else {
         None
     };
     for i in 0..4 {
-        body.v[i] = body.inv_mass[i] * p[i] + body.v[i];
+        body.v[i] += body.inv_mass[i] * p[i];
     }
     let c = [p[1] * r[2] - p[2] * r[1], p[2] * r[0] - p[0] * r[2], p[0] * r[1] - p[1] * r[0]];
     rotate_add(&mut body.w, c, &m);
@@ -359,7 +362,7 @@ fn apply_pair(a: &mut SolverBody, b: &mut SolverBody, d: Lanes, ra: Lanes, rb: L
     for (body, p, r) in [(a, d, ra), (b, neg, rb)] {
         let (v, w) = if pseudo { (&mut body.vp, &mut body.wp) } else { (&mut body.v, &mut body.w) };
         for i in 0..4 {
-            v[i] = p[i] * body.inv_mass[i] + v[i];
+            v[i] += p[i] * body.inv_mass[i];
         }
         let c = cross_pr(p, r);
         rotate_add(w, c, &body.inv_inertia);
@@ -452,25 +455,26 @@ pub fn build_pair_row(a: &mut SolverBody, b: &mut SolverBody, index: (u16, u16),
         let d = (ax[1] * n[1] + ax[0] * n[0]) + ax[2] * n[2];
         let t = [0, 1, 2, 3].map(|i| ax[i] - d * n[i]);
         let t1 = normalize4(t);
+        #[allow(clippy::eq_op)] // the fourth lane, as above
         let t2 = [t1[2] * n[1] - t1[1] * n[2], t1[0] * n[2] - t1[2] * n[0], t1[1] * n[0] - t1[0] * n[1], t1[3] * n[3] - t1[3] * n[3]];
         let inv = |k: Lanes| if k.iter().any(|&x| x != 0.0) { k.map(reciprocal) } else { ZERO };
         let k1 = pair_k(a, b, ra, rb, t1);
         let k2 = pair_k(a, b, ra, rb, t2);
         let (l1, l2) = (stored[1], stored[2]);
         for i in 0..4 {
-            p[i] = (t2[i] * l2 + t1[i] * l1) + p[i];
+            p[i] += t2[i] * l2 + t1[i] * l1;
         }
         Some(FrictionRow { friction: [friction; 4], inv_k1: inv(k1), inv_k2: inv(k2), t1, t2, i1: [l1; 4], i2: [l2; 4] })
     } else {
         None
     };
     for i in 0..4 {
-        a.v[i] = p[i] * a.inv_mass[i] + a.v[i];
+        a.v[i] += p[i] * a.inv_mass[i];
     }
     rotate_add(&mut a.w, cross_pr(p, ra), &a.inv_inertia.clone());
     let q = p.map(|x| 0.0 - x);
     for i in 0..4 {
-        b.v[i] = q[i] * b.inv_mass[i] + b.v[i];
+        b.v[i] += q[i] * b.inv_mass[i];
     }
     rotate_add(&mut b.w, cross_pr(q, rb), &b.inv_inertia.clone());
     BuiltPairRow { row, friction: friction_row }
@@ -547,14 +551,14 @@ pub fn apply_bounce(bodies: &mut [SolverBody], rows: &[BounceRow]) {
         }
         let a = &mut bodies[row.a as usize];
         for j in 0..4 {
-            a.v[j] = a.inv_mass[j] * p[j] + a.v[j];
+            a.v[j] += a.inv_mass[j] * p[j];
         }
         rotate_add(&mut a.w, cross_pr(p, row.ra), &a.inv_inertia.clone());
         if let Some(bi) = row.b {
             let q = [0.0 - p[0], 0.0 - p[1], 0.0 - p[2], 0.0 - p[3]];
             let b = &mut bodies[bi as usize];
             for j in 0..4 {
-                b.v[j] = b.inv_mass[j] * q[j] + b.v[j];
+                b.v[j] += b.inv_mass[j] * q[j];
             }
             rotate_add(&mut b.w, cross_pr(q, row.rb), &b.inv_inertia.clone());
         }
@@ -718,7 +722,7 @@ pub fn solve_world_joints(bodies: &mut [SolverBody], rows: &mut [JointRow]) {
         }
         let neg = lam.map(|x| 0.0 - x);
         for j in 0..4 {
-            b.v[j] = b.inv_mass[j] * neg[j] + b.v[j];
+            b.v[j] += b.inv_mass[j] * neg[j];
         }
         rotate_add(&mut b.w, cross_pr(neg, r), &b.inv_inertia.clone());
     }
@@ -746,12 +750,12 @@ pub fn solve_pair_joints(bodies: &mut [SolverBody], rows: &mut [JointRow]) {
             row.impulse[j] += lam[j];
         }
         for j in 0..4 {
-            b.v[j] = b.inv_mass[j] * lam[j] + b.v[j];
+            b.v[j] += b.inv_mass[j] * lam[j];
         }
         rotate_add(&mut b.w, cross_pr(lam, rb), &b.inv_inertia.clone());
         let neg = lam.map(|x| 0.0 - x);
         for j in 0..4 {
-            a.v[j] = a.inv_mass[j] * neg[j] + a.v[j];
+            a.v[j] += a.inv_mass[j] * neg[j];
         }
         rotate_add(&mut a.w, cross_pr(neg, ra), &a.inv_inertia.clone());
     }

@@ -410,13 +410,13 @@ pub fn object_weapon_effects<'a>(object: Option<Node<'a>>, name_of: &dyn Fn(u32)
             // sniper's steady): `chargeMaxProjectileObj`, weapon `+0x3a8`. [game 007ae010, 007aaeb0]
             if let Some(alt) = thing.path(&["chargeMaxProjectileObj", "obj"]) {
                 let launcher = thing.type_name() == Some("MissileLauncher");
-                out.push(row(alt_projectile_key(name), thing, Some(alt), Some(alt).filter(|_| launcher)));
+                out.push(row(alt_projectile_key(name), thing, Some(alt), launcher.then_some(alt)));
             }
             // A turret launcher's row above is its own muzzle flash (the throw). The deployed
             // turret carries a gun of its own in `deployableTurretObj`, laid out as any gun:
             // muzzle flash, fire sound, and its bullet's impacts. [data: blackout_turret's
             // GunWeapon, `w_muzzle_flash_blackout_gatling`; Ironhide's turret has a
-            // MissileLauncher, which nothing fires (`notes\special-weapons.md`), so is not read]
+            // MissileLauncher, which nothing fires (`docs/special-weapons.md`), so is not read]
             let turret = things(thing.path(&["deployableTurretObj", "obj"]));
             if let Some(gun) = turret.iter().find(|t| t.type_name() == Some("GunWeapon")) {
                 // Its round's lights, rumble and smoke are not read for it (the turret's own side).
@@ -519,20 +519,20 @@ pub fn load(game_dir: &Path, pack_name: &str) -> Result<CharacterData, String> {
                     weapon_objects = weapons::read_objects(thing, name_of);
                     grenade_objects = weapons::read_grenade_objects(thing, name_of);
                     turret_objects = weapons::read_turret_objects(thing, name_of);
-                    turret_clips = weapons::read_turret_clips(&file, thing);
+                    turret_clips = weapons::read_turret_clips(file, thing);
                     missile_objects = weapons::read_missile_objects(thing, name_of);
-                    weapon_animations = weapons::read_object_clips(&file, thing);
-                    melee_weapons = weapons::read_melees(&file, thing, name_of);
+                    weapon_animations = weapons::read_object_clips(file, thing);
+                    melee_weapons = weapons::read_melees(file, thing, name_of);
                     if let Some(object) = thing.path(&["transformModel", "vehicleProxy", "obj"]) {
                         vehicle = scene::read_object(object, name_of);
                         let attached = object.get("attachments").into_iter().flat_map(|a| a.items());
                         for bundle in attached.filter_map(|a| a.get("thing")).filter(|t| t.type_name() == Some("AnimRefBundle")) {
-                            vehicle_animations.extend(anim::read_bundle(&file, bundle));
-                            vehicle_set.extend(anim::read_bundle(&file, bundle));
+                            vehicle_animations.extend(anim::read_bundle(file, bundle));
+                            vehicle_set.extend(anim::read_bundle(file, bundle));
                         }
                     }
                     if let Some(set) = thing.get("animSet") {
-                        animations = anim::read_set(&file, set);
+                        animations = anim::read_set(file, set);
                     }
                 }
                 _ => {}
@@ -1119,7 +1119,7 @@ mod tests {
         assert_eq!(land, [(8.0, 0, crc32(b"r_contactdust_landing"), false, false, Vec::new())]);
         // Climbing: steps of hands and feet with the climbing sides, and a preset for each
         // of the five whose effect for a plain wall is the climbing dust.
-        let climbing = data.animations.sets.iter().flat_map(|(_, clips)| clips).filter_map(|r| r.clip.as_ref()).flat_map(|c| &c.effect_events);
+        let climbing = data.animations.sets.values().flatten().filter_map(|r| r.clip.as_ref()).flat_map(|c| &c.effect_events);
         let limbs: std::collections::BTreeSet<usize> =
             climbing.filter_map(|e| if let EffectEventKind::ClimbStep { limb } = e.kind { Some(limb) } else { None }).collect();
         assert!(limbs.len() >= 4, "{limbs:?}");

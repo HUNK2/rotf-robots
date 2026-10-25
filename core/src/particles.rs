@@ -1,4 +1,4 @@
-//! The game's particle system, the library its classes call `aps` (`notes\particles.md`).
+//! The game's particle system, the library its classes call `aps` (`docs/particles.md`).
 //!
 //! A `ParticleTemplate` is a list of elements; an element is a renderer and a list of
 //! actions. A running effect keeps a group of particles for each element. Each update of a
@@ -15,7 +15,7 @@
 //! in a template (`Intt`, the damage smoke's source, in his pack) is kept by its code and
 //! does nothing (`Template::unread`). How a particle is drawn is read too: the quad
 //! builders and the particle shaders that are compiled into the executable (see `Sprite`,
-//! `Renderer` and `notes\particles.md` "Drawing").
+//! `Renderer` and `docs/particles.md` "Drawing").
 
 use glam::{Affine3A, Vec3};
 
@@ -1005,7 +1005,7 @@ impl Effect {
     /// Play the installed effect at the nominal PC particle cadence.
     /// [game] 0057e3d0 (UpdateParticles) advances its private clock 00d546f8 by base * frameRatio, base =
     /// 1/60 (005a6d00 sets 00dade98 to 1/60). frameRatio is written by 007797b0 (mode 5) and, in the ordinary
-    /// path, a smoothed ratio goes to shared game-state +0xc4 (notes/particles.md); 00a9ff00 may throttle
+    /// path, a smoothed ratio goes to shared game-state +0xc4 (docs/particles.md); 00a9ff00 may throttle
     /// distant or culled groups (00a9d490 / 00964a50); near visible effects take the update delta.
     /// [game 0057e3d0, 007797b0, 0077b430; lead-read 2026-10-20] The game's clock follows real time: each main
     /// update (paced to 1/31 s by the frame loop 0077b430, QueryPerformanceFrequency / 31) adds 1/60 times
@@ -1133,15 +1133,15 @@ mod tests {
     #[ignore]
     fn survey_roster_renderer_blend_modes() {
         use std::collections::{BTreeMap, HashSet};
-        fn walk(node: Node, depth: u32, seen: &mut HashSet<usize>, out: &mut BTreeMap<(String, u32), Vec<String>>, file: &crate::formats::lxb::DataFile, owner: &str) {
+        fn walk(node: Node, depth: u32, seen: &mut HashSet<usize>, out: &mut BTreeMap<(String, u32), Vec<String>>, _file: &crate::formats::lxb::DataFile, owner: &str) {
             if depth > 60 { return; }
-            if let Some(at) = node.offset() { if !seen.insert(at) { return; } }
+            if let Some(at) = node.offset() && !seen.insert(at) { return; }
             if node.get("BlendMode").is_some() && node.get("Texture").is_some() && node.get("id").is_some() {
                 let r = Renderer::read(node);
                 out.entry((String::from_utf8_lossy(&r.id.to_be_bytes()).into_owned(), r.blend_mode)).or_default().push(format!("{owner}:{}", r.texture_path));
             }
-            for (_, child) in node.fields() { walk(child, depth + 1, seen, out, file, owner); }
-            if node.len() > 0 { for child in node.items() { walk(child, depth + 1, seen, out, file, owner); } }
+            for (_, child) in node.fields() { walk(child, depth + 1, seen, out, _file, owner); }
+            if !node.is_empty() { for child in node.items() { walk(child, depth + 1, seen, out, _file, owner); } }
         }
         for pack in ["bumblebee", "optimus", "ratchet", "ironhide", "megatron", "longhaul", "audir8", "jetfire", "firestorm", "starscream", "blackout", "optimusflight", "megatronflight"] {
             let p = crate::formats::pack::Pack::open(&crate::install::dir().join("characters").join(format!("{pack}.str"))).unwrap();

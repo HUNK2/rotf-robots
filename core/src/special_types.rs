@@ -1,7 +1,7 @@
 //! The type-coded special abilities 0 to 3: Optimus on foot (0), OptimusFlight (1), the DComScout
 //! (2) and the DComSniper (3). What the start and the end send and set, the timer, the shield and
 //! melee multipliers while the timer runs, and the scout's speed scale. Pure arithmetic, no engine
-//! types. Not wired into the game yet. Source: notes/special-types.md (read 2026-10-12).
+//! types. Not wired into the game yet. Source: docs/special-types.md (read 2026-10-12).
 //!
 //! The caller carries out the `Effect` lists (the messages, the effect spawn, the flags, the
 //! speed scale). Not ported: the content of the effects (`OptimusSpecial`, `SpecialAttackMesh`,
@@ -216,7 +216,7 @@ impl Active {
     }
 
     /// Runs the timer down by `dt` seconds. Returns the end list once, when it reaches 0.
-    /// [game 0072a550 notes only; the end at zero per notes/weapon-mode.md 976-978]
+    /// [game 0072a550 notes only; the end at zero per docs/weapon-mode.md 976-978]
     pub fn step(&mut self, dt: f32) -> Option<End> {
         // [game 0072a550 lines 201-205] the end runs only when the timer is above 0 before the step.
         if !self.live || self.left <= 0.0 {

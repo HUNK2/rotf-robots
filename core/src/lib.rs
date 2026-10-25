@@ -2,6 +2,13 @@
 //! readers for the game's file formats, a character's tuning, the movement rules, the cameras,
 //! the sound mixer and the weapon rules. Used by the Bevy game (`game\`). Everything is read
 //! from the user's install at runtime; nothing from the game is bundled.
+//!
+//! The robots are the subject. Some modules are here only to support them and are not meant to
+//! be built on; they may change or go without notice:
+//!
+//! - the enemy AI the robots fight: `ai_*`, `navmesh`, `navpath`;
+//! - the game's levels as stages to stand and fight on: `level_*`, `collision_world`,
+//!   `collision_soup`, and `mission_script` (only its reader, for the stage's reverb zones).
 
 pub mod ai_data;
 pub mod ai_spawn;
@@ -14,19 +21,16 @@ pub mod ai_bind;
 pub mod ai_tactics;
 pub mod aim;
 pub mod animblend;
-pub mod anim_triggers;
 pub mod animrules;
 pub mod audio_mix;
 pub mod camera;
 pub mod character;
-pub mod character_collision;
 pub mod chatter;
 pub mod climb;
 pub mod control;
 pub mod damage;
 pub mod combat;
 pub mod driving;
-pub mod explosion;
 pub mod flight;
 pub mod flightsurface;
 pub mod flycam;
@@ -97,7 +101,6 @@ pub mod level_light;
 pub mod level_render;
 pub mod level_things;
 pub mod environment_blend;
-pub mod forward_lights;
 pub mod iris;
 pub mod level_world;
 pub mod navmesh;

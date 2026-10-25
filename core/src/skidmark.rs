@@ -1,4 +1,4 @@
-//! The marks his tyres leave: the game's `TireSkidMark` (`notes\particles.md` "Skid
+//! The marks his tyres leave: the game's `TireSkidMark` (`docs/particles.md` "Skid
 //! marks"). One sits on each tyre's node of the car. It is a chain of at most fifty points
 //! on the ground, drawn as a strip of quads.
 //!

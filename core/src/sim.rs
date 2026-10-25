@@ -4,11 +4,11 @@
 //! Every tuning number comes from the install (see `tuning.rs`). How those numbers are *applied*
 //! is only partly read from the original so far, and each rule below says which it is:
 //!
-//!   [game]     behaviour read from the original's movement code (see notes/bumblebee-mechanics.md)
+//!   [game]     behaviour read from the original's movement code (see docs/bumblebee-mechanics.md)
 //!   [data]     follows directly from the character's own data (clips, rules, tuning)
 //!   [assumed]  a plausible reading of a data value whose use has not been read yet
 //!   [stand-in] invented so the test is playable; to be replaced
-//!   [trace]    measured on the running game (see notes/live-trace.md)
+//!   [trace]    measured on the running game (see the unpublished notes)
 
 use glam::{Affine3A, EulerRot, Quat, Vec2, Vec3};
 
@@ -46,7 +46,7 @@ const STICK_DEAD: f32 = 0.25;
 /// The R2 bit (vehicle mode, flying mode, fire) is down once the trigger is touched at all: the
 /// trigger filter (`005aa700` / `005aa890`) ORs 0x800 when RT > -0.999 on its -1..1 range, which
 /// is `(t + 1) / 2 > 0.0005` on the 0..1 value `Input::vehicle` carries (raw byte 1 and up).
-/// [game, `notes\input.md` "Filter triggers"]
+/// [game, `docs/input.md` "Filter triggers"]
 const R2_DOWN: f32 = 0.0005;
 /// The length of one of the game's updates on PC, in seconds. [trace]
 pub const GAME_UPDATE: f32 = 0.032;
@@ -110,7 +110,7 @@ pub enum Mode {
     /// HoverMode (class 70776cef): the robot held in the air, `step_hover`. The hover
     /// states (`StateBasic` with that motion mode) set it.
     Hover,
-    /// On a wall (`notes\climbing.md`).
+    /// On a wall (`docs/climbing.md`).
     Climb,
     /// One of the control states that move him by their clip: the attacks (the attack mode),
     /// the dodge (the dash mode), the ground punch's landing.
@@ -581,7 +581,7 @@ impl Arena {
     /// line crosses into ground above `from.z` is the wall; it runs on across the same side
     /// of other boxes in line with it and touching it. The original also lets a wall run past
     /// a corner that turns by less than 45 degrees; boxes have none. [stand-in: boxes for
-    /// the ledge mesh; the rules are the original's, `notes\climbing.md`] settles: a level's ledge (the level answers, see above); the arena boxes stay a test stand-in.
+    /// the ledge mesh; the rules are the original's, `docs/climbing.md`] settles: a level's ledge (the level answers, see above); the arena boxes stay a test stand-in.
     pub fn ledge(&self, from: Vec3, toward: Vec2, reach: f32) -> Option<Ledge> {
         // On a level the level answers, from its nav mesh (`level_world.rs`); the boxes are the test arena's.
         if let Some(level) = &self.level {
@@ -863,7 +863,7 @@ pub struct State {
     pub special_rate: f32,
     /// FlyMode's elapsed time in the mode (its `mode+0x4a4`): zeroed by the enter (00864d60 l.210),
     /// `+= dt` in the update (`step_fly`). When it reaches `advTransformDelay` the flight's
-    /// can-advance-transform flag is up (`notes\flight-update.md` step 20, [game 00864320]).
+    /// can-advance-transform flag is up (`docs/flight-update.md` step 20, [game 00864320]).
     pub fly_clock: f32,
     /// The flight boundary of the level's zone, read at load (`level_things` / `flybound::Boundary::read`);
     /// None in the test arena; set only for a zone's level (`game\src\main.rs` start.flight_boundary). Used by
@@ -873,7 +873,7 @@ pub struct State {
     /// placement does not do: it inverts each_thing world (bind composed). The frames agree only if that
     /// is the owner's world matrix. settles: the zone's caller of the factory 007e7780 / loader 011882b0
     /// (the owner handle it passes; not read) and the zone's flight boundary as the game tests it
-    /// (`envTest` #f65c039d, notes/flight-boundary.md).
+    /// (`envTest` #f65c039d, docs/flight-boundary.md).
     pub flight_boundary: Option<crate::flybound::Boundary>,
     /// His control mode is the car's (character `+0x31c` is 3): from the enter of a drive
     /// state (`FUN_0087ba10`, so from the START of the change into the car) to the enter
@@ -892,7 +892,7 @@ pub struct State {
     /// `V2RPartialSet`'s layer (layer 1), started by FlyMode's enter and exit where the
     /// character's `specialAbilityVehicleWeaponFireFromAnim` is set (`Tuning::
     /// vehicle_special_from_anim`): `Trans_R2V_Partial` going in, `Trans_V2R_Partial` coming out,
-    /// each ending into `emptyAnimSet`. [game 00864d60, 00865b80] [data notes\animation-rules.md:254: the layer starts only when the flag is set, and no roster robot has both the flag and the set (MegatronFlight's flag is false, Blackout's set is missing), so nothing is drawn]
+    /// each ending into `emptyAnimSet`. [game 00864d60, 00865b80] [data docs/animation-rules.md:254: the layer starts only when the flag is set, and no roster robot has both the flag and the set (MegatronFlight's flag is false, Blackout's set is missing), so nothing is drawn]
     pub fly_partial: Base,
     /// The clip events his layers have passed that act on his motion and layers, queued and
     /// carried out together once a step (`apply_clip_effects`). [game: a fired event is queued
@@ -1037,7 +1037,7 @@ pub struct ActionState {
     /// lifts him 3.08 before `stateGroundPunchFall` takes over. The first mode's control lets the
     /// clip's height through [game 00856cc0, data; settled 2026-10-20]: the state's motionModeType is
     /// 1ad6ae68 (global_states.txt), BasicMotionMode's enter sets (1,1,1), and the clip
-    /// Trans_Vehicle2Robot2GroundPunch keys [1,1,1] itself at time 0 (notes\clip-events-traction-motion.md
+    /// Trans_Vehicle2Robot2GroundPunch keys [1,1,1] itself at time 0 (docs/clip-events-traction-motion.md
     /// section 2), which 00852220 hands the holder (the impulse case (0.1,0.1,0) only while knocked).
     /// Out of flight the same holds for Trans_V2R_GroundPunch (`begin_action`).
     pub lifted: bool,
@@ -1274,10 +1274,9 @@ impl State {
             let clip = t.weapon_set.clip(self.strafe.clip)?;
             return Some(("WeaponSet", &clip.name, self.strafe.tick));
         }
-        if self.weapon_air() || self.weapon_hover() {
-            if let Some(clip) = t.weapon_set.clip(self.strafe.clip) {
-                return Some(("WeaponSet", &clip.name, self.strafe.tick));
-            }
+        if (self.weapon_air() || self.weapon_hover())
+            && let Some(clip) = t.weapon_set.clip(self.strafe.clip) {
+            return Some(("WeaponSet", &clip.name, self.strafe.tick));
         }
         let action = self.action.as_ref()?;
         let clip = t.actions.clips.get(&action.clip)?;
@@ -1417,7 +1416,7 @@ impl State {
     /// [assumed] Interpolate the completed car frames, one 32ms physics step behind,
     /// for the body, wheel models and camera together. The original render scheduler is
     /// unread; this adapter removes fixed-step display jitter without changing physics.
-    /// History is reset on drive entry/reset. See notes/status.md vehicle assumption 8.
+    /// History is reset on drive entry/reset. See the unpublished notes vehicle assumption 8.
     /// settles: a recording of the car at display rate (its body, wheels and camera against the frames shown).
     pub fn car_presentation(&self) -> CarPresentation {
         let current=self.car_snapshot();
@@ -1839,7 +1838,7 @@ fn preset_rumble(s: &mut State, t: &Tuning, number: usize) {
 /// set; an invincible receiver (00724180) skips to 0071a260 unless the source is its own player.
 /// settles: the scouts' flag word +0x14c (bits 10 and 11) and invincibility as the game builds them.
 /// [data] His pack supplies neither soundTable field406e38ba nor0ae3b908, so the
-/// optional attacker-hit sounds at+284/+288 are both zero (notes/melee.md).
+/// optional attacker-hit sounds at+284/+288 are both zero (docs/melee.md).
 fn hit_rumbles(s: &mut State, t: &Tuning) {
     let strong = s
         .action
@@ -2287,7 +2286,7 @@ fn advance(s: &mut State, input: &Input, t: &Tuning, arena: &dyn World, dt: f32)
     }
     if s.mode==Mode::Drive {
         arena.separate_targets(&mut s.pos,t.vehicle_radius,t.vehicle_height);
-        s.car.airborne=!s.car.chassis.grounded();
+        s.car.airborne = !s.car.chassis.grounded();
         s.speed=s.vel.truncate().dot(s.facing());
         touch(s,!s.car.airborne,dt);
         return;
@@ -2297,7 +2296,7 @@ fn advance(s: &mut State, input: &Input, t: &Tuning, arena: &dyn World, dt: f32)
         // ground and the wall still hold him. [game: the climb's control vector is (1, 1, 1)]
         // The same for the two jumps off it [game 00856cc0, data; settled 2026-10-20]: stateClimbJumpUp and
         // stateClimbJumpOff are BasicMotionMode states (motionModeType 1ad6ae68), whose enter sets (1,1,1),
-        // and Wall_JumpUp / Wall_JumpOff carry no ChangeTractionEvent (notes\clip-events-traction-motion.md
+        // and Wall_JumpUp / Wall_JumpOff carry no ChangeTractionEvent (docs/clip-events-traction-motion.md
         // section 2), so the clip drives all three axes to its end; the same holds for the `lifted` legs
         // (their clips key [1,1,1]).
         s.pos += s.vel * dt;
@@ -2311,7 +2310,7 @@ fn advance(s: &mut State, input: &Input, t: &Tuning, arena: &dyn World, dt: f32)
     let gravity = t.gravity * if matches!(s.mode, Mode::Jump(_)) { s.gravity_scale } else { 1.0 } + s.punch_gravity;
 
     // [game] on a level the robot's body takes the world step of the game's physics (`physics_avatar`,
-    // `notes\physics.md` 1.9): gravity, the control step's planes, the prediction, the contact pass with
+    // `docs/physics.md` 1.9): gravity, the control step's planes, the prediction, the contact pass with
     // its floors and walls, the kept contacts' refresh, the solver and the pose pass. Nothing snaps him
     // to a floor: the pass and the solver hold him up. The mode's blend along x and y is the control's
     // target; the velocity it started from is what a ceiling leaves. Then the owner's ground test (008524b0)
@@ -2321,7 +2320,7 @@ fn advance(s: &mut State, input: &Input, t: &Tuning, arena: &dyn World, dt: f32)
         let mut body = std::mem::take(&mut s.avatar_body);
         // [game] STEP+0x3e4 is MoveMode's flag (set by 00875eb0, cleared by 00875ec0). The state
         // machine's Move enter starts MoveMode and Idle's enter starts only the first mode, which
-        // does not set it (notes/state-machine.md, "Idle enter" / "Move enter").
+        // does not set it (docs/state-machine.md, "Idle enter" / "Move enter").
         let req = crate::physics_avatar::AvatarRequest {
             feet: s.pos,
             velocity: entering,
@@ -2359,7 +2358,7 @@ fn advance(s: &mut State, input: &Input, t: &Tuning, arena: &dyn World, dt: f32)
                 }
             }
             if out.wall.is_some() && s.mode != Mode::Jump(JumpType::Fall) {
-                // [game 006e2c10 l.246-258, `notes\physics.md` 1.5 step 3] The contact pass has already taken
+                // [game 006e2c10 l.246-258, `docs/physics.md` 1.5 step 3] The contact pass has already taken
                 // the into-wall part of the velocity off (`out.velocity` is the solver's). There is no
                 // scrub on top of it in the game, so the speed is what the body keeps. FIXED 2026-10-20
                 // (was a 0.5 scrub with no game counterpart).
@@ -2558,7 +2557,7 @@ fn tilt(s: &mut State, _t: &Tuning, _arena: &dyn World, _dt: f32) {
 /// The pace on the ground for this step. The body moves at the root motion of the clips that
 /// are playing, and clips cross-fade in a stack: each new one fades in, straight-line over its
 /// own blend time, on top of whatever was there, which keeps fading and playing underneath.
-/// Checked against the recorded game update by update (`notes\live-trace.md`): starts, stops
+/// Checked against the recorded game update by update: starts, stops
 /// from a run and from a walk, and both landings. [trace]
 fn step_pace(s: &mut State, walk: &Locomotion, dt: f32) -> f32 {
     let curve = |pace| match pace {
@@ -2678,7 +2677,7 @@ const STRAFE_TWIST_MOST: f32 = 0.794_124_84;
 const STRAFE_STICK_SQUARED: f32 = 0.0001;
 const WEAPON_SET: u32 = crc32(b"WeaponSet");
 /// The sets the control states start on the base layer, whose clips `animrules::Base` picks.
-/// [game: `notes\state-machine.md`: Idle enter plays IdleStandSet, Move's WalkSet, Jump's
+/// [game: `docs/state-machine.md`: Idle enter plays IdleStandSet, Move's WalkSet, Jump's
 /// JumpSet (after the jump mode), Fall's FallSet (before it)]
 const IDLE_SET: u32 = crc32(b"IdleStandSet");
 const WALK_SET: u32 = crc32(b"WalkSet");
@@ -2712,7 +2711,7 @@ fn rule_value(s: &State, input: &Input, variable: u32) -> Option<Value> {
         // [game 0070c380] `F_R_STICK_AMP` is the camera stick's length. `F_R_STICK_DIR` is its
         // direction against the same heading, negated for a helicopter or robot flyer with the
         // invert option (+0x1f4e) on. Read 2026-10-18: 007112b0 takes the camera stick as the
-        // pad gives it (input slot +0x28, y positive down, `notes\input.md`) through the
+        // pad gives it (input slot +0x28, y positive down, `docs/input.md`) through the
         // CHARACTER's own frame, w = s.x * X row + s.y * Y row (transform +0x10 / +0x1c), not
         // the camera's; the heading of w less the aim heading (+0x260/+0x264, the same reference
         // as `F_L_STICK_DIR`) is the value. The invert option defaults off (0075e520 writes
@@ -2822,7 +2821,7 @@ fn queue_layer_events(s: &mut State, t: &Tuning) {
     s.clip_effects.extend(clip.motion_between(from, s.base.tick));
 }
 
-/// `C_JUMP_TYPE`'s value for each jump the mode picks (`notes\bumblebee-mechanics.md`,
+/// `C_JUMP_TYPE`'s value for each jump the mode picks (`docs/bumblebee-mechanics.md`,
 /// "JumpMode"). [game]
 fn jump_type_hash(kind: JumpType) -> u32 {
     match kind {
@@ -2886,7 +2885,7 @@ fn strafe_entry(s: &mut State, input: &Input, t: &Tuning, from_set: u32, from_id
 /// against the facing he had) while his body already turns to the aim: run 1 at 489.79
 /// runs on for two updates along the new facing before the sideways clip starts. [trace]
 /// The cause is the update order [game]: the state machine runs first in an update, then the
-/// mode (`notes\state-machine.md` "Run 1 order"; `advance` calls `control` before `base_step`),
+/// mode (`docs/state-machine.md` "Run 1 order"; `advance` calls `control` before `base_step`),
 /// so the rules read the angle the mode wrote on the update before, and the entering update
 /// does not write it (`step_strafe`'s `entering`, which is the game's enter value).
 ///
@@ -3042,7 +3041,7 @@ fn playing_clip(s: &State, t: &Tuning) -> (u32, u32) {
 /// set's own air clip (`Weapon_Fall` leads to the landings), which goes on fading out
 /// underneath. [game] [assumed: from the ground, what cross-fades out underneath is the
 /// clip of the control state being left playing on (the dodge), else the velocity he had,
-/// in his own frame, held (the run clip plays on in the original, at a steady 24)] settles: the StrafeMode enter's blend (`00852150` switches to it), or the run 1 trace at 489.79 (`notes\weapon-mode.md` l.150-170, read: the run's 24 fades under the forward clip).
+/// in his own frame, held (the run clip plays on in the original, at a steady 24)] settles: the StrafeMode enter's blend (`00852150` switches to it), or the run 1 trace at 489.79 (`docs/weapon-mode.md` l.150-170, read: the run's 24 fades under the forward clip).
 fn enter_strafe(s: &mut State, input: &Input, t: &Tuning, old: Mode) {
     let from_air = matches!(old, Mode::Jump(_));
     // The state being left is still the runner's while the next one is entered.
@@ -3171,9 +3170,9 @@ fn step_jump(s: &mut State, input: &Input, t: &Tuning, kind: JumpType, dt: f32) 
     // 4 on the character's `+0x314`; not Bumblebee's weapon states, not built]
     let dilating = weapon
         && match s.dilation_from {
-            None => s.vel.z.abs() < t.jump.weapon_dilation_start,
-            Some(from) => s.pos.z > from,
-        };
+        None => s.vel.z.abs() < t.jump.weapon_dilation_start,
+        Some(from) => s.pos.z > from,
+    };
     if dilating {
         s.dilation_from.get_or_insert(s.pos.z);
         s.dilation = (s.dilation - t.jump.weapon_dilation_rate * dt).max(t.jump.weapon_dilation);
@@ -3267,7 +3266,7 @@ fn fly_partial_start(s: &mut State, t: &Tuning, clip: &[u8]) {
 /// Changes the motion mode, with what leaving the old one and entering the new one do. A mode
 /// that is already running is not entered again (`FUN_00852150`). [game]
 /// The length of the flyer's drop ray, metres [game 00b6b3b4 (the constant 35.0), 0086b230 uses
-/// it for the drop probe (`notes\flight-contact.md` l.63, l.75)].
+/// it for the drop probe (`docs/flight-contact.md` l.63, l.75)].
 const FLY_DROP_RAY: f32 = 35.0;
 
 /// One update of the flying form (`flight::Fly`: FlyMode's update 00864320 as far as it
@@ -3284,9 +3283,9 @@ fn step_fly(s: &mut State, input: &Input, t: &Tuning, arena: &dyn World, dt: f32
     // 0xd73818a4 changes it (008013e0). The trigger 0086a590 gates on: no stunt running, inside
     // the flight boundary (mode+0x55), that byte, a zero control vector, the state object being
     // `stateFly` (0x085e3ca2, the plain flying state), and its caller 00866a70 on the hold button
-    // being up (mode+0x4c, `notes\flight-forces.md`). Its stick is the input source's slot +0x30
+    // being up (mode+0x4c, `docs/flight-forces.md`). Its stick is the input source's slot +0x30
     // through 00855910, the slot the steering reads, so as read a hard sideways stick would roll
-    // with no button: that contradicts the step-ending return of `notes\flight-stunts.md` 2.4.
+    // with no button: that contradicts the step-ending return of `docs/flight-stunts.md` 2.4.
     // settles: what slot +0x30 of the player's input source returns in flight (a stunt vector
     // gated by stuntMoveButtonPressTime, or the plain stick), or a recording of a jet's stunts.
     s.stunt_armed = if input.buttons_hit & (1 << button::ACTION | 1 << button::CLIMB) != 0 {
@@ -3332,7 +3331,7 @@ fn step_fly(s: &mut State, input: &Input, t: &Tuning, arena: &dyn World, dt: f32
     // is the vehicle avatar's (`avatarDescArray[1]`, the flyers' last row; every flyer has two).
     // [assumed] the body and the rotation as they stand before this update's motion: the order of
     // the boundary test within the game's update is not read. OPEN settles: the caller of the
-    // per-update check 007e7830 (through the boundary's vtable +8; unread, notes/flight-boundary.md
+    // per-update check 007e7830 (through the boundary's vtable +8; unread, docs/flight-boundary.md
     // section 12.3 and its open item 2) and where that caller sits against FlyMode's update 00864320.
     // Part 2 (2026-10-20): the boundary object's vtable is 00b60908 (stored by the constructors 007e74f0 /
     // 007e7540, the factories 007e7780 and 01196e50 via 00adbf70 / 00adbfd0); slot +8 is 007e7830. No direct
@@ -3377,12 +3376,11 @@ fn step_fly(s: &mut State, input: &Input, t: &Tuning, arena: &dyn World, dt: f32
     // the position takes the difference too. [assumed: the clip's root frame is turned by his
     // heading only, as the root motion on foot is] settles: the flyer's root-frame turn in the game (the fly step's clip root, not located), or a `Vehicle_RollLeft` recording. (`Vehicle_RollLeft` slides him 50 m to his
     // left in a second; `Vehicle_LoopFull` climbs 30 m and comes back 3 m ahead) [data]
-    if fly.control != Vec3::ZERO {
-        if let Some(wanted) = action_root_velocity(s, t, fly.heading, dt) {
-            let pinned = fly.vel + fly.control * (wanted - fly.vel);
-            fly.pos += (pinned - fly.vel) * dt;
-            fly.vel = pinned;
-        }
+    if fly.control != Vec3::ZERO
+        && let Some(wanted) = action_root_velocity(s, t, fly.heading, dt) {
+        let pinned = fly.vel + fly.control * (wanted - fly.vel);
+        fly.pos += (pinned - fly.vel) * dt;
+        fly.vel = pinned;
     }
     // [stand-in] the body itself against the world (the game's is a physics body with its
     // own contacts): the robot's cylinder pushed out of what it is in (the same stand-in as the one in `step_fly`'s
@@ -3408,7 +3406,7 @@ fn action_root_velocity(s: &State, t: &Tuning, heading: f32, dt: f32) -> Option<
     Some(Quat::from_rotation_z(heading) * local)
 }
 
-/// HoverMode's update (`FUN_0086f960`, `notes\flight-hover.md`). [game] With the stick at
+/// HoverMode's update (`FUN_0086f960`, `docs/flight-hover.md`). [game] With the stick at
 /// rest the whole velocity, height included, is multiplied by `hoverDeceleration` each
 /// update (no time step in it); with the stick, `moveAcceleration` along it and the speed
 /// cut to `maxMoveSpeed`. The player has no way up or down in it (that part is the AI's
@@ -3449,13 +3447,12 @@ fn step_hover(s: &mut State, input: &Input, t: &Tuning, arena: &dyn World, dt: f
     // root plays: with no clip the vector is left alone. [data, settled 2026-10-20] Neither the no-clip
     // origin nor the frame the root is turned into can show: the only traction a HoverMode receives in
     // the 13 packs is Trans_V2R_Hover's [0,0,1], ended by its own [0,0,0] key before the clip ends
-    // (notes\clip-events-traction-motion.md section 2; Starscream's two [1,0,1] keys, starscream.txt
+    // (docs/clip-events-traction-motion.md section 2; Starscream's two [1,0,1] keys, starscream.txt
     // 730622 / 731009, are the jet proxy's RollLeft / RollRight, played in flight stunts, FlyMode), and a
     // turn about z leaves the z axis the vector drives unchanged.
-    if s.hover_control != Vec3::ZERO {
-        if let Some(wanted) = action_root_velocity(s, t, s.yaw, dt) {
-            s.vel += s.hover_control * (wanted - s.vel);
-        }
+    if s.hover_control != Vec3::ZERO
+        && let Some(wanted) = action_root_velocity(s, t, s.yaw, dt) {
+        s.vel += s.hover_control * (wanted - s.vel);
     }
     let before = s.pos;
     s.pos += s.vel * dt;
@@ -3699,11 +3696,11 @@ const ATTACK_MODE: u32 = 0xcd2f_4b0c;
 const JUMP_MODE: u32 = 0x6da1_d12d;
 /// The unnamed first mode: the clips move him.
 const FIRST_MODE: u32 = 0x1ad6_ae68;
-/// HoverMode (`notes\flight-hover.md`).
+/// HoverMode (`docs/flight-hover.md`).
 const HOVER_MODE: u32 = 0x7077_6cef;
 /// StrafeMode, weapon mode on foot.
 const STRAFE_MODE: u32 = 0x3c95_6e02;
-/// DriveMode, the car (`notes\bumblebee-mechanics.md`).
+/// DriveMode, the car (`docs/bumblebee-mechanics.md`).
 const DRIVE_MODE: u32 = 0xe2b2_2eb4;
 /// The message its timer sends when `maxHoverTime` has run (`FUN_00735a00`). [game]
 const HOVER_DONE: u32 = 0xb587_f609;
@@ -3827,7 +3824,7 @@ fn control(s: &mut State, input: &Input, t: &Tuning, arena: &dyn World, dt: f32)
     // The drive states' own update: until the car mode runs, the first half of the change
     // into the car keeps MoveMode while the stick does not line up with his motion. [game]
     // The fly exit state's update (`FUN_0087c910`): once the jump mode it started has him
-    // on the ground, the drive companion mode takes over (`notes\flight-camera-exit.md`
+    // on the ground, the drive companion mode takes over (`docs/flight-camera-exit.md`
     // B2, B5). [game]
     if graph.states[current].class == "StateFlyExit" && matches!(s.mode, Mode::Jump(_)) && on_ground {
         set_mode(s, input, t, Mode::Unfold);
@@ -3865,12 +3862,12 @@ fn control(s: &mut State, input: &Input, t: &Tuning, arena: &dyn World, dt: f32)
     };
     // EnvInsideFlightBoundary is mode+0x55 == 0 while he flies; TRUE when he is not flying.
     // It gates connectionListFlyRelease and connectionListFlyToAirPunch. [game 0084d34f]
-    // (notes/flight-boundary.md section 8 and A6)
+    // (docs/flight-boundary.md section 8 and A6)
     let inside_boundary = s.fly.as_ref().is_none_or(|f| f.inside_boundary);
     let environment = |test: u32| match test {
         env::CLIMBABLE => wall.is_some() && !regrab_locked,
         env::INSIDE_FLIGHT_BOUNDARY => inside_boundary,
-        // Nothing to carry or fly out of yet. [stand-in] settles: the two envTests' functions (CAN_SWITCH_AVATAR, and NOT_HOLD_VIP 0x14fd46e2, set in FUN_0084cee0 per notes/state-machine.md); level and mission scope, not read.
+        // Nothing to carry or fly out of yet. [stand-in] settles: the two envTests' functions (CAN_SWITCH_AVATAR, and NOT_HOLD_VIP 0x14fd46e2, set in FUN_0084cee0 per docs/state-machine.md); level and mission scope, not read.
         env::CAN_SWITCH_AVATAR | env::NOT_HOLD_VIP => true,
         _ => false,
     };
@@ -3884,9 +3881,9 @@ fn control(s: &mut State, input: &Input, t: &Tuning, arena: &dyn World, dt: f32)
         // has run `advTransformDelay` and its enter and exit clear. [game]
         // In flight: FlyMode's update sets the same flag (bit 0 of `+0x150`, flag 0x20) once its
         // own clock `mode+0x4a4` reaches `advTransformDelay` (00d40b74) [game 00864320,
-        // `notes\flight-update.md` step 20]. The clock is `State::fly_clock` (`+= dt` in `step_fly`).
+        // `docs/flight-update.md` step 20]. The clock is `State::fly_clock` (`+= dt` in `step_fly`).
         // [game] The order is the state machine first, then the mode, in the same update
-        // (`notes\state-machine.md` "Run 1 order"; `advance` calls `control` before `base_step`).
+        // (`docs/state-machine.md` "Run 1 order"; `advance` calls `control` before `base_step`).
         // The mode bumps the clock and sets the flag in its update (00864320 step 20), so the
         // state machine reads the flag in the NEXT update, which is what `fly_clock` gives here.
         can_adv_transform: (s.mode == Mode::Drive && s.car.time >= t.transform_delay)
@@ -3948,7 +3945,7 @@ fn control(s: &mut State, input: &Input, t: &Tuning, arena: &dyn World, dt: f32)
             // `DISABLE_VEHICLE` starts it. [game]
             "StateDrive" => vehicle_enabled,
             // [game] StateFly's slot 11 is the drive state's own `0087c550` (table 00b62b8c);
-            // StateFlyExit's is `0076c530`, always yes (table 00b62bd0) (`notes\flight-states.md`
+            // StateFlyExit's is `0076c530`, always yes (table 00b62bd0) (`docs/flight-states.md`
             // table). `can_fly` is the port's guard, not the game's: only a flyer's machine has them.
             "StateFly" => vehicle_enabled && t.forms.can_fly,
             "StateFlyExit" => t.forms.can_fly,
@@ -4290,7 +4287,7 @@ fn enter_state(s: &mut State, input: &Input, t: &Tuning, next: usize, wall: Opti
             }
         }
         // A fly state's enter (`FUN_0087c320`): its clip in the fly set, and FlyMode made
-        // the motion mode whether he is on the ground or not. [game] (`notes\flight-states.md`)
+        // the motion mode whether he is on the ground or not. [game] (`docs/flight-states.md`)
         "StateFly" => {
             stop_clip(s, t);
             if def.anim != 0 {
@@ -4487,11 +4484,10 @@ fn stop_clip(s: &mut State, t: &Tuning) {
         // the clip is left (a stunt clip's last key ends the stunt as its state is left).
         s.clip_effects.append(&mut action.effects);
         // Ended in this update: what the next state's clip takes over (`start_clip`).
-        if action.finished && action.overshoot > 0.0 {
-            if let Some(data) = t.actions.clips.get(&action.clip) {
-                let seconds = action.overshoot / (crate::formats::anim::TICKS_PER_SECOND * data.speed * s.special_rate).max(1e-6);
-                s.clip_handover = Some((seconds, action.root_travel(data)));
-            }
+        if action.finished && action.overshoot > 0.0
+            && let Some(data) = t.actions.clips.get(&action.clip) {
+            let seconds = action.overshoot / (crate::formats::anim::TICKS_PER_SECOND * data.speed * s.special_rate).max(1e-6);
+            s.clip_handover = Some((seconds, action.root_travel(data)));
         }
         if t.control.states[action.state].class == "StateDash" {
             s.dash_cooldown = t.dash_cooldown;
@@ -4882,7 +4878,7 @@ fn switch_action_clip(s: &mut State, t: &Tuning, next_id: u32) {
 /// clip of one name with different exit rules (`Vehicle2RobotSet` and `HoverSet` both have
 /// `Trans_V2R_Hover`; only the second leaves into `Hover_Idle`), so the state's set decides.
 /// [game: `animation_set_start`, `0084ddb0`, looks the clip up in the set it is given]
-fn action_rule_clip<'a>(t: &'a Tuning, state: usize, clip: u32) -> Option<(u32, &'a crate::tuning::RuleClip)> {
+fn action_rule_clip(t: &Tuning, state: usize, clip: u32) -> Option<(u32, &crate::tuning::RuleClip)> {
     let def = t.control.states.get(state)?;
     let data = t.actions.clips.get(&clip)?;
     let named = def.anim_set.as_deref().map(|name| crc32(name.as_bytes()));
@@ -5046,8 +5042,8 @@ fn apply_clip_effects(s: &mut State, input: &Input, t: &Tuning, arena: &dyn Worl
 /// clip's attack damage (00717c80), so only an enemy the slam would kill. Else `endCamera`
 /// lets it go (0072e080) and `killDude` lands a melee hit on it (0072dfd0 -> 007189b0) at its
 /// camera target point (0071a2e0: the root for a character on foot). [game] [stand-in: the
-/// finisher camera the hold starts (009192c0 -> camera behaviour 00917b40, `notes\
-/// camera-finisher.md`) is the host's to do from `State::finish_target`, not built; settles: camera behaviour 00917b40 and the hold's camera frames, a recording of the hold] While a
+/// finisher camera the hold starts (009192c0 -> camera behaviour 00917b40, `docs/camera-finisher.md`)
+/// is the host's to do from `State::finish_target`, not built; settles: camera behaviour 00917b40 and the hold's camera frames, a recording of the hold] While a
 /// target is held, HIS `+0x14c` bit 21 is set (0072df10 sets it on the attacker), which stops
 /// the stick turning him (`attack_aim`). [game] [assumed: the reach and the cone from his feet;
 /// the kill carries the clip's own attack numbers as a fist's hit would; the hold also ends
@@ -5113,9 +5109,9 @@ fn finish_move(s: &mut State, t: &Tuning, arena: &dyn World, start: bool, end: b
 /// and rolls carry [1,1,1] at their start and [0,0,0] at their end [data]. HoverMode's is stored
 /// (`hover_control`) and drives the body through `step_hover` (`Trans_V2R_Hover`'s [0,0,1]).
 /// ClimbMode's (`+0x18 == 6`, the pull-up) is not applied: no climb clip of the 13 packs has a
-/// traction event [data] (`notes\clip-events-traction-modes.md`). The port's hit reactions and stun run their own motion (`step_hit_reaction`)
+/// traction event [data] (`docs/clip-events-traction-modes.md`). The port's hit reactions and stun run their own motion (`step_hit_reaction`)
 /// and do not take it either. The hit clips have no traction event in the 93 uses read
-/// (notes/clip-events-traction-motion.md section 2, [data]); the stun's StunStart carries [1,1,0].
+/// (docs/clip-events-traction-motion.md section 2, [data]); the stun's StunStart carries [1,1,0].
 /// [game, settled 2026-10-20] StateStun's enter is 0087eaf0 (vtable 00b62dd8, slot 5): it switches to
 /// BasicMotionMode (1ad6ae68) and calls motion_control_set(1,1,0); 00712960 (the StunStart event)
 /// writes the same vector again. 00854960 then zeroes the body's ground velocity, keeping vz, when the
@@ -5163,7 +5159,7 @@ fn clip_traction(s: &mut State, t: &Tuning, control: Vec3) {
 /// a player gives LONG_JUMP at speed^2 >= 25 or else a fall (l.111-118); `FUN_007106f0` is only the
 /// animation-variable lookup that writes C_JUMP_TYPE afterwards (l.132-138). `enter_jump_mode` has this
 /// table; the clip's call now passes the weapon set (no set name) instead of FallSet. History: read 2026-10-20 (008740e0,
-/// JumpMode's enter, the table of `notes\bumblebee-mechanics.md`): the game takes the set from the
+/// JumpMode's enter, the table of `docs/bumblebee-mechanics.md`): the game takes the set from the
 /// layer that is playing (`iVar6`). FallSet, or an owner without the flag +0x26c, gives type
 /// 0xaa185eeb with no request test; any other set goes to the request branch (the requests from
 /// the old mode's hash, the flag +0x26c, the speed test), which the port does not have. So the port's
@@ -5186,7 +5182,7 @@ fn clip_motion_mode(s: &mut State, input: &Input, t: &Tuning, class: u32) {
             return;
         }
         // [data] none other is named by the roster's clips: the 68 ChangeMotionModeEvent uses in
-        // the 13 dumps carry only the three values above (notes/clip-events-traction-motion.md section 3).
+        // the 13 dumps carry only the three values above (docs/clip-events-traction-motion.md section 3).
         _ => return,
     };
     if mode == Mode::Stand && (s.death.is_some() || s.mode == Mode::Action) {
@@ -5228,7 +5224,7 @@ fn step_action(s: &mut State, input: &Input, t: &Tuning, arena: &dyn World, dt: 
         // 00875ef0] [data] The port keeps the special's own clip playing (its `Mode::Action`)
         // rather than the weapon set StrafeMode would otherwise lead: no weapon set starts in
         // this state. [assumed: the mode's enter bookkeeping (aim heading from his facing)
-        // is the only part of the enter that matters here] settles: the StrafeMode enter's other writes, read from its code (not located; `notes\weapon-mode.md` l.150-170).
+        // is the only part of the enter that matters here] settles: the StrafeMode enter's other writes, read from its code (not located; `docs/weapon-mode.md` l.150-170).
         let aim_yaw = input.aim.filter(|aim| aim.length_squared() > 1e-6).map_or(s.strafe.aim_yaw, yaw_of);
         s.strafe.aim_yaw = aim_yaw;
         s.strafe.strafing = true;
@@ -5417,7 +5413,7 @@ fn step_drive(s: &mut State, input: &Input, t: &Tuning, arena: &dyn World, dt: f
     if s.car.chassis.wheels[0].rest_length<=0.0 {
         s.car.chassis.probe(s.pos,s.vel,crate::vehicle::rotation(s.yaw,s.pitch,s.roll),
             t.vehicle_height,&t.drive,arena,GAME_UPDATE);
-        s.car.airborne=!s.car.chassis.grounded();
+        s.car.airborne = !s.car.chassis.grounded();
     }
     while s.car.clock >= GAME_UPDATE {
         s.car.clock -= GAME_UPDATE;
@@ -5428,7 +5424,7 @@ fn step_drive(s: &mut State, input: &Input, t: &Tuning, arena: &dyn World, dt: f
         let was_grounded=s.car.chassis.grounded();
         s.car.chassis.probe(s.pos,s.vel,crate::vehicle::rotation(s.yaw,s.pitch,s.roll),
             t.vehicle_height,&t.drive,arena,GAME_UPDATE);
-        s.car.airborne=!s.car.chassis.grounded();
+        s.car.airborne = !s.car.chassis.grounded();
         if !was_grounded && !s.car.airborne && s.car.time>CAR_LANDING_AFTER {
             preset_rumble(s,t,rumble::preset::VEHICLE_HIT_GROUND);
         }
@@ -5473,7 +5469,7 @@ fn step_drive(s: &mut State, input: &Input, t: &Tuning, arena: &dyn World, dt: f
 /// car itself. The boost needs lateral motion, not just a fast slide; its active state continues if
 /// the drift button is pressed again, even in the air. [game 00733e10] It reads the button from the
 /// owner's controller (owner+0x100, vtable +8, id 0x14 at 0073400e-0073401f: the drift button,
-/// notes\driving.md) and the lateral speed as fabs(dot(velocity, right)) with the right row of
+/// docs/driving.md) and the lateral speed as fabs(dot(velocity, right)) with the right row of
 /// character_transform 00725a70, against minDriftTurboSpeed (`DriftTurbo::step` takes the absolute
 /// value); 00732ce0 is only the ability-active test (wave 30 R5).
 fn drift_step(s: &mut State, input: &Input, t: &Tuning, h: f32) {
@@ -5492,7 +5488,7 @@ fn drift_step(s: &mut State, input: &Input, t: &Tuning, h: f32) {
     }
 }
 
-/// One update of the car, as the drive mode and its wheel set do it (`notes\driving.md`),
+/// One update of the car, as the drive mode and its wheel set do it (`docs/driving.md`),
 /// with independent 3D wheel forces; caps/spin response checked against run1. [game/trace]
 fn drive_update(s: &mut State, input: &Input, t: &Tuning, h: f32) {
     let d = &t.drive;
@@ -5603,7 +5599,7 @@ fn drive_update(s: &mut State, input: &Input, t: &Tuning, h: f32) {
     // What the wheel set shows the gearbox this update (`FUN_007a48e0`). [game]
     // [game] The trigger is filtered; turbo is either cee630d9 (standard) or ea8020ae
     // (drift), whose identities are confirmed in DriveMode's constructor 0085c2f0.
-    // [assumed] (`notes\sound.md`, 3 and 5): brake amount and the velocity's sampling
+    // [assumed] (`docs/sound.md`, 3 and 5): brake amount and the velocity's sampling
     // order relative to the vehicle sound update. The velocity read here is the body's at the start
     // of this update, before the caps (the capped one stays in `velocity` until the write-back below;
     // `capped` is its length). The game's sound object (vtable 00b5d64c slot 0, 007347c0) has no direct
@@ -5629,14 +5625,14 @@ fn drive_update(s: &mut State, input: &Input, t: &Tuning, h: f32) {
         gearbox.update(s.gearbox_inputs.last().unwrap(),h);
     }
     // What the same update shows the tyres' and the suspension's sounds (`FUN_007347c0`,
-    // `notes\sound.md` "The tyres and the suspension"). [game]
+    // `docs/sound.md` "The tyres and the suspension"). [game]
     // [game: 0085f8b0, dt=0] The tyre sound's cap skips the trigger, even if filtered.
     // The brake is digital [game 0085cad0 l.30-48]: button 0x13 (VehicleBrake: pad L1, keyboard R, mouse none)
     // read through the input object's vtable +8, so its amount is 1.0 or 0 and `braking = input.brake >
     // STICK_DEAD` is that bit; 0x14 (VehicleDrift: pad L2, mouse right button) is the skid flag with a wheel
     // down (and the drive mode's +0x1f5); the brake flag is 0x13 with a wheel down, or a kind-4 vehicle special.
     // The stick never reaches the brake: vtable +0x30 (0084fcd0) feeds the drive force and the steer (l.49-51,
-    // l.496-501), and the reverse starts from the brake held at a stop (notes\driving.md "Reverse"). The port's
+    // l.496-501), and the reverse starts from the brake held at a stop (docs/driving.md "Reverse"). The port's
     // old stick-pulled-back brake had no game source and was removed from game\src\player.rs on 2026-10-20.
     // Contact/material and shortening are independent for all four wheels. [game]
     let wheels=s.car.chassis.wheels.map(|w|crate::sound::TyreWheel {
@@ -5728,7 +5724,7 @@ fn drive_update(s: &mut State, input: &Input, t: &Tuning, h: f32) {
         let push = -sideways * lateral * d.wheel_friction * side_grip - rolling * along * forward_grip;
         *spin += (radius * along + d.engine_torque * throttle) / (radius * radius) * h;
         if !stopped_by_brake {s.car.chassis.add_force(push,arm);}
-        s.car.chassis.wheels[index].spin=*spin;
+        s.car.chassis.wheels[index].spin = *spin;
     }
     s.car.chassis.transfer_weight(velocity3,support,d,stopped_by_brake,s.car.reversing,
         s.vehicle_gearbox.as_ref().map_or(0.0,crate::sound::Gearbox::progress));
@@ -6104,7 +6100,7 @@ mod tests {
         RootCurve::new(crossfade, forward)
     }
 
-    /// The game's own update length on the PC it was recorded on (`notes\live-trace.md`). Its
+    /// The game's own update length on the PC it was recorded on. Its
     /// updates ran from 31 to 33 ms, so the replays below agree to about 0.3, not exactly.
     const GAME_DT: f32 = 0.032;
 
@@ -6178,7 +6174,7 @@ mod tests {
         fn wheel_ray(&self,from:Vec3,to:Vec3)->Option<crate::vehicle::GroundHit> {
             let n=Vec3::new(0.0,-self.0,1.0).normalize();
             let fraction=-n.dot(from)/n.dot(to-from);
-            (fraction>=0.0 && fraction<=1.0).then_some(crate::vehicle::GroundHit {
+            (0.0..=1.0).contains(&fraction).then_some(crate::vehicle::GroundHit {
                 point:from.lerp(to,fraction),normal:n,surface:melee::surface::DEFAULT,object_mask:0,
             })
         }
@@ -7619,8 +7615,8 @@ mod tests {
         step(&mut s, &TAP, &t, &arena, DT);
         for _ in 0..70 {
             step(&mut s, &Input::default(), &t, &arena, DT);
-            if s.action.is_some() {
-                assert_eq!(s.action.as_ref().unwrap().target, Some(7));
+            if let Some(action) = &s.action {
+                assert_eq!(action.target, Some(7));
             }
             hits.extend(s.hits.iter().copied());
         }
@@ -7900,10 +7896,9 @@ mod tests {
             step(s, &input, t, &arena, GAME_DT);
             updates += 1;
             assert!(updates < 400, "never reached {state}: {:?}, {seen:?}", s.control_state(t));
-            if let Some((_, clip, _)) = s.action_clip(t).filter(|_| s.control_state(t) != Some(state)) {
-                if seen.last().map(String::as_str) != Some(clip) {
-                    seen.push(clip.to_owned());
-                }
+            if let Some((_, clip, _)) = s.action_clip(t).filter(|_| s.control_state(t) != Some(state))
+                && seen.last().map(String::as_str) != Some(clip) {
+                seen.push(clip.to_owned());
             }
         }
         (seen, updates)
@@ -9343,10 +9338,9 @@ mod clip_event_tests {
             if i >= 80 {
                 assert!(s.is_vehicle(), "update {i}: still in the tank");
             }
-            if let Some((_, id, _)) = s.action_clip(&t).filter(|(set, _, _)| *set == "SpecialAnimSet") {
-                if seen.last() != Some(&id.to_owned()) {
-                    seen.push(id.to_owned());
-                }
+            if let Some((_, id, _)) = s.action_clip(&t).filter(|(set, _, _)| *set == "SpecialAnimSet")
+                && seen.last() != Some(&id.to_owned()) {
+                seen.push(id.to_owned());
             }
         }
         assert_eq!(seen, ["SpecialAttackVehicle_Intro", "SpecialAttackVehicle_ChargeIdle", "SpecialAttackVehicle_Exit"]);
@@ -9441,10 +9435,9 @@ mod clip_event_tests {
                 (input.buttons_hit, input.buttons_down) = (bit, bit);
             }
             step(&mut s, &input, &t, &arena, 0.032);
-            if let Some((_, id, _)) = s.action_clip(&t) {
-                if clips.last() != Some(&id.to_owned()) {
-                    clips.push(id.to_owned());
-                }
+            if let Some((_, id, _)) = s.action_clip(&t)
+                && clips.last() != Some(&id.to_owned()) {
+                clips.push(id.to_owned());
             }
         }
         assert!(clips.iter().any(|c| c == "SpecialAttack_IdleTurnL"), "{clips:?}");

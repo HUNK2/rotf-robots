@@ -1,7 +1,7 @@
 //! A top-down picture of a zone's DRAWN geometry: every vertex of every placed model (the most
 //! detailed level only, `lod` 0), transformed by its world matrix (`level_render::load`).
 //!
-//! cargo run --manifest-path C:/Bumblebee/Cargo.toml -p tf2-core --release --example zone_render_map -- <zone.str> <out.png> [metres per pixel, default 5]
+//! cargo run -p tf2-core --release --example zone_render_map -- <zone.str> <out.png> [metres per pixel, default 5]
 //!
 //! Each pixel is the highest vertex that falls in it (so roofs show over walls). Grey = that
 //! vertex's height (black at -20 m, white at 60 m and above); background dark red. The picture

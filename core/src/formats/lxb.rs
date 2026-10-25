@@ -59,23 +59,6 @@ fn latin1(bytes: &[u8]) -> String {
     bytes.iter().map(|&b| b as char).collect()
 }
 
-#[cfg(test)]
-mod header_tests {
-    use super::*;
-
-    #[test]
-    fn oversized_root_and_name_tables_are_rejected_before_allocation() {
-        let mut data = vec![0; 16];
-        data[..4].copy_from_slice(&5u32.to_le_bytes());
-        data[4..8].copy_from_slice(&16u32.to_le_bytes());
-        data[8..12].copy_from_slice(&u32::MAX.to_le_bytes());
-        assert!(DataFile::parse(data.clone()).err().unwrap().contains("root table"));
-        data[8..12].copy_from_slice(&0u32.to_le_bytes());
-        data[12..16].copy_from_slice(&u32::MAX.to_le_bytes());
-        assert!(DataFile::parse(data).err().unwrap().contains("name table"));
-    }
-}
-
 impl DataFile {
     pub fn parse(data: Vec<u8>) -> Result<Self, String> {
         let version = data.u32_at(0)?;
@@ -347,6 +330,10 @@ impl<'a> Node<'a> {
         self.array().map_or(0, |a| a.3)
     }
 
+    pub fn is_empty(self) -> bool {
+        self.len() == 0
+    }
+
     pub fn at(self, index: usize) -> Option<Node<'a>> {
         let (element, size, first, count) = self.array()?;
         (index < count).then(|| self.value(element, first + index * size))
@@ -489,5 +476,22 @@ impl<'a> Node<'a> {
     /// Every integer of an array of integers.
     pub fn ints(self) -> Vec<i64> {
         self.items().filter_map(Node::int).collect()
+    }
+}
+
+#[cfg(test)]
+mod header_tests {
+    use super::*;
+
+    #[test]
+    fn oversized_root_and_name_tables_are_rejected_before_allocation() {
+        let mut data = vec![0; 16];
+        data[..4].copy_from_slice(&5u32.to_le_bytes());
+        data[4..8].copy_from_slice(&16u32.to_le_bytes());
+        data[8..12].copy_from_slice(&u32::MAX.to_le_bytes());
+        assert!(DataFile::parse(data.clone()).err().unwrap().contains("root table"));
+        data[8..12].copy_from_slice(&0u32.to_le_bytes());
+        data[12..16].copy_from_slice(&u32::MAX.to_le_bytes());
+        assert!(DataFile::parse(data).err().unwrap().contains("name table"));
     }
 }

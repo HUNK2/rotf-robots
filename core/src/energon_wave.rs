@@ -1,7 +1,7 @@
 //! Grindor's cinematic energon wave [port design]: every shot of his energon cannon
 //! (`BlackoutEnergonCannon`) opens a wide arc of Devastator's ground ring where its missile ends,
 //! instead of only the narrow ground wave of the original. Not in the game: the user's design
-//! beyond it (2026-10-24, `notes\grindor-cinematic-wave.md`), built only from the game's own
+//! beyond it (2026-10-24, `docs/grindor-cinematic-wave.md`), built only from the game's own
 //! data -- Devastator's `ShockWave` (its material, band, fades, segments, knock-back) and
 //! Grindor's own `snakerInfo` (speed, life, damage).
 //!
@@ -450,7 +450,7 @@ pub const FLASH_FADE_START: f32 = 0.1;
 /// a burst of sparks every `SPARKS_EVERY`. The cost sets the counts: every element of every
 /// effect is a mesh rebuilt each frame (`effects::run`), and a puff has 9; the plan's 12 puffs
 /// with 9 wall copies cost 1.3 ms a frame more on average and up to 8 ms more on the worst
-/// frame (measured 2026-10-24, `notes\grindor-cinematic-wave.md`). Cut again after the user played
+/// frame (measured 2026-10-24, `docs/grindor-cinematic-wave.md`). Cut again after the user played
 /// it (2026-10-24: "reduced significantly"): from a puff every 0.3 s (6 alive, up to 2 a row, 1.2 to
 /// 2 times) and sparks every 0.6 s, to a puff every 0.6 s (3 alive, 1 to 1.5 times) and sparks every
 /// 1.2 s (two bursts a wave, was three).
@@ -467,7 +467,7 @@ pub const KICK_BACK: f32 = 2.0;
 /// spark streamers and a glow along a 20 m line across its way, x -10..10 [data]) laid
 /// `FRONT_SLOTS` times across the arc, each riding the band's outer edge with its line along the
 /// arc, scaled to its share of the arc with some overlap, between `FRONT_SCALE_MIN` and
-/// `FRONT_SCALE_MAX`. Devastator's band alone is faint smoke (`notes\devastator.md` "Captures"):
+/// `FRONT_SCALE_MAX`. Devastator's band alone is faint smoke (`docs/devastator.md` "Captures"):
 /// this is what makes the front read. Each copy's particles are `FRONT_SIZE` times their own
 /// size (`Template::scaled`; the frame's scale only spreads them along the line).
 pub const FRONT_SLOTS: u32 = 5;
@@ -570,7 +570,7 @@ mod tests {
     use crate::shockwave::{Candidate, Hit};
 
     /// Devastator's ring, as `shockwave.rs` tests it (cairo_city_a_boss mission.str#1) [data],
-    /// with his knock-back and stun (`notes\devastator.md`).
+    /// with his knock-back and stun (`docs/devastator.md`).
     fn devastator() -> Def {
         Def {
             material: Some(1),

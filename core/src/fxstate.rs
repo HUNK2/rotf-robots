@@ -1,5 +1,5 @@
 //! The effect messages a state of his keeps on: who sends `Trigger` and the stop
-//! (`9caa723d`) for each, read from the game's code (`notes\particles.md` "The senders").
+//! (`9caa723d`) for each, read from the game's code (`docs/particles.md` "The senders").
 //!
 //! A message goes to his object by a `LuxScriptName` (`FUN_00724940`, and again to the
 //! object at `+600`); the things that answer to the name start, or stop.

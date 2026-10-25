@@ -1,7 +1,7 @@
 //! Foot support applied after animation layers, in game space (z up).
-//! Original constants/solver evidence: notes/foot-ik.md. Character binding,
+//! Original constants/solver evidence: docs/foot-ik.md. Character binding,
 //! sole proxy, activation and plane adaptation are [assumed], documented there. settles: a decision on whether the
-//! proxy stays for the robots at all (roster_survey, `notes/foot-ik.md`: no FootIK object in their packs).
+//! proxy stays for the robots at all (roster_survey, `docs/foot-ik.md`: no FootIK object in their packs).
 //! NOT the game's for the playable robots: none of their packs holds a FootIK object, and the
 //! solver is built only from data (0073f000 through the factory 0073f1b0) [game, data,
 //! `roster_survey` below]. The game crate's `animation.rs` leaves it off unless `--foot-ik`.
@@ -29,7 +29,7 @@ pub struct Leg {
     pub hip: usize,
     pub knee: usize,
     pub foot: usize,
-    /// settles: the game's own foot support, which the 0073f000 loader would give (none for these robots: `notes/foot-ik.md`).
+    /// settles: the game's own foot support, which the 0073f000 loader would give (none for these robots: `docs/foot-ik.md`).
     /// [assumed] Rest-space rectangular sole proxy, expressed in ankle space.
     pub sole: [Vec3; 4],
 }
@@ -41,7 +41,7 @@ impl Leg {
     /// within `reach` of their lowest, at that lowest height.
     /// [assumed] For a limb that stands on more than a foot mesh, in a pose it stands in
     /// (Devastator's hands on their fingertips: `crate::giant::limbs`). settles: none in the game,
-    /// which has no foot IK on him (no FootIK object in his pack, `notes/devastator.md`).
+    /// which has no foot IK on him (no FootIK object in his pack, `docs/devastator.md`).
     pub fn planted(object: &ObjectDef, library: &Library, pose: &[Affine3A], foot: usize, reach: f32) -> Option<Self> {
         let knee = object.nodes[foot].parent?;
         let hip = object.nodes[knee].parent?;
@@ -194,7 +194,7 @@ pub fn accumulate(local: &[Affine3A], parents: &[Option<usize>]) -> Vec<Affine3A
 
 /// Solve a two-segment chain without stretching; retain the animated bend plane.
 /// [game] Cosine-law geometry and sum-minus-.001 cap (0073db50).
-/// settles: the bend-plane rule in 0073db50's two-bone solve (its exact bone axes are unresolved: `notes/foot-ik.md`).
+/// settles: the bend-plane rule in 0073db50's two-bone solve (its exact bone axes are unresolved: `docs/foot-ik.md`).
 /// [assumed] Bend plane follows the incoming animation; singular fallback is geometric.
 pub fn solve_knee(hip: Vec3, knee: Vec3, ankle: Vec3, target: Vec3) -> Option<(Vec3, Vec3)> {
     let a = hip.distance(knee);
@@ -399,7 +399,7 @@ impl FootIk {
     }
 
     /// settles: 0073db50's lowering gate (enabled, the composed local_428 > 0.95, endpoint travel <= dt*0.3 + 0.001),
-    /// which the whole-body lowering here is broader than (`notes/foot-ik.md`).
+    /// which the whole-body lowering here is broader than (`docs/foot-ik.md`).
     /// [assumed] Preserve animated lift and adapt it to local terrain; whole-body
     /// visual lowering prevents extending the downhill leg. Never changes movement.
     /// `root` maps the object's z-up space to the world's z-up space.
@@ -421,7 +421,7 @@ impl FootIk {
         self.offsets.resize(count, 0.0);
         self.turns.resize(count, Quat::IDENTITY);
         let origin: Vec3 = root.translation.into();
-        // settles: 00740d60's and 0073db50's reset / teleport rule (unresolved in `notes/foot-ik.md`).
+        // settles: 00740d60's and 0073db50's reset / teleport rule (unresolved in `docs/foot-ik.md`).
         // [assumed] A move larger than the probe diameter in one frame is a teleport.
         if self
             .previous
@@ -477,14 +477,14 @@ impl FootIk {
                 // halving, and back up at `BODY_RISE` an update: going up a slope the lowest foot is
                 // the one behind, which changes every stride, so set straight to it the body jumped
                 // 0.2 to 0.4 m twice a stride on long legs (Breakaway, Starscream; the user's report,
-                // 2026-10-25). The game, as read, lowers no body (`notes/foot-ik.md`).
+                // 2026-10-25). The game, as read, lowers no body (`docs/foot-ik.md`).
                 let target = self.offsets.iter().copied().fold(0.0_f32, f32::min);
                 self.body += (target - self.body) * if target < self.body { 0.5 } else { BODY_RISE };
             }
         }
         for (i, turn) in turns.iter().enumerate() {
             self.turns[i] = self.turns[i].slerp(*turn, (dt * TURN_RATE).min(1.0));
-            // settles: 0073db50's lost-probe branch (the callback / filter path is unresolved: `notes/foot-ik.md`).
+            // settles: 0073db50's lost-probe branch (the callback / filter path is unresolved: `docs/foot-ik.md`).
             // [assumed] A lost probe (a foot swung more than the probe's 1.5 m over the ground) lets
             // its lift go back to none by the same halving as any other (`desired` is 0 for it), its
             // sole turning back level: released at once, a downhill foot's -0.35 to -0.44 m came off
@@ -533,10 +533,10 @@ mod roster_survey {
         use crate::formats::lxb::Node;
         fn walk(node: Node, depth: u32, seen: &mut HashSet<usize>, foot: &mut usize, spine: &mut usize) {
             if depth > 60 { return; }
-            if let Some(at) = node.offset() { if !seen.insert(at) { return; } }
+            if let Some(at) = node.offset() && !seen.insert(at) { return; }
             match node.type_name() { Some("FootIK") => *foot += 1, Some("SpineIK") => *spine += 1, _ => {} }
             for (_, child) in node.fields() { walk(child, depth + 1, seen, foot, spine); }
-            if node.len() > 0 { for child in node.items() { walk(child, depth + 1, seen, foot, spine); } }
+            if !node.is_empty() { for child in node.items() { walk(child, depth + 1, seen, foot, spine); } }
         }
         for pack in ["bumblebee", "optimus", "ratchet", "ironhide", "megatron", "longhaul", "audir8", "jetfire", "firestorm", "starscream", "blackout", "optimusflight", "megatronflight"] {
             let Ok(p) = crate::formats::pack::Pack::open(&crate::install::dir().join("characters").join(format!("{pack}.str"))) else { continue };

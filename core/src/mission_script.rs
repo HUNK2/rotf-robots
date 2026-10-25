@@ -29,7 +29,7 @@ pub(crate) const WALK_DEPTH: u32 = 256;
 const EMBEDDED_TYPE: &str = "(embedded data)";
 
 /// The sentinel an override field holds when it overrides nothing (`0xfe74aaca`, the array header
-/// test in `0080d9f0`, [game] `notes\mission-script-runner.md` section 6). The pack also spells the
+/// test in `0080d9f0`, [game] the unpublished notes section 6). The pack also spells the
 /// same value as the enum name `NOOVERRIDE` (crc `43c0d673`), which the reader maps to the same
 /// meaning [assumed]. [data]
 const NO_OVERRIDE: u32 = 0xfe74_aaca;
@@ -37,7 +37,7 @@ const NO_OVERRIDE_NAME: u32 = 0x43c0_d673;
 
 // Message names: CRC-32 of the name. [game] immediates in the handlers; [data] the names in the
 // pack. Each is checked against crc32 of its name by the test `message_names_are_crc32`.
-/// `Enable` (`notes\mission-script-runner.md` section 4).
+/// `Enable` (the unpublished notes section 4).
 pub const MSG_ENABLE: u32 = 0xf40c_cd04;
 /// `Disable`.
 pub const MSG_DISABLE: u32 = 0x80f8_74cd;
@@ -73,13 +73,13 @@ const MESSAGE_HASHES: [u32; 3] = [crc32(b"msgType"), crc32(b"message"), crc32(b"
 const FILTER_KEYS: [&str; 2] = ["luxScriptNameSendFilter", "msgTargetGroup"];
 
 /// The name hash of `Root` (`b6c65665`, the CRC-32 of the name; a test checks it). [game] 0080d7d9
-/// compares a link's target name with it and skips the registry lookup (`notes\mission-root-and-homepoints.md`
+/// compares a link's target name with it and skips the registry lookup (the unpublished notes
 /// Q1, [game, disasm]). A Root link is never looked up by name; it resolves to an owner (see [`RootReading`]).
 pub const ROOT_NAME: u32 = 0xb6c6_5665;
 
 /// Which object a Root link sends to. [game] 0080d927 stores the trigger array's owner object (array +0x18)
 /// as the element's target when the owner handle is live. Who writes that handle is [unknown]
-/// (`notes\mission-root-and-homepoints.md` Q1 "Not settled"), so the two readings below are [assumed].
+/// (the unpublished notes Q1 "Not settled"), so the two readings below are [assumed].
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RootReading {
     /// The object whose link site this is (the script object holding the trigger array). [assumed]
@@ -88,10 +88,10 @@ pub enum RootReading {
     Parent,
 }
 
-/// The reading [`Script::load`] uses: Parent. With instancing (`notes\mission-instancing.md`) the parent of a
+/// The reading [`Script::load`] uses: Parent. With instancing the parent of a
 /// template's component is the Instance that places it, so Parent is the owning Instance, the reading the
 /// data supports [data] [assumed]. Before instancing the parent was the first object that reached the
-/// component, and Parent reached 29 of 54 escort Root links against Holder's 5 (`notes\mission-root-and-homepoints.md` Q1).
+/// component, and Parent reached 29 of 54 escort Root links against Holder's 5 (the unpublished notes Q1).
 pub const DEFAULT_ROOT_READING: RootReading = RootReading::Parent;
 
 /// Identifies one object of a loaded script: an index into [`Script::objects`]. [assumed] the
@@ -100,7 +100,7 @@ pub const DEFAULT_ROOT_READING: RootReading = RootReading::Parent;
 pub struct ObjectId(pub usize);
 
 /// A message: its name, one argument and the link's name filter. [game] the four-word block of
-/// `send_trigger_array` (`notes\mission-script-runner.md` 2c) has a sender handle and a filter as
+/// `send_trigger_array` (the unpublished notes 2c) has a sender handle and a filter as
 /// well; the filter comes from the link (`luxScriptNameSendFilter`), the sender is passed to the
 /// handler as `from`. The argument is 0 for every trigger-array message [assumed] (the sender
 /// argument `msg[1]` has no reader yet). A receiver reads the filter from here (SwitchTrigger does).
@@ -180,7 +180,7 @@ pub struct ScriptObject {
     /// The object that holds this one: the Instance, Scene or Object whose `things`, `attachments` or
     /// `thing` list holds it (containment, not a link). For a copy, its Instance. None when no such list
     /// holds it. [assumed] the game's parent is the registrant's `obj+0xc` ([game],
-    /// `notes\mission-script-runner.md` 2); which field the game takes as the holder is [assumed] too.
+    /// the unpublished notes 2); which field the game takes as the holder is [assumed] too.
     pub parent: Option<ObjectId>,
     /// `startEnabled` when the object has the field. [data]
     pub start_enabled: Option<bool>,
@@ -193,11 +193,11 @@ pub struct ScriptObject {
     /// The link sites of this object (not of its child objects, which have their own entry).
     pub links: Vec<LinkSite>,
     /// The Instance this object is a copy for: a component of a template, copied once per Instance that
-    /// places the template (`notes\mission-instancing.md`). None for an object of the file itself. [assumed]
+    /// places the template. None for an object of the file itself. [assumed]
     pub instance: Option<ObjectId>,
 }
 
-/// What the instancing pass found and made (`notes\mission-instancing.md`). Counts are of the pack's typed
+/// What the instancing pass found and made. Counts are of the pack's typed
 /// objects (`before`: as the walk registered them, embedded data included) and of the instanced list (`after`).
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Instancing {
@@ -329,7 +329,7 @@ pub struct Script {
     /// Resolved links whose target is in a different chunk from the link's object.
     pub cross_chunk_links: usize,
     /// Links with no name and no pointer (a null target). They send nothing and are not counted as
-    /// unresolved. [game] `notes\mission-root-and-homepoints.md` Q2.
+    /// unresolved. [game] the unpublished notes Q2.
     pub null_links: usize,
     /// Links named Root (no pointer). They are not looked up by name; each resolves to the owner of its
     /// array under [`Script::root_reading`] (`root_unowned` of them have no owner). [game] Q1, [assumed] reading.
@@ -426,7 +426,7 @@ impl Script {
 
         // Containment: each object's containers, the objects whose `things`, `attachments` or `thing`
         // list holds it, in walk order. [data] Link fields are not containment, so a link target is no
-        // one's component (the walk's first visit used to make it one: `notes\mission-instancing.md`).
+        // one's component (the walk's first visit used to make it one: the unpublished notes).
         let n = objects.len();
         let mut at_old: HashMap<(usize, usize), usize> = HashMap::new();
         let mut by_name_old: HashMap<u32, usize> = HashMap::new();
@@ -456,7 +456,7 @@ impl Script {
         // Instancing. An Object that an Instance holds (in its `things`) is a template: the Instance places
         // it. Its components (its containment subtree) are copied once per Instance, parented to that
         // Instance, with the Instance's matrix as their placement. [assumed] the reading of the data in
-        // `notes\mission-instancing.md`; the game's builder is unread (`notes\zone-loading.md` 4).
+        // the unpublished notes; the game's builder is unread (the unpublished notes 4).
         let is_instance: Vec<bool> = objects.iter().map(|o| o.type_name == "Instance").collect();
         let is_object: Vec<bool> = objects.iter().map(|o| o.type_name == "Object").collect();
         let holders: Vec<Vec<usize>> = containers.iter().map(|c| c.iter().copied().filter(|&h| is_instance[h]).collect()).collect();
@@ -582,7 +582,7 @@ impl Script {
                     let identity_old = rl.target_offset.and_then(|at| at_old.get(&(from_chunk, at)).copied());
                     let by_identity = identity_old.and_then(|t| remap(t, e.instance));
                     // [game] a null target (no name, no pointer) sends nothing: the resolver skips it and the
-                    // sender's null check releases the element (`notes\mission-root-and-homepoints.md` Q2).
+                    // sender's null check releases the element (the unpublished notes Q2).
                     let is_null = rl.target_name == 0 && rl.target_offset.is_none();
                     // [game] the name Root is never looked up (Q1): the target is the owner of the array.
                     let is_root = rl.target_name == ROOT_NAME && rl.target_offset.is_none();
@@ -726,7 +726,7 @@ impl Script {
 
     /// The damage stage an object belongs to: how many DamageLinks hold it (0 the intact Object, 1 the Object of
     /// the first DamageLink's `thing`, 2 the one that stage's DamageLink holds). [data] the nesting; the game builds
-    /// a stage only when the stage before it dies (00554830, `notes\us-test-completion.md`).
+    /// a stage only when the stage before it dies (00554830).
     pub fn damage_stage(&self, id: ObjectId) -> u8 {
         let mut stage = 0u8;
         let mut at = self.object(id).and_then(|o| o.parent);
@@ -1013,10 +1013,9 @@ impl<'a> Walk<'a> {
         if depth > MAX_DEPTH {
             return;
         }
-        if let Some(key) = Self::key(node) {
-            if !self.walked.insert(key) {
-                return;
-            }
+        if let Some(key) = Self::key(node)
+            && !self.walked.insert(key) {
+            return;
         }
         if let Some(type_name) = self.object_type(node) {
             let id = ObjectId(objects.len());
@@ -1109,10 +1108,9 @@ impl<'a> Walk<'a> {
         if depth > MAX_DEPTH || self.is_object(v) {
             return;
         }
-        if let Some(key) = Self::key(v) {
-            if !self.scanned.insert(key) {
-                return;
-            }
+        if let Some(key) = Self::key(v)
+            && !self.scanned.insert(key) {
+            return;
         }
         let fields = v.fields();
         if is_link(&fields) {
@@ -1145,7 +1143,7 @@ impl<'a> Walk<'a> {
         // A struct that carries a trigger array's overrides (`overrideMsgType`,
         // `overrideLuxScriptNameSendFilter`): they replace the message and the filter of every
         // link in its `triggerArray`. [game] `0080d9f0` reads header +0x10 (name, sentinel
-        // 0xfe74aaca) and header +0x14 (filter, 0 = none) over each element (`notes\mission-script-runner.md`
+        // 0xfe74aaca) and header +0x14 (filter, 0 = none) over each element (the unpublished notes
         // section 6); the field names are [data].
         let (msg_over, filter_over) = array_overrides(&fields);
         let before = sites.len();
@@ -1174,7 +1172,7 @@ impl<'a> Walk<'a> {
 }
 
 /// The overrides of a trigger array struct: the message (`None` for the sentinel) and the filter
-/// (`None` for 0). [game] 0080d9f0 (section 6 of `notes\mission-script-runner.md`); [data] fields.
+/// (`None` for 0). [game] 0080d9f0 (section 6 of the unpublished notes); [data] fields.
 fn array_overrides(fields: &[(u32, Node<'_>)]) -> (Option<u32>, Option<u32>) {
     let msg = find_key(fields, &["overrideMsgType"]).and_then(hash_of).filter(|&m| m != NO_OVERRIDE && m != NO_OVERRIDE_NAME);
     let filter = find_key(fields, &["overrideLuxScriptNameSendFilter"]).and_then(hash_of).filter(|&f| f != 0);

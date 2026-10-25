@@ -2,7 +2,7 @@
 //! the per-light shader constants the game uploads, and the shading the light passes do
 //! (engine-free, glam only). The game uses the gated placed loader and camera-based selection.
 //!
-//! Read from the game's code and listings: notes/level-deferred-lighting.md (LS-33: the
+//! Read from the game's code and listings: the unpublished notes (LS-33: the
 //! shaders and the composite) and its LS-35 section (LS35.1 the loader 00563870, LS35.2 the
 //! record writers 0054c260 omni, 0054c7f0 spot, 0054cd70 capsule, LS35.5 for the porter).
 //! Listings: work/shaders/effects/008250_ps.asm (omni), 008e70_ps.asm (spot), 009cb0_ps.asm
@@ -335,12 +335,6 @@ pub fn placement(world: &[f32; 12]) -> (Vec3, Vec3) {
     (Vec3::new(world[9], world[10], world[11]), Vec3::new(world[6], world[7], world[8]))
 }
 
-fn install_path(relative: &str) -> Option<PathBuf> {
-    let dir = PathBuf::from(crate::install::dir_string());
-    let path = dir.join(relative);
-    path.is_file().then_some(path)
-}
-
 /// The Light type from `lighttype` (`9884ece8`): the data's raw enum value. [data] the table
 /// BACKGROUND 0, AMBIENT 1, FOG 2, DIRECTIONAL 3, OMNI 4, SPOT 5, CAPSULE 6 (level-lighting.md
 /// section 3, chunk 1190). [assumed] the same in every chunk. Others (DIRECTIONAL) are not read here.
@@ -409,6 +403,7 @@ fn read_light(light: Node, world: &Mat) -> Option<LevelLight> {
 ///   and a typed node is keyed with its matrix; one Light per stored object per placement. Without
 ///   the gate the matrix-keyed walk does not end on the mission pack (LS-38: 3.9 million visited
 ///   states in the first 5 million visits, the matrices of a DAG multiplying with depth).
+///
 /// LS-42: a Light's key in a walk: (pack ordinal in the list, data chunk index, the Light's offset in the chunk).
 type LightKey = (usize, usize, usize);
 
@@ -494,7 +489,7 @@ impl Walk<'_> {
             }
             self.visit(child, acc, placed, depth + 1);
         }
-        if node.len() > 0 {
+        if !node.is_empty() {
             for child in node.items() {
                 self.visit(child, acc, placed, depth + 1);
             }
@@ -557,9 +552,9 @@ fn walk_lights(packs: &[PathBuf], per_placement: bool) -> Result<Vec<(LightKey, 
 /// world matrix, so each placed copy of a prefab's lamp is one light at that lamp's place).
 /// [assumed] Only the gated placements are static world lights. The ungated-only routes hang under
 /// traffic vehicle and character templates (LS-42), so adding them here lights the origin with
-/// unspawned headlights. Follows the manager decision in notes/status.md; the dynamic spawners
+/// unspawned headlights. Follows the manager decision in the unpublished notes; the dynamic spawners
 /// would settle their runtime placement. OPEN: settles: the dynamic spawners' runtime placement (a
-/// recording of the level's lights while a spawner runs), and the manager decision in notes/status.md.
+/// recording of the level's lights while a spawner runs), and the manager decision in the unpublished notes.
 pub fn load_level_lights_placed(packs: &[PathBuf]) -> Result<Vec<LevelLight>, String> {
     Ok(placed_lights(packs)?.into_iter().map(|(_, light)| light).collect())
 }
@@ -597,7 +592,7 @@ pub fn nearest_lights(lights: &[LevelLight], eye: Vec3, max: usize) -> Vec<usize
 
 /// A weapon's muzzle light: the Light of its `muzzleFlashObject` (weapon `+0x33c`), which the
 /// weapon's muzzle effect routine spawns at the flash node's matrix with every shot that makes a
-/// flash. [game 007aac80, reached from 007ae010 through vtable `+0x7c`; notes/particles.md "Muzzle
+/// flash. [game 007aac80, reached from 007ae010 through vtable `+0x7c`; docs/particles.md "Muzzle
 /// attachment and exhaust timing"] Every playable pack's flash object is one OMNI Light and one
 /// TimeoutDeleter (`muzzleflash_orange`: colour 0.8 / 0.75 / 0.61, range 10, attenuate 6, time 0.05,
 /// fadeStart -1). [data]
@@ -699,7 +694,7 @@ pub fn read_flash_light(object: Node) -> Option<FlashLight> {
             return None;
         }
         let fields = node.fields().into_iter().map(|(_, c)| c);
-        let items: Vec<Node> = if node.len() > 0 { node.items().collect() } else { Vec::new() };
+        let items: Vec<Node> = if !node.is_empty() { node.items().collect() } else { Vec::new() };
         fields.chain(items).find_map(|child| deleter(child, depth + 1))
     }
     let num = |d: Node, name: &str, default: f32| d.get(name).and_then(|n| n.float().or_else(|| n.int().map(|v| v as f32))).unwrap_or(default);
@@ -758,6 +753,13 @@ pub fn load_flash_lights(game_dir: &std::path::Path, pack_name: &str) -> Result<
 }
 
 #[cfg(test)]
+fn install_path(relative: &str) -> Option<PathBuf> {
+    let dir = PathBuf::from(crate::install::dir_string());
+    let path = dir.join(relative);
+    path.is_file().then_some(path)
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
 
@@ -775,7 +777,7 @@ mod tests {
         assert_eq!(ramp(0.5, 0.0, 1.0), 0.5);
     }
 
-    /// Part D of notes/level-deferred-lighting.md: the three Shanghai lights as data rows.
+    /// Part D of the unpublished notes: the three Shanghai lights as data rows.
     fn freeway() -> LevelLight {
         LevelLight {
             kind: LightKind::Omni,
@@ -1009,7 +1011,7 @@ mod tests {
     }
 
     /// (d) Shanghai_01's zone: the survey's counts (62 omni, 14 spot, 28 capsule), and five
-    /// lights printed for notes/level-deferred-lighting.md (LS-36). Needs the game install.
+    /// lights printed for the unpublished notes (LS-36). Needs the game install.
     #[test]
     fn point_light_shanghai_zone_counts_and_five_lights() {
         let Some(zone) = install_path(r"levels\shanghai_01\zone.str") else { return };
@@ -1048,10 +1050,11 @@ mod tests {
     /// LS-42: the Shanghai CSA mission pack (as `levels\shanghai_01\missions\...`, LS-38).
     const CSA_REL: &str = r"levels\shanghai_01\missions\shanghai_01_construction_a_csa\mission.str";
 
-    /// LS-42: the report goes to `work\ls42\<name>` and to stdout (the ticket's test run has no `--nocapture`).
+    /// LS-42: the report goes to `work/ls42/<name>` at the repository root and to stdout (the
+    /// ticket's test run has no `--nocapture`).
     fn ls42_report(name: &str, text: &str) {
         println!("{text}");
-        let dir = PathBuf::from(r"C:\Bumblebee\work\ls42");
+        let dir = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../work/ls42"));
         let _ = std::fs::create_dir_all(&dir);
         let _ = std::fs::write(dir.join(name), text);
     }
@@ -1312,19 +1315,17 @@ mod tests {
             return;
         }
         if node.type_name() == Some("Light") {
-            if let Some(at) = node.offset() {
-                if targets.contains(&at) && !found.iter().any(|(a, _)| *a == at) {
-                    let mut route = path.clone();
-                    route.push(route_label(node, field));
-                    found.push((at, route));
-                }
+            if let Some(at) = node.offset()
+                && targets.contains(&at) && !found.iter().any(|(a, _)| *a == at) {
+                let mut route = path.clone();
+                route.push(route_label(node, field));
+                found.push((at, route));
             }
             return;
         }
-        if let (Some(type_name), Some(at)) = (node.type_name(), node.offset()) {
-            if !seen.insert((at, type_name.as_ptr() as usize)) {
-                return;
-            }
+        if let (Some(type_name), Some(at)) = (node.type_name(), node.offset())
+            && !seen.insert((at, type_name.as_ptr() as usize)) {
+            return;
         }
         path.push(route_label(node, field));
         if let Some(attachments) = node.get("attachments") {
@@ -1341,7 +1342,7 @@ mod tests {
             }
             route_visit(child, name, path, targets, seen, found, depth + 1);
         }
-        if node.len() > 0 {
+        if !node.is_empty() {
             for child in node.items() {
                 route_visit(child, "item", path, targets, seen, found, depth + 1);
             }

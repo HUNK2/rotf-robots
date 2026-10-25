@@ -1,4 +1,4 @@
-//! The game's mission table: `MissionList` in `bnxglobal.str` data chunk 5 (`notes\mission-join.md`
+//! The game's mission table: `MissionList` in `bnxglobal.str` data chunk 5 (the unpublished notes
 //! "Lead 1"). One entry per mission, 132 in the install. The join from a mission to its objects
 //! is by pack path: `stream_files` names the zone's `zone` pack and the mission's own `mission`
 //! pack, and `pack_paths` gives them with `.str` on (the original formats `%s.str`).

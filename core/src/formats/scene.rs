@@ -461,7 +461,7 @@ fn read<'a>(object: Node<'a>, name_of: &dyn Fn(u32) -> Option<&'a str>) -> Optio
             // ties it to the node `linkName` names (`FUN_00815790`). [game] Kept as an
             // effect on that node, with the node's turn. [game 00815790, 00711f40 -> 0056c9b0: the tie is a
             // `lux::LinkConstraint` on the node with an identity offset, so the object takes the node's own axes
-            // (`notes\weapon-mode.md` "How it sits on the node": offset * node * owner, squared up)]
+            // (`docs/weapon-mode.md` "How it sits on the node": offset * node * owner, squared up)]
             let index = attachment.get("index").and_then(Node::int).unwrap_or(0) as usize;
             let link = thing.get("linkName").and_then(Node::int).map(|hash| hash as u32);
             let node = link.and_then(|hash| nodes.iter().position(|n| n.name_hash == hash)).unwrap_or(index);

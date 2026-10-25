@@ -245,7 +245,7 @@ mod tests {
         assert!(t.head("B").is_none() && t.head("A").unwrap().frame == 3);
         // A class's gotoAndPlay.
         t.set_visible("A", false);
-        assert!(t.goto_and_play(&movie, "", "Missing") == false);
+        assert!(!t.goto_and_play(&movie, "", "Missing"));
         t.tick(&movie);
         assert!(t.goto_and_play(&movie, "B", "Main"));
         assert_eq!(t.head("B").unwrap().frame, 2);

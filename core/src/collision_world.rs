@@ -1,7 +1,7 @@
 //! A level's static collision: every primitive of a zone pack placed in the world, and a
 //! ray cast against all of them.
 //!
-//! Placement rule (`notes\collision-world.md`; survey by the porter, 2026-10-11, from
+//! Placement rule (`docs/collision-world.md`; survey by the porter, 2026-10-11, from
 //! `work\survey\collision\`):
 //! - A Collision rides a node of an Object (`parent`). A node's `bind` is ABSOLUTE in the
 //!   Object's own space, not chained to its parent node. [data] Bumblebee's humanoid skeleton:
@@ -11,13 +11,13 @@
 //!   `matrix` of an `Instance` (a root entry, or one inside a `Scene`; outermost last), and for
 //!   an Object nested in another Object's attachment, the bind of the attachment's node `index`.
 //! - One stored Collision is placed once per distinct ACC. [data] Shanghai's 871 stored
-//!   Collisions are placed 14,708 times in all: each building is instanced (`notes\collision-world.md`).
+//!   Collisions are placed 14,708 times in all: each building is instanced (`docs/collision-world.md`).
 //! - Primitives under a `DamageLink` or `DetachLink` are kept, flagged `released` (they are
 //!   debris and damage variants released when the parent breaks) [assumed: not checked against
 //!   the game's release rule].
 //!
 //! Cuboid `extent` is HALF the size (stored value used as the half extent; [data] the resting
-//! peak in `notes\collision-world.md`). Cylinder `height12` and cone heights are used as the
+//! peak in `docs/collision-world.md`). Cylinder `height12` and cone heights are used as the
 //! game's helper uses them (`gjk_shapes`), [game]/[assumed] see the note.
 //!
 //! Tags: `[data]` seen in the decoded file, `[game]` from a note with an address, `[assumed]`.
@@ -376,7 +376,7 @@ impl StaticWorld {
 
     /// Sweep the upright avatar pencil, with positions at its feet.
     /// [game] Dimensions and centre: 006e7e90 / 006e7b60, documented in
-    /// `notes/character-ground-rule.md` "The slot mapping". The support helper
+    /// `docs/character-ground-rule.md` "The slot mapping". The support helper
     /// is the existing emulated 005aff10 port.
     /// [stand-in] This convex Minkowski cast uses the ray GJK kernel instead
     /// of the original swept-pair dispatcher and contact-manifold generator.
@@ -489,7 +489,7 @@ fn pencil_one(index: usize, shape: &WorldShape, p0: Vec3, p1: Vec3,
 }
 
 /// [assumed] The walk's start unit at the start of each ray test or sweep: the corner at unit 1
-/// (face 0, corner 0). The game seeds it from the query record's +0x18 (`notes\collision-support-hull.md`
+/// (face 0, corner 0). The game seeds it from the query record's +0x18 (`docs/collision-support-hull.md`
 /// section 1), whose meaning is not read. Any valid unit gives the same farthest vertex except on exact ties.
 const HULL_CACHE_START: u32 = 1;
 
@@ -540,7 +540,7 @@ impl LocalSupport for HullLocal {
 /// face's stored edges `(index, link)`, its three corners in order (corner j of face k is pair 3k + j).
 /// [data] `index` is a vertex index; [assumed, checked below] `link` is the signed step, in pairs from
 /// the end of the pair, to the corner at the same vertex in the neighbouring face
-/// (`notes\collision-support-hull.md`). Every link is checked here, as the walk follows it (the
+/// (`docs/collision-support-hull.md`). Every link is checked here, as the walk follows it (the
 /// wrap off the unused slot included): a link that misses, a face without three corners, or an index
 /// past the vertices gives None, and the hull stays unsupported.
 pub fn hull_block(vertices: Vec<[f32; 4]>, faces: &[Vec<(i64, i64)>]) -> Option<gjk_shapes::HullBlock> {
@@ -710,7 +710,7 @@ fn sweep_mesh(index: usize, soup: &Soup, x: &[f32; 12], p0: Vec3, p1: Vec3, radi
         let mut n = Vec3::new(e1.y * e2.z - e1.z * e2.y, e1.z * e2.x - e2.z * e1.x, e2.y * e1.x - e1.y * e2.x);
         let ln = ((n.z * n.z + n.y * n.y) + n.x * n.x).sqrt();
         if ln > 1e-8 {
-            n = n * (1.0f32 / ln);
+            n *= 1.0f32 / ln;
         }
         let dot = (h.normal.z * n.z + h.normal.y * n.y) + n.x * h.normal.x;
         let oriented = if dot > 0.0 { n } else { -n };
@@ -985,7 +985,7 @@ fn visit(node: Node, acc: Mat, obj: Option<Node>, owner: Option<Owner>, released
         }
         visit(child, acc, obj, owner, released, placed, depth + 1, sink);
     }
-    if node.len() > 0 {
+    if !node.is_empty() {
         for child in node.items() {
             visit(child, acc, obj, owner, released, placed, depth + 1, sink);
         }
@@ -1216,7 +1216,7 @@ mod tests {
         println!("mission {:?} world_min {:?} world_max {:?}", m.name, m.world_min, m.world_max);
         if m.world_min == [0, 0, 0] && m.world_max == [0, 0, 0] {
             // missionlist.rs reads worldMin / worldMax as zeros for this mission (the list dump
-            // has values): the bounds comparison is not made here. See notes\collision-world.md.
+            // has values): the bounds comparison is not made here. See docs/collision-world.md.
             println!("mission bounds read as zeros: the comparison is skipped (missionlist.rs suspect)");
             return;
         }
@@ -1614,14 +1614,14 @@ mod tests {
         );
         assert_eq!(stored, 10, "the level's stored hulls (6 Hull8, 4 Hull16)");
         assert_eq!(built, stored, "every stored hull builds");
-        // The known failure (notes\collision-hull-placed.md): DirtPile_A_01 has a vertex in the middle
+        // The known failure (docs/collision-hull-placed.md): DirtPile_A_01 has a vertex in the middle
         // of a flat facet, all of whose neighbours lie in that plane, and the walk's strict tie rule
         // keeps it on that plateau for the straight-up direction. Any other failing hull is a test failure.
         const PLATEAU_HULLS: &[&str] = &["#715/DirtPile_A_01/things[0]"];
         let unexpected: Vec<&String> = failed_labels.iter().filter(|l| !PLATEAU_HULLS.iter().any(|k| l.contains(k))).collect();
         assert!(unexpected.is_empty(), "hulls that fail the support check, other than the known plateau hull: {unexpected:?}");
         assert_eq!(failed_labels.len(), PLATEAU_HULLS.len(), "the known plateau hull is the only failure");
-        println!("  ({} hull(s) fail, the known plateau case; see notes\\collision-hull-placed.md)", failed_labels.len());
+        println!("  ({} hull(s) fail, the known plateau case; see docs/collision-hull-placed.md)", failed_labels.len());
         assert!(passed + failed_labels.len() == built);
     }
 

@@ -1,7 +1,7 @@
 //! Support helpers of the other collision shapes, for `gjk::ray_cast`.
 //!
-//! Sources: `notes\collision-support-2.md` (cylinder 005b0180, cone 005b0060, pencil 005aff10,
-//! capsule 005e3400) and `notes\collision-support-hull.md` (hulls 005afcd0, 005afbb0, 005afa90).
+//! Sources: `docs/collision-support-2.md` (cylinder 005b0180, cone 005b0060, pencil 005aff10,
+//! capsule 005e3400) and `docs/collision-support-hull.md` (hulls 005afcd0, 005afbb0, 005afa90).
 //! Each helper is an f32 transliteration of its Python copy (`work\kernels\support2.py`,
 //! `work\kernels\support_hull.py`): the same operations in the same order, the same branches and
 //! comparisons. Where the Python takes a square root or a reciprocal through float64 and rounds
@@ -167,7 +167,7 @@ pub fn capsule_support(v: Vec3, b: &[f32; 9]) -> Vec3 {
 /// Not read: the Hull16 / Hull32 exit code (005afbb0 / 005afa90 are said to be the same walk).
 const HULL_MAX_STEPS: usize = 1_000_000;
 
-/// A convex hull block in the width-independent form (`notes\collision-support-hull.md`).
+/// A convex hull block in the width-independent form (`docs/collision-support-hull.md`).
 ///
 /// Face k has three corners j = 0..3; corner j is pair p = 3k + j: `(vertex index, link)`, where
 /// the link is the signed step, in pair units from the end of the pair, to the corner at the same

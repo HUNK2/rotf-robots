@@ -17,6 +17,7 @@ const FLYERS: [&str; 6] = [
 ];
 
 fn write_wav(path: &Path, samples: &[i16]) {
+    if let Some(parent) = path.parent() { let _ = std::fs::create_dir_all(parent); }
     let mut f = std::fs::File::create(path).expect("wav");
     let data = (samples.len() * 2) as u32;
     f.write_all(b"RIFF").unwrap();
@@ -97,7 +98,7 @@ fn main() {
                 }
             }
             let rms = (sum / count.max(1) as f64).sqrt();
-            let out = PathBuf::from(format!(r"C:\Bumblebee\work\flight_sound_{pack}_{kind}.wav"));
+            let out = PathBuf::from(format!("work/flight_sound_{pack}_{kind}.wav"));
             write_wav(&out, &samples);
             println!("  {kind:6} {label}: {decoded} waveforms, rms {rms:.4}, peak {peak:.3}{}", if rms < 1e-4 { "  SILENT" } else { "" });
         }

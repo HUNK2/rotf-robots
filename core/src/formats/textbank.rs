@@ -2,7 +2,7 @@
 //! whose root `text` is an array of `{ key, text }`, `key` being the CRC-32 of the string's key
 //! name (`UI_MISSION_TIME`, a mission objective's `descStrId`). [data] (`tools\tf2_lxb.py dump`).
 //! The game resolves a key in the mission's bank, then the global one (`text_key_lookup` 005a1760,
-//! `notes\mission-hud.md`); `TextBank::with_fallback` does the same.
+//! the unpublished notes); `TextBank::with_fallback` does the same.
 
 use std::collections::HashMap;
 use std::path::Path;

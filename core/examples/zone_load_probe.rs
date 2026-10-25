@@ -1,6 +1,6 @@
 //! Where a zone's loading spends its time: each data chunk decoded on its own, with its size.
 //!
-//! cargo run --manifest-path C:/Bumblebee/Cargo.toml -p tf2-core --release --example zone_load_probe -- <zone.str>
+//! cargo run -p tf2-core --release --example zone_load_probe -- <zone.str>
 use std::io::Write;
 use tf2_core::formats::lxb::DataFile;
 use tf2_core::formats::pack::{self, Pack};

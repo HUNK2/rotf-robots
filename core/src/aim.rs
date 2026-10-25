@@ -1,4 +1,4 @@
-//! Where he aims in weapon mode, and how the stick turns it (`notes\weapon-mode.md`, "The
+//! Where he aims in weapon mode, and how the stick turns it (`docs/weapon-mode.md`, "The
 //! aim and the stick" and "The aim assist"). In the original the aim is the character's own
 //! (a unit vector at owner `+0x260`): the stick turns the AIM (`FUN_0071b990`), his body and
 //! the weapon camera then follow it. The camera never reads the stick in weapon mode.
@@ -98,7 +98,7 @@ pub struct Assist {
 ///   no slowing and no target; else slow, with the target.
 ///
 /// [game: 0070a990 returns body XYZ velocity] [assumed: the stick laid in the picture is right * x + up * y (the quarter turn `FUN_0070a4b0` makes of the camera's forward was taken to give its up); a push to the right turns the aim to the right]
-/// Read 2026-10-20: 00709870 l.113-123 maps the stick (1a0,1a4,1a8) through the camera affine's columns, then rotates it by 0070a4b0 about camera affine row 0 with angle -pi/2 (constant 0xbfc90fdb). Not yet settled: the sign of that turn, and whether row 0 is right or forward. settles: the camera affine's row convention (notes/camera.md) and the sign of the -pi/2 turn in axis_angle_matrix_rowvec 0052e9a0.
+/// Read 2026-10-20: 00709870 l.113-123 maps the stick (1a0,1a4,1a8) through the camera affine's columns, then rotates it by 0070a4b0 about camera affine row 0 with angle -pi/2 (constant 0xbfc90fdb). Not yet settled: the sign of that turn, and whether row 0 is right or forward. settles: the camera affine's row convention (docs/camera.md) and the sign of the -pi/2 turn in axis_angle_matrix_rowvec 0052e9a0.
 pub fn assist(stick: Vec2, camera: &Camera, own_velocity: Vec3, target: Option<&AssistTarget>, t: &AimTuning, dt: f32) -> Assist {
     let Some(target) = target else { return Assist::default() };
     let with = |slow| Assist { slow, toward: Some(target.place) };

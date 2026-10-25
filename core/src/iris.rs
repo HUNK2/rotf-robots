@@ -1,6 +1,6 @@
 //! The iris: the game's adapted exposure (`IrisParams.x`), updated once per frame from the scene's
-//! measured luminance. `notes\level-lighting-setters.md` section 5; settled further on 2026-10-16
-//! (`notes\status.md` "Iris").
+//! measured luminance. the unpublished notes section 5; settled further on 2026-10-16
+//! (the unpublished notes "Iris").
 //!
 //! [game 00562c70 `iris_exposure_update`], in order:
 //! 1. The scene is reduced to a 4x4 A8R8G8B8 target by 16-tap passes. The power pass (executable shader

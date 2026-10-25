@@ -38,12 +38,11 @@ fn object(label: &str, o: &ObjectDef, names: &HashMap<u32, String>) {
 fn main() {
     let dir = tf2_core::install::dir_string();
     let mut names = HashMap::new();
-    if let Ok(text) = std::fs::read_to_string("C:/Bumblebee/export/data/names.tsv") {
+    if let Ok(text) = std::fs::read_to_string(std::env::var("TF2_NAMES").unwrap_or_else(|_| "export/data/names.tsv".into())) {
         for line in text.lines() {
-            if let Some((h, n)) = line.split_once('\t') {
-                if let Ok(h) = u32::from_str_radix(h, 16) {
-                    names.entry(h).or_insert_with(|| n.to_owned());
-                }
+            if let Some((h, n)) = line.split_once('\t')
+                && let Ok(h) = u32::from_str_radix(h, 16) {
+                names.entry(h).or_insert_with(|| n.to_owned());
             }
         }
     }

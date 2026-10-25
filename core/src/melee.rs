@@ -1,6 +1,6 @@
 //! Melee: who an attack goes for, and what a hit carries. No engine types.
 //!
-//! Read from the original (`notes\melee.md`): the target search of the attack mode
+//! Read from the original (`docs/melee.md`): the target search of the attack mode
 //! (`FUN_0071efb0`, its scoring `FUN_007996c0` and choice `FUN_0079a000`), and the hit
 //! (`FUN_00719540` -> `FUN_007189b0`). Tags as in `sim.rs`: game, data, assumed and stand-in
 //! (the legend of the tags; this line is no debt).
@@ -393,7 +393,7 @@ impl Body {
     /// is the raw one under the stored matrix. [assumed: a sphere and a cylinder take the scale of their
     /// x (radius) and z (half height), which is how this port reads the matrix's scale.]
     /// settles: the collision query that consumes the stored matrix's scale (the GJK entry 005c8480 /
-    /// 005c3670, not read for a scaled sphere; `notes\melee.md` "hit" section).
+    /// 005c3670, not read for a scaled sphere; `docs/melee.md` "hit" section).
     pub fn new(shape: Shape, at: Affine3A) -> Self {
         let (scale, rotation, position) = at.to_scale_rotation_translation();
         let scale = scale.abs();
@@ -519,10 +519,9 @@ pub fn attack_mounts(rig: &Rig, object: &ObjectDef, clip: &Clip, looping: bool) 
 pub fn attack_bodies_and_mounts(rig: &Rig, object: &ObjectDef, clip: &Clip, looping: bool) -> (Vec<AttackBody>, Vec<AttackMount>) {
     let mut named: Vec<u32> = Vec::new();
     for event in &clip.action_events {
-        if let Action::Hit { node, .. } = event.action {
-            if !named.contains(&node) {
-                named.push(node);
-            }
+        if let Action::Hit { node, .. } = event.action
+            && !named.contains(&node) {
+            named.push(node);
         }
     }
     let mut bodies: Vec<(usize, &CollisionDef, AttackBody)> = Vec::new();
@@ -929,10 +928,9 @@ mod blade_tests {
         for r in data.animations.sets.values().flatten() {
             let Some(clip) = &r.clip else { continue };
             for e in &clip.weapon_events {
-                if let WeaponEventKind::Attach { weapon: w, .. } = e.kind {
-                    if w == weapon && !nodes.contains(&e.node) {
-                        nodes.push(e.node);
-                    }
+                if let WeaponEventKind::Attach { weapon: w, .. } = e.kind
+                    && w == weapon && !nodes.contains(&e.node) {
+                    nodes.push(e.node);
                 }
             }
         }

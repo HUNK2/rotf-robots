@@ -22,6 +22,7 @@ const GROUND: [&str; 7] = [
 ];
 
 fn write_wav(path: &Path, samples: &[i16]) {
+    if let Some(parent) = path.parent() { let _ = std::fs::create_dir_all(parent); }
     let mut f = std::fs::File::create(path).expect("wav");
     let data = (samples.len() * 2) as u32;
     f.write_all(b"RIFF").unwrap();
@@ -107,7 +108,7 @@ fn main() {
                 m.set_parameter(h, "load", 0.5);
             }) {
                 Some((rms, peak, samples)) => {
-                    write_wav(&PathBuf::from(format!(r"C:\Bumblebee\work\ground_sound_{pack}_engine.wav")), &samples);
+                    write_wav(&PathBuf::from(format!("work/ground_sound_{pack}_engine.wav")), &samples);
                     println!(": rpm {low:.0}..{high:.0}, rms {rms:.4}, peak {peak:.3}{}", if rms < 1e-4 { "  SILENT" } else { "" });
                 }
                 None => println!(": does not play"),

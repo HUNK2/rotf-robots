@@ -1,7 +1,7 @@
 //! Replays a stretch of the recorded game's camera inputs through `tf2_core::camera` and
 //! prints how far its eye ends up from the recorded one.
 //! `cargo run -p tf2-core --example camera_replay -- <file.csv> [drive level]`
-//! The files are written from a trace by the snippet in `notes\live-trace.md`; columns:
+//! The files are written from a trace by the snippet in the unpublished notes; columns:
 //! t, target xyz, height, facing xy, stick xy, vehicle, eye xyz, distance, elevation, fov,
 //! camera forward xyz.
 

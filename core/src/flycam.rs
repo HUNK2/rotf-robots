@@ -1,12 +1,12 @@
 //! Camera target point for a flying character, read from the game's code
-//! (0071a460, flying_vehicle_camera_target_bottom). See notes/flight-camera-exit.md Part A.
+//! (0071a460, flying_vehicle_camera_target_bottom). See docs/flight-camera-exit.md Part A.
 //! Pure arithmetic, no engine types.
 //!
 //! WIRED: `look_drop` is called by `game\src\camera.rs` `target()` for a flying character, so a
 //! flyer's look-at is the lower of its root and its holder's bottom. The rest of a flyer's camera
 //! is the ordinary DRIVING camera, not a camera of its own: a flying character's `drivingCamera`
 //! attribute names a driving-camera settings block whose field set is identical to
-//! `bbeeDriveCamera`'s [data, 2026-10-18], and the read class table in `notes\camera.md` has no
+//! `bbeeDriveCamera`'s [data, 2026-10-18], and the read class table in `docs/camera.md` has no
 //! flight camera. `camera::Target::flying` (the behaviour's byte +0x195, FlightMode) is what
 //! that one class does differently for a flyer; it is wired.
 
@@ -17,11 +17,11 @@ use glam::Vec3;
 /// `up_half` is [[B+0xa4]+0x54] (`movss xmm1`), `up_scale` is B+0x128 (`mulss`), and the
 /// product is subtracted from the height.
 /// What the fields are [game, 2026-10-18]: B = the physics holder (owner+0x38), whose current
-/// pose is the 12 floats at +0x108 (`notes\physics.md`: the pair sweep starts there, origin at
+/// pose is the 12 floats at +0x108 (`docs/physics.md`: the pair sweep starts there, origin at
 /// +0x12c), so +0x134 is its origin's z and +0x128 its basis element 8, the up axis's z.
 /// `up_half` is the wrapper's +0x54 one dereference from the holder (B+0xa4), which
 /// movement_owner_update 00853cb0 writes for the form selected: `*(*(owner+0x38)+0xa4)+0x54 =
-/// owner+0x130[form]`, the avatar's half height (`notes\camera.md` audit, 00853a10/006e81e0).
+/// owner+0x130[form]`, the avatar's half height (`docs/camera.md` audit, 00853a10/006e81e0).
 pub fn holder_bottom(holder_height: f32, up_half: f32, up_scale: f32) -> f32 {
     holder_height - up_half * up_scale
 }
@@ -40,13 +40,13 @@ pub fn holder_bottom(holder_height: f32, up_half: f32, up_scale: f32) -> f32 {
 /// Its caller that matters is physics_world_step 006df7c0 (line 428, the commit branch of the
 /// pose pass), which passes the holder's ADVANCED pose (`iVar8+0x198`), a run-time physics
 /// result. So the value is not in the executable; OPEN, settles: the physics solver's holder pose
-/// for a flyer (`notes\physics.md`, not ported), or a recording of a flying holder's origin z.
+/// for a flyer (`docs/physics.md`, not ported), or a recording of a flying holder's origin z.
 /// When this runs [game, 2026-10-18]: 0071a2e0 takes this path when C+0x14c bit 10 is set
 /// (the same bit 0071a5c0 tests before answering at all), 0070ab90 is true (DriveMode
 /// e2b22eb4 OR FlyMode fb9f3262: its second test), and the vehicle attributes' canFly is
 /// set; so in FlyMode for every flyer. Upright the bottom is above the root and this is 0,
 /// so an upright flyer is aimed as before; only an inverted one (`up_z` below 0) is lowered.
-/// The unknowns are in notes/status.md, "Phase 2, wave 3".
+/// The unknowns are in the unpublished notes, "Phase 2, wave 3".
 pub fn look_drop(root: Vec3, up_z: f32, body_offset_z: f32, height: f32) -> f32 {
     let centre = root.z + up_z * body_offset_z;
     let bottom = holder_bottom(centre, height * 0.5, up_z);

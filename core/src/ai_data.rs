@@ -5,9 +5,9 @@
 //! nothing from the game is bundled and no behaviour is run here. [data] Field names are the
 //! data's own names, in snake_case. A hash is the CRC-32 of a data name, kept as a `u32` (the
 //! data's `#xxxxxxxx`); the doc comment gives the data name it stands for where known. [data]
-//! Hashes the survey could not name (`notes\ai-data.md` section 10) stay numbers.
+//! Hashes the survey could not name (the unpublished notes section 10) stay numbers.
 //!
-//! Sources: `notes\ai-data.md`, `work\survey\ai\schema.tsv` (every object field), and
+//! Sources: the unpublished notes, `work\survey\ai\schema.tsv` (every object field), and
 //! `work\survey\ai\objects.json` (the list entries). [data] The list entries carry wrapper
 //! fields (`invertPriority`, `msgTrigger`, `msgType`, `pPerception`, `pGoal`, `pBehavior`,
 //! `priority`, `rampUpTime`, ...) that `schema.tsv` does not list; they are read here.
@@ -27,7 +27,7 @@ use crate::formats::pack::{self, Pack};
 pub const AI_CHUNK: usize = 16;
 
 /// The type name of a brain root. [data] The roots carry no type name of their own in most
-/// cases; the survey reads them as `AIBrainNormal` by their use (`notes\ai-data.md` section 1).
+/// cases; the survey reads them as `AIBrainNormal` by their use (the unpublished notes section 1).
 pub const BRAIN_TYPE: &str = "AIBrainNormal";
 /// The type name of a goal. [data]
 pub const GOAL_TYPE: &str = "AIGoal";
@@ -76,7 +76,7 @@ const INTERACT_FIELDS: &[&str] = &[];
 #[derive(Clone, Debug, PartialEq)]
 pub struct BrainRef {
     /// `priority`: 0 to 1 (the scout's own brain is 0.5, `brainList` index 1). [data]
-    /// Which entry runs is not in the data: the highest active one is [assumed] (`notes\ai-data.md` section 2).
+    /// Which entry runs is not in the data: the highest active one is [assumed] (the unpublished notes section 2).
     pub priority: f32,
     /// `rampUpTime` (hash, `#63df2be6` in most entries). [data]
     pub ramp_up_time: u32,
@@ -88,7 +88,7 @@ pub struct BrainRef {
 
 /// An `AI_characterAttributes<X>` block: the AI variant of a character's attributes. [data]
 /// Only the `brainList` is mirrored here; the block's other 133 keys are read by the character
-/// loader, not by this module (`notes\ai-data.md` section 8).
+/// loader, not by this module (the unpublished notes section 8).
 #[derive(Clone, Debug, PartialEq)]
 pub struct AiCharacterAttributes {
     /// The block's data name, `AI_characterAttributes<X>`.
@@ -192,7 +192,7 @@ pub struct PerceptionBase {
     pub max_priority: f32,
 }
 
-/// The six perception types. [data] (`AIPerceptionState` is not in the data; `notes\ai-data.md` section 1.)
+/// The six perception types. [data] (`AIPerceptionState` is not in the data; the unpublished notes section 1.)
 #[derive(Clone, Debug, PartialEq)]
 pub enum Perception {
     Compare(Compare),
@@ -213,7 +213,7 @@ pub struct CompareData {
     /// `assignedPerception`: the perception it hands its result to; `None` for `false`. [data]
     pub assigned_perception: Option<u32>,
     /// `compareType`: `#2156da7b` (40 entries, all distance-type) or `#d89693aa` (18, boolean-type).
-    /// [assumed] "less than" and "equal" (`notes\ai-data.md` section 4); not named in the data.
+    /// [assumed] "less than" and "equal" (the unpublished notes section 4); not named in the data.
     pub compare_type: u32,
 }
 
@@ -557,7 +557,7 @@ pub struct AiData {
     pub brains: Vec<BrainRoot>,
     /// Unique objects read, counted by type name (an object reached by two paths counts once).
     /// An object with no type name is counted as `AIBrainNormal` when it is a brain and as
-    /// `untyped` otherwise. [data] The survey: 364 objects in 20 types (`notes\ai-data.md`).
+    /// `untyped` otherwise. [data] The survey: 364 objects in 20 types.
     pub objects: BTreeMap<String, usize>,
     /// Roots that are not brains (the attribute blocks and anything else in chunk 16).
     pub other_roots: usize,
@@ -605,10 +605,9 @@ impl Reader {
 
     /// Counts an object once, under its type name.
     fn count(&mut self, kind: &str, node: Node) {
-        if let Some(at) = node.offset() {
-            if self.seen.insert((kind.to_owned(), at)) {
-                *self.counts.entry(kind.to_owned()).or_default() += 1;
-            }
+        if let Some(at) = node.offset()
+            && self.seen.insert((kind.to_owned(), at)) {
+            *self.counts.entry(kind.to_owned()).or_default() += 1;
         }
     }
 

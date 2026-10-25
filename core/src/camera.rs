@@ -1,12 +1,12 @@
 //! The game's follow, driving and weapon cameras for a character,
-//! as read from the original (`notes\camera.md`) and checked against the recorded game
-//! (`notes\live-trace.md`). No engine types; space is the game's (x right, y forward, z up).
+//! as read from the original (`docs/camera.md`) and checked against the recorded game
+//!. No engine types; space is the game's (x right, y forward, z up).
 //!
 //! The original runs its camera once per update with gains that are per update, so this one
 //! runs in whole updates of the game's own length and hands back a view blended between the
 //! last two, which keeps the picture smooth at any frame rate.
 //!
-//! Obstacles are the original's own rules (`notes\camera.md`, "Collision and corners"): on
+//! Obstacles are the original's own rules (`docs/camera.md`, "Collision and corners"): on
 //! foot a blocked sight line pulls the eye in, a wall he has just walked round swings the
 //! camera about the corner instead, and a ceiling lowers the point looked at; the driving
 //! camera is only pulled in. The arena supplies actual box edges and sphere sweeps.
@@ -35,7 +35,7 @@ pub use fade::Fades;
 /// [stand-in: the game does not step at 0.032 s. The Main update passes `ratio * (1/60) *
 /// game speed` (`main_update_scheduler` 007799f0, the ratio from `main_update_clock` 007797b0:
 /// the measured frame time times 60, smoothed by 0.3, clamped 0 to 3 [game]), so each gain
-/// runs faster at a higher frame rate. notes/camera.md (Time step). The port keeps one step;
+/// runs faster at a higher frame rate. docs/camera.md (Time step). The port keeps one step;
 /// the rate the original's values were tuned at is not known.]
 const UPDATE: f32 = 0.032;
 /// The camera option "sensitivity", 0 to 1; a fresh game's turn rates in the recording fit
@@ -63,7 +63,7 @@ const CORNER_CLEAR: f32 = 0.15;
 /// A turn smaller than this in one update (half a degree) is not "turning away" from a corner.
 const STICK_STILL: f32 = 0.008_726_65;
 /// The overhead rule: how far up the last direction to the camera points (its z) before the
-/// heading is held back, and where it is held all the way. [game] `notes\camera.md` step 6.
+/// heading is held back, and where it is held all the way. [game] `docs/camera.md` step 6.
 const OVERHEAD_FROM: f32 = 0.83;
 const OVERHEAD_FULL: f32 = 0.88;
 /// Squared horizontal movement threshold, read at 00924b37. [game]
@@ -181,7 +181,7 @@ pub struct Target {
     /// character's `drivingCamera` attribute names a driving-camera settings block (Starscream's
     /// is `starscreamDriveNearCamera`), whose 39 fields are the identical set to
     /// `bbeeDriveCamera`'s, i.e. the driving settings type f88e590b, class 00b65d88 [data,
-    /// 2026-10-18]. This flag is how that one class serves both. `notes\camera.md`,
+    /// 2026-10-18]. This flag is how that one class serves both. `docs/camera.md`,
     /// "A flyer's camera is the driving camera".
     pub flying: bool,
 }
@@ -228,7 +228,7 @@ pub enum Shape {
 pub trait Sight {
     fn sight(&self, from: Vec3, to: Vec3) -> Option<Hit>;
     /// The line against only what carries one of `mask`'s bits (`collision_masks`): the
-    /// original passes every query its own mask (`notes\collision-query-masks.md`) [game].
+    /// original passes every query its own mask (`docs/collision-query-masks.md`) [game].
     /// A world without masks answers as `sight`.
     fn sight_mask(&self, from: Vec3, to: Vec3, _mask: u16) -> Option<Hit> {
         self.sight(from, to)
@@ -306,12 +306,12 @@ impl Sight for crate::sim::Arena {
     /// A caller with no mask of its own: what a character stands on plus what stops the camera.
     /// The camera (1146, 1431, 1537) and `weapons.rs` (the snaker's ground, slide and wall checks
     /// and the aim point) pass their game mask through `sight_mask` [game,
-    /// `notes\collision-query-masks.md`]. [stand-in] still on this default, read 2026-10-20 (a grep
+    /// `docs/collision-query-masks.md`]. [stand-in] still on this default, read 2026-10-20 (a grep
     /// of `.sight(`): the robots' own shots in game `weapons.rs` (`shoot` 1282, and 1090, 1120, 1505,
     /// 1704, 1754, 2063, 2086 through `&dyn Sight`), `camera.rs` callers of `Sight::sight` in
     /// `game/src/player.rs` (the aim assist's `clear`, through `Sight::sight`), the enemies' sight lines and shots
     /// (`combat.rs` 622, 683), and foot IK (`footik.rs` 249, off for the robots). Those callers have
-    /// their own masks in the original (`notes\collision-query-masks.md`). settles: each caller given
+    /// their own masks in the original (`docs/collision-query-masks.md`). settles: each caller given
     /// its game mask through `sight_mask`, then this default goes.
     fn sight(&self, from: Vec3, to: Vec3) -> Option<Hit> {
         self.sight_mask(from, to, crate::level_world::CHARACTER_MASK | crate::collision_masks::CAMERA)
@@ -931,7 +931,7 @@ impl Camera {
     /// keeps up with him: following a steady target it is where it would be at this moment.
     /// Carrying the camera on at its OWN rate (the port's earlier rule) overshot every time a move
     /// stopped, and the next update snapped it back: a 30 Hz sawtooth of up to 1.4 m when a flyer's
-    /// change of form drops the look height 10 m (`notes\status.md`, 2026-10-24). How the game
+    /// change of form drops the look height 10 m (2026-10-24). How the game
     /// draws its camera between updates is not read; settles: that read, or a recording at display
     /// rate.
     fn between(before: &View, now: &View, ahead: f32, motion: Vec3) -> View {
@@ -1312,7 +1312,7 @@ impl Camera {
                 * self.options.sensitivity.clamp(0.0, 1.0))
             * 0.01;
         let mut heading = heading_of(Vec2::new(offset.x, offset.y));
-        // The overhead rule (`FUN_00924310`, `notes\camera.md` step 6): when the last update's
+        // The overhead rule (`FUN_00924310`, `docs/camera.md` step 6): when the last update's
         // direction from the point looked at to the camera pointed up by more than 0.83 and
         // the target has moved, the heading is blended back toward the last update's, all of
         // the way at 0.88, so the view does not spin as he passes under it. [game]
@@ -1494,7 +1494,7 @@ impl Camera {
         }
     }
 
-    /// The weapon camera (`FUN_00929470`; `notes\camera.md`, "The weapon camera, step by
+    /// The weapon camera (`FUN_00929470`; `docs/camera.md`, "The weapon camera, step by
     /// step"). It never reads the stick: the stick turns his aim (`aim.rs`), and this
     /// follows the aim. Its heading snaps to behind the aim unless it is far off, when it
     /// swings round; its elevation trails the aim's on a spring; its distance is the
@@ -1783,7 +1783,7 @@ impl Camera {
         // same byte +0x195 (`target.flying`): with it set the eye's rise is the plain
         // `sin(E) * distance` (no nose-down floor, no body floor), and the FOV ratio scales both
         // the rise and the flat offset once the elevation has settled. Wired 2026-10-18; a non-flying character takes the `else` arm,
-        // which is step 7 of `notes\camera.md`.
+        // which is step 7 of `docs/camera.md`.
         let scale = if target.flying && self.elevation_rate.abs() <= 1.7453293e-7 {
             ratio
         } else {
@@ -2429,7 +2429,7 @@ mod tests {
 
     /// Starscream's own driving camera, `starscreamDriveNearCamera`, as the install has it
     /// (`export\data\global_cameras.txt:4613`; the block its `drivingCamera` attribute names,
-    /// `notes\flight-camera-exit.md` A4). Its field set is the identical 39 of
+    /// `docs/flight-camera-exit.md` A4). Its field set is the identical 39 of
     /// `bbeeDriveCamera`, so it is the same driving settings type -- what differs from
     /// Bumblebee's is `tiltAmount 80` (his is 0) and the elevation range, and that is what lets
     /// the flight flag matter. [data]
@@ -2516,7 +2516,7 @@ mod tests {
             "with the flag the eye is under him: {rise_flying}"
         );
         // The view keeps the line's own direction in both cases -- it is not re-aimed at the
-        // look-at point (`notes\camera.md`, the recording at t 448.6) -- so the elevation and
+        // look-at point (`docs/camera.md`, the recording at t 448.6) -- so the elevation and
         // with it `forward` are unchanged, and the flyer rises in the frame purely because the
         // eye went under him. That is the whole visible difference in the captures.
         assert_eq!(

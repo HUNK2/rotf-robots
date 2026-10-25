@@ -1,4 +1,4 @@
-//! Original IFLCtrl clock, independent of rendering. See notes/us-test-completion.md.
+//! Original IFLCtrl clock, independent of rendering. See the unpublished notes.
 use crate::formats::lxb::Node;
 
 #[derive(Clone, Copy, Debug)]

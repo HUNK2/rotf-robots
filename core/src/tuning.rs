@@ -605,7 +605,7 @@ pub struct CameraTuning {
     pub user_rot_speed_x: f32,
     /// Field of view at top speed, as a percentage of the default. Driving cameras only.
     pub max_speed_fov_scale: f32,
-    /// The rest as the data names them (`notes\camera.md`); angles in degrees, scales in percent.
+    /// The rest as the data names them (`docs/camera.md`); angles in degrees, scales in percent.
     pub face_extra_dist: f32,
     pub face_extra_dist_gain: f32,
     /// The extra distance while he climbs (15 on Bumblebee's near camera, 0 on the others).
@@ -918,7 +918,7 @@ impl Locomotion {
             run_speed: run.map_or(0.0, |(_, c)| c.forward_speed()),
             move_stick: rule("animRuleMovement"),
             // A set with no Run clip never runs: Devastator's WalkSet has only IdleToWalk and Walk,
-            // and his rules name no run (`notes\devastator.md`). [data]
+            // and his rules name no run (`docs/devastator.md`). [data]
             run_stick: if run.is_some() { rule("animRuleMovementRun") } else { f32::INFINITY },
             idle_blend: fade(idle),
             walk_blend: fade(walk),

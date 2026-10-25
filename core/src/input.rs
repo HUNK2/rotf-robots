@@ -1,4 +1,4 @@
-//! The PC input path, from the devices to the pad state the game reads (`notes\input.md`).
+//! The PC input path, from the devices to the pad state the game reads (`docs/input.md`).
 //!
 //! [game] Once per rendered frame (`main_update_scheduler` 007799f0 calls `platform_input_poll_update`
 //! 01174500 before the scheduler step) the Beenox layer polls the keyboard, the mouse and the pads, then
@@ -469,7 +469,7 @@ impl Filtered {
         self.buttons & bits != 0
     }
 
-    /// A trigger as the car reads it: `(t + 1) / 2` (`notes\driving.md`, step 1 of the update).
+    /// A trigger as the car reads it: `(t + 1) / 2` (`docs/driving.md`, step 1 of the update).
     pub fn trigger01(t: f32) -> f32 {
         (t + 1.0) * 0.5
     }

@@ -1,5 +1,5 @@
 //! The game's own list of playable characters: `characters` in `bnxglobal.str` data chunk 5
-//! (`notes\survey-characters.md` section 1). 24 entries in the install. An entry joins a
+//! (the unpublished notes section 1). 24 entries in the install. An entry joins a
 //! display name to the pack under `characters\`, to the `characterAttributes<X>` object of
 //! chunk 16 (by the CRC-32 of that object's name) and to the pack whose sound bank it uses.
 //!
@@ -105,7 +105,7 @@ pub struct Elsewhere {
 /// Devastator: `CharDef_Devastator` under `Devastator_CranialCircuits` in the Cairo City boss
 /// mission's data chunk 1; his model blob (572b354e) and animation set (`devastator_animset`, 14
 /// clips) are in the same pack, his sounds in the mission's events. Not in the game's list and in
-/// no `characters\` pack. [data 2026-10-22, `notes\roster-plan.md` "Devastator"]
+/// no `characters\` pack. [data 2026-10-22, the unpublished notes "Devastator"]
 pub const ELSEWHERE: &[Elsewhere] = &[Elsewhere {
     pack: "devastator",
     file: r"levels\cairo_city\missions\cairo_city_a_boss\mission.str",

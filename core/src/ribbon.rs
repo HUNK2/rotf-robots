@@ -320,7 +320,7 @@ mod tests {
         assert_eq!(v[v.len() - 1].position, Vec3::Y);
         assert_eq!(v[0].uv, [0.0, 0.0]);
         assert_eq!(v[v.len() - 1].uv, [1.0, 1.0]);
-        assert!(v.chunks_exact(2).all(|p| p[0].normal == -p[1].normal));
+        assert!(v.as_chunks::<2>().0.iter().all(|p| p[0].normal == -p[1].normal));
         assert!(indices.iter().all(|&i| (i as usize) < v.len()));
     }
     #[test]

@@ -1,5 +1,5 @@
 //! Ray against a triangle mesh (`lux::CollisionSoup`): the driver FUN_005bcb30 over
-//! `gjk::ray_cast` (`notes\collision-ray-soup.md`, with the corrections the porter's
+//! `gjk::ray_cast` (`docs/collision-ray-soup.md`, with the corrections the porter's
 //! ticket lists: the hit verdict, the origin seed, the hit point, the normal rule).
 //!
 //! [game] addresses are the instruction addresses from the note. The triangle test is

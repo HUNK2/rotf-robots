@@ -65,7 +65,7 @@ fn main() {
                 }
             }
         }
-        let mut count = |infos: &mut dyn Iterator<Item = Option<&Template>>, tally: &mut Tally| {
+        let count = |infos: &mut dyn Iterator<Item = Option<&Template>>, tally: &mut Tally| {
             let mut n = 0;
             for t in infos.flatten() {
                 n += 1;

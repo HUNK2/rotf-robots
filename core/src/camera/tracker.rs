@@ -1,9 +1,9 @@
 //! `CameraTracker`: a level component that puts its scene object where the game camera is, every update,
 //! keeping as much of the camera's turn as its fields allow (sky domes and other things hung on the view).
-//! [game] `notes\camera.md` "CameraTracker".
+//! [game] `docs/camera.md` "CameraTracker".
 //!
 //! Registrar 00adb550 (factory 007d1ba0), loader 01187090, constructor 007d1110 (vtable 00b603ec: slot 2 the
-//! update 007d11d0, slot 4 the activation 007d1160). Placed 11 times in 7 levels (`notes\phase1-audit.md`).
+//! update 007d11d0, slot 4 the activation 007d1160). Placed 11 times in 7 levels.
 use glam::{Quat, Vec3};
 
 /// The loader's flag word. Pitch, yaw and roll are KEEP bits: set when `ignore*` is missing or false

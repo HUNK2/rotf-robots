@@ -1,5 +1,5 @@
 //! Compares the nav mesh's triangle floors with the mission's collision ground heights.
-//! `cargo run --manifest-path C:/Bumblebee/Cargo.toml -p tf2-core --example nav_floor_check -- [zone.str | MissionName ...]`
+//! `cargo run -p tf2-core --example nav_floor_check -- [zone.str | MissionName ...]`
 //! Default: `levels/us_test/zone.str` and `Shanghai_01_Construction_A_CSA`.
 //! The mesh is the one-placement-per-object mesh of the zone (as `combat.rs` and `tactics_check`
 //! build it). The collision is the mission's packs as `--mission` loads them (`level_world`), and
@@ -203,7 +203,7 @@ fn report(game: &Path, c: &Case) {
     }
     println!("(c) triangles: {} total, floor FLT_MAX: {flt}, walkable (ceiling FLT_MAX, floor set): {walk_count}", mesh.tri_count());
     let mut top: Vec<(i64, usize)> = hist.iter().map(|(&k, &v)| (k, v)).collect();
-    top.sort_by(|a, b| b.1.cmp(&a.1));
+    top.sort_by_key(|b| std::cmp::Reverse(b.1));
     println!("    top 10 floor values (rounded to 0.5 m): {}", top.iter().take(10).map(|(k, n)| format!("{:.1} m x{n}", *k as f32 / 2.0)).collect::<Vec<_>>().join(", "));
     println!("    distinct floor values: {}", hist.len());
     let root_count = mesh.triangles().filter(|&t| walkable(t) && mesh.tri_floor(t) == lo.z).count();

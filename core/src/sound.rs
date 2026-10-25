@@ -233,7 +233,7 @@ impl Library {
 
     /// The length in seconds of an event's first sample, from its bank's header (nothing is decoded). [data] the
     /// header's frame count and rate. [assumed] the first waveform of the first sound stands for the event: the escort's
-    /// lines are one sound and one wave each (`notes\mission-voice.md` section 2). None for an event with no sample, or
+    /// lines are one sound and one wave each (the unpublished notes section 2). None for an event with no sample, or
     /// a bank that does not open. Used only by the dormant mission runner (`mission_run.rs`). The game's own length is
     /// EventI::getLength (004c3a30, vtable 38 of EventI), which returns the event's +0xa8 field; that field is zeroed in
     /// the constructor at 004bd389 and its writer is not read yet. settles: that writer (the loader or the FEV kind 8 /
@@ -716,9 +716,9 @@ pub fn fmod_angle(right: f32, front: f32) -> i32 {
     }
     let across = fx.wrapping_abs() + 1;
     let mut angle = if fy < 0 {
-        0x96c - (((across + fy) / ((across - fy) >> 10)) * 0x324 >> 10)
+        0x96c - ((((across + fy) / ((across - fy) >> 10)) * 0x324) >> 10)
     } else {
-        0x324 - (((fy - across) / ((across + fy) >> 10)) * 0x324 >> 10)
+        0x324 - ((((fy - across) / ((across + fy) >> 10)) * 0x324) >> 10)
     };
     if fx < 0 {
         angle = -angle;
@@ -781,7 +781,7 @@ pub fn distance_gain(mode: u32, min: f32, max: f32, distance: f32, rolloff_scale
             min / d.max(1e-6)
         }
     };
-    if gain < 0.0 { 0.0 } else if gain > 1.0 { 1.0 } else { gain }
+    gain.clamp(0.0, 1.0)
 }
 
 /// FMOD Ex's Doppler pitch multiplier. [game: 00412c20] only with one listener and a scale
@@ -882,7 +882,7 @@ fn lowpass_coefficient(hertz: f32, rate: f32) -> f32 {
 /// the stage's output with the game's.
 fn settle(out: &mut [f32], gather: &mut [f32], filter: &mut [f32; 4], cutoff: Option<f32>, rate: f32, sides: (f32, f32)) {
     let pass = cutoff.map_or(1.0, |hertz| lowpass_coefficient(hertz, rate));
-    for (to, from) in out.chunks_exact_mut(2).zip(gather.chunks_exact(2)) {
+    for (to, from) in out.as_chunks_mut::<2>().0.iter_mut().zip(gather.as_chunks::<2>().0) {
         for channel in 0..2 {
             let value = if pass == 1.0 {
                 from[channel]
@@ -1133,12 +1133,11 @@ impl Mixer {
 
     /// Lets an event fade out over its own fade time.
     pub fn stop(&mut self, handle: Handle) {
-        if let Some(instance) = self.instances.iter_mut().find(|i| i.handle == handle) {
-            if !instance.stopping {
-                instance.stopping = true;
-                self.note_handle(handle, "stop");
-                self.tapped(|| Command::Stop(handle.0));
-            }
+        if let Some(instance) = self.instances.iter_mut().find(|i| i.handle == handle)
+            && !instance.stopping {
+            instance.stopping = true;
+            self.note_handle(handle, "stop");
+            self.tapped(|| Command::Stop(handle.0));
         }
     }
 
@@ -1217,7 +1216,7 @@ impl Mixer {
     /// heard as crackle when Devastator's pounds stack (peaks 1.8 times full scale, 2026-10-22).
     pub fn limit(&mut self, mixed: &mut [f32]) {
         let release = 1.0 - (-1.0 / (LIMIT_RELEASE * self.rate.max(1.0))).exp();
-        for frame in mixed.chunks_exact_mut(2) {
+        for frame in mixed.as_chunks_mut::<2>().0 {
             let peak = frame[0].abs().max(frame[1].abs());
             self.limit_gain += (1.0 - self.limit_gain) * release;
             if peak * self.limit_gain > LIMIT_CEILING {
@@ -1473,7 +1472,7 @@ impl Mixer {
             // The trace's health check of what this instance added (master divided out).
             if checking {
                 let scale = if master > 0.0 { 1.0 / master } else { 0.0 };
-                let own = out.chunks_exact(2).zip(before.chunks_exact(2))
+                let own = out.as_chunks::<2>().0.iter().zip(before.as_chunks::<2>().0)
                     .map(|(o, b)| ((o[0] - b[0]) * scale, (o[1] - b[1]) * scale));
                 if let Some(found) = instance.health.add(own, rate) {
                     let name = &instance.event.name;
@@ -1566,7 +1565,7 @@ impl Mixer {
             // Judged at volume 1 (the master divided out), so a quiet test run still shows it.
             let full = if master > 0.0 { master } else { 1.0 };
             let peak = out.iter().fold(0f32, |m, v| m.max(v.abs())) / full;
-            let over = out.chunks_exact(2).filter(|f| f[0].abs().max(f[1].abs()) > full).count();
+            let over = out.as_chunks::<2>().0.iter().filter(|f| f[0].abs().max(f[1].abs()) > full).count();
             if over > 0 {
                 self.journal.push((now, format!("clip\t\t\t{over} frames over full scale at volume 1, peak {peak:.2}")));
             }
@@ -1607,7 +1606,7 @@ pub fn load_gears(game_dir: &Path, character: &str) -> Result<Vec<Gear>, String>
 }
 
 /// What the drive mode's wheel set shows the gearbox in one of the game's updates (the wheel
-/// set's fields, `notes\driving.md`). [game]
+/// set's fields, `docs/driving.md`). [game]
 #[derive(Clone, Copy, Debug, Default)]
 pub struct GearboxInput {
     /// The body's velocity.

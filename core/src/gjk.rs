@@ -1,10 +1,10 @@
-//! The game's narrow-phase collision routine: a GJK ray cast (`notes\collision-core.md`).
+//! The game's narrow-phase collision routine: a GJK ray cast (`docs/collision-core.md`).
 //!
 //! [game] The loop, the thresholds, the exits and the hit normal follow the notes'
 //! steps 1-13 (005bed70). The support helpers are the transliterations in
 //! `work\kernels\support.py` (`sphere_support` = 005e3570, `tri_support` = 005e3710).
 //! [game] Johnson's sub-algorithm is the game's (read in 00616ed0, the pair primitive, which
-//! `notes\physics.md` 3 finds token-identical to 005bed70's in this step): SOLID's fixed
+//! `docs/physics.md` 3 finds token-identical to 005bed70's in this step): SOLID's fixed
 //! 4-slot simplex and determinant table in double, the first valid subset in descending bit
 //! order, and the loop left when none is valid. [game] x87 at 53 bits (see `dx`).
 
@@ -130,7 +130,7 @@ const EPS_DET_SUM: f64 = 1e-8f32 as f64;
 
 /// [game] a dot product of the determinant update, formed on the x87 stack: float products,
 /// two adds in the order `o`, no rounding to float in between (006177a0-00617928).
-/// [game] 53-bit precision (control word 0x027f, as `work\emu\` runs). Settled 2026-10-20 (`notes\robot-debts\report-U6.md`):
+/// [game] 53-bit precision (control word 0x027f, as `work\emu\` runs). Settled 2026-10-20 (the unpublished notes):
 /// the CRT's start-up (00a8bc66) calls 00a8c218, `_controlfp_s(NULL, _PC_53, _MCW_PC)`; no real fninit exists in
 /// .text (its 5 byte hits are inside call operands); the 7 precision changes to 24 bits sit in the Scaleform code
 /// (00a0ca10 and kin, census platform:scaleform) between save and restore, and every fldcw elsewhere is a rounding
@@ -216,7 +216,7 @@ fn sum3(t: [f64; 3], last: usize) -> f64 {
     (t[i] + t[j]) + t[k]
 }
 
-/// The game's simplex (00616ed0 and 005bed70, `notes\physics.md` 1.3): four FIXED slots, a
+/// The game's simplex (00616ed0 and 005bed70, `docs/physics.md` 1.3): four FIXED slots, a
 /// bit set of the slots in use, and SOLID's determinant table, which lives for the whole
 /// cast (entries of subsets without the newest slot are reused from earlier iterations).
 struct Simplex {
@@ -541,7 +541,7 @@ fn ray_cast_core<S: Support>(
     let mut last_adv: Option<usize> = None;
     let mut k_end = 0usize;
 
-    // [game] the float stored beside v: len2 at iteration 0 (`notes\collision-core.md`, row
+    // [game] the float stored beside v: len2 at iteration 0 (`docs/collision-core.md`, row
     // 586), then the |v|^2 the previous iteration ended with.
     let mut dist2 = len2;
     for k in 0..MAX_ITER {
@@ -816,38 +816,37 @@ mod tests {
         } else if t.first_mismatch.len() < 5 {
             t.first_mismatch.push((row, ours_hit, r.hit));
         }
-        if let Some(h) = ours {
-            if r.hit {
-                t.both_hit += 1;
-                if h.contact == r.contact {
-                    t.contact_agree += 1;
+        if let Some(h) = ours
+            && r.hit {
+            t.both_hit += 1;
+            if h.contact == r.contact {
+                t.contact_agree += 1;
+            }
+            if h.contact && r.contact {
+                t.contact_both += 1;
+                let dn = h.normal - r.normal;
+                if dn.x.abs() <= 0.02 && dn.y.abs() <= 0.02 && dn.z.abs() <= 0.02 {
+                    t.contact_normal_ok += 1;
                 }
-                if h.contact && r.contact {
-                    t.contact_both += 1;
-                    let dn = h.normal - r.normal;
-                    if dn.x.abs() <= 0.02 && dn.y.abs() <= 0.02 && dn.z.abs() <= 0.02 {
-                        t.contact_normal_ok += 1;
-                    }
+            }
+            if !h.contact && !r.contact {
+                t.nc += 1;
+                let dl = (h.lambda - r.lambda).abs();
+                if dl > t.max_lambda_diff {
+                    t.max_lambda_diff = dl;
                 }
-                if !h.contact && !r.contact {
-                    t.nc += 1;
-                    let dl = (h.lambda - r.lambda).abs();
-                    if dl > t.max_lambda_diff {
-                        t.max_lambda_diff = dl;
-                    }
-                    if dl <= 0.002 {
-                        t.nc_lambda_ok += 1;
-                    } else if t.lambda_outliers.len() < 8 {
-                        t.lambda_outliers.push((row, h.lambda, r.lambda));
-                    }
-                    let dp = h.point - r.point;
-                    if dp.x.abs() <= 0.003 && dp.y.abs() <= 0.003 && dp.z.abs() <= 0.003 {
-                        t.nc_point_ok += 1;
-                    }
-                    let dn = h.normal - r.normal;
-                    if dn.x.abs() <= 0.02 && dn.y.abs() <= 0.02 && dn.z.abs() <= 0.02 {
-                        t.nc_normal_ok += 1;
-                    }
+                if dl <= 0.002 {
+                    t.nc_lambda_ok += 1;
+                } else if t.lambda_outliers.len() < 8 {
+                    t.lambda_outliers.push((row, h.lambda, r.lambda));
+                }
+                let dp = h.point - r.point;
+                if dp.x.abs() <= 0.003 && dp.y.abs() <= 0.003 && dp.z.abs() <= 0.003 {
+                    t.nc_point_ok += 1;
+                }
+                let dn = h.normal - r.normal;
+                if dn.x.abs() <= 0.02 && dn.y.abs() <= 0.02 && dn.z.abs() <= 0.02 {
+                    t.nc_normal_ok += 1;
                 }
             }
         }

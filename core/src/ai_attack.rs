@@ -1,6 +1,6 @@
 //! The AI attack and simple behaviours (phase 3): AttackRanged, AttackMelee, AttackTransform,
-//! WeaponSwitch, Idle and Dodge. Source: notes/ai-behaviours-attack.md (its sections 0 to 9), and
-//! notes/ai-brain.md "The tick, settled" for how the brain runs them.
+//! WeaponSwitch, Idle and Dodge. Source: the unpublished notes (its sections 0 to 9), and
+//! the unpublished notes "The tick, settled" for how the brain runs them.
 //!
 //! A behaviour acts only by pushing `Request`s into Ctx, and by the Ctx clocks and flags it is
 //! given. It never touches a character. Tags as in ai_brain.rs. Not wired into the game yet.
@@ -8,7 +8,7 @@
 use crate::ai_brain::{Behaviour, Ctx, Request, SelfState, Target};
 use crate::ai_perceive::Aggregate;
 
-/// Button id 1: AttackFast, melee kind 1 [game; notes/state-machine.md enum].
+/// Button id 1: AttackFast, melee kind 1 [game; docs/state-machine.md enum].
 pub const BTN_ATTACK_FAST: u32 = 1;
 /// Button id 2: AttackSpecial, melee kind 2 [game].
 pub const BTN_ATTACK_SPECIAL: u32 = 2;
@@ -28,7 +28,7 @@ pub const BTN_JUMP: u32 = 0x22;
 pub const BTN_PUNCH: u32 = 0x23;
 /// Button id 0x24: Slam [game]. Has no data object (ai-behaviours-attack.md section 3).
 pub const BTN_SLAM: u32 = 0x24;
-/// Button id 0: Action (climb, drop, pickup, throw) [game, notes/state-machine.md enum].
+/// Button id 0: Action (climb, drop, pickup, throw) [game, docs/state-machine.md enum].
 pub const BTN_ACTION: u32 = 0;
 /// Button id 0x18: WeaponMode [game 0082ab50 clears bit 0x18, ai-targeting-idle.md B.2].
 pub const BTN_WEAPON_MODE: u32 = 0x18;

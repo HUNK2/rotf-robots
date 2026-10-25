@@ -3,11 +3,11 @@
 //! [data] `bnxglobal.str` data chunk 2, list `presets` (name hash, `sendMask`,
 //! `receiveMask`); the game's loader is 00757c00. A primitive names a preset
 //! (`maskPreset`) and only falls back on its own `sendMask` / `receiveMask` when the
-//! preset is not found (`notes\melee.md`, the primitive loader at 005b95ab). The table
+//! preset is not found (`docs/melee.md`, the primitive loader at 005b95ab). The table
 //! as text: `python work\preset_table.py`.
 //!
 //! Nothing here says how a QUERY's mask is matched against a body: that is the tree
-//! walk 005b2630, written up in `notes\collision-world-query.md`.
+//! walk 005b2630, written up in `docs/collision-world-query.md`.
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -79,7 +79,7 @@ impl Presets {
     }
 
     /// A primitive's masks: its preset's, or its own stored pair when the preset is not
-    /// in the table [game: the primitive loader, `notes\melee.md`].
+    /// in the table [game: the primitive loader, `docs/melee.md`].
     pub fn resolve(&self, preset: u32, own_send: i64, own_receive: i64) -> Masks {
         self.get(preset).unwrap_or(Masks { send: own_send as u16, receive: own_receive as u16 })
     }

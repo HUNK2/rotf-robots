@@ -1,8 +1,8 @@
 //! Measures whether the nav mesh's heights agree with the mission's collision ground (the known risk of
-//! `notes\ai-nav-floor.md` for climbing, `notes\level-climbing-gap.md`), then counts the climbable walls of a
+//! the unpublished notes for climbing), then counts the climbable walls of a
 //! mission with the climb's own test (`climb::find` on `LevelWorld::ledge_from_mesh`) and lists test spots near
 //! the spawn. Writes nothing.
-//! `cargo run --manifest-path C:/Bumblebee/Cargo.toml -p tf2-core --example ledge_check -- [MissionName]`
+//! `cargo run -p tf2-core --example ledge_check -- [MissionName]`
 //! Default: `USA_East_LTrain_A_Escort`. Reads the install.
 //!
 //! The mesh is built as `game/src/main.rs` `build_nav` builds it: every pack's silhouettes, one `NavMesh::build`.
@@ -30,7 +30,7 @@ fn finite(z: f32) -> bool {
     z.abs() < OPEN
 }
 
-fn stats(name: &str, errs: &mut Vec<f32>) {
+fn stats(name: &str, errs: &mut [f32]) {
     if errs.is_empty() {
         println!("{name}: none");
         return;

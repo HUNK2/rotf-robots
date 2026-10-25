@@ -240,7 +240,7 @@ pub enum Action {
     Trigger { name: u32 },
     /// `ChangeTractionEvent` (`traction`): the motion mode's per-axis control vector, how much
     /// of each axis the clip drives against the body (run handler 00712960 -> motion_control_set
-    /// 00854960). [game] `notes\clip-events-traction-motion.md`
+    /// 00854960). [game] `docs/clip-events-traction-motion.md`
     Traction([f32; 3]),
     /// `ChangeMotionModeEvent` (`newMode`, a motion mode class hash): switches the motion mode
     /// (run handler 00712a20 -> 00852150; nothing when it is the mode already). [game]

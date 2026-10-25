@@ -2,7 +2,7 @@
 //! with no window: he is dropped onto the street, walks, then drives. A check that the
 //! level holds him up and stops him, printed every half second.
 //!
-//! cargo run --manifest-path C:/Bumblebee/Cargo.toml -p tf2-core --release --example level_walk -- [zone, default levels/shanghai_01/zone.str] [x y]
+//! cargo run -p tf2-core --release --example level_walk -- [zone, default levels/shanghai_01/zone.str] [x y]
 use glam::{Vec2, Vec3};
 use tf2_core::level_world::{LevelWorld, NO_FLOOR};
 use tf2_core::sim::{self, Input, State, World};

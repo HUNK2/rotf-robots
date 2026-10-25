@@ -1,5 +1,5 @@
 //! The placed `Colorizer`: a weighted random colour picked once at load for the Instance that carries it
-//! (Shanghai's parked taxis and traffic cars, an awning). `notes\level-animthing-effects.md` sections 3,
+//! (Shanghai's parked taxis and traffic cars, an awning). the unpublished notes sections 3,
 //! "Colorizer render (LS-52)", "Colorizer constant (LS-56)" and "Colorizer target (LS-58)".
 //!
 //! [data] `colours`: a list of { `colour` (RGBA bytes), `likelyhood` (a weight) }.

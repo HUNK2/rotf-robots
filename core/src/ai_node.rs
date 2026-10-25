@@ -1,5 +1,5 @@
 //! AINode: the level's AI nodes (phase 3). A node is an attachment of an Instance in a zone or
-//! mission pack (3,106 objects in the install, `notes\ai-level-data.md`); the game keeps every node
+//! mission pack (3,106 objects in the install); the game keeps every node
 //! in one global list and the path nodes in a second, links them once after the mission's nav
 //! build, and uses them three ways:
 //!   - a nearest / farthest search with required and excluded type flags (`find`, 0082dbe0), used by
@@ -8,9 +8,9 @@
 //!     is over 200 m away (400 m in a car) to pick an intermediate node (`far_pick`);
 //!   - the next linked waypoint (`next_waypoint`, 0082dbb0), which MoveOnWayPoints follows.
 //!
-//! Source: `notes\ai-nodes.md` (this port's read, 2026-10-16). Tags: [game] read in the code, [data]
+//! Source: the unpublished notes (this port's read, 2026-10-16). Tags: [game] read in the code, [data]
 //! read from a pack, [assumed] and [stand-in] where they apply; every assumption is also in
-//! `notes\status.md` "Phase 3, AI nodes". Read only from the user's install at run time.
+//! the unpublished notes "Phase 3, AI nodes". Read only from the user's install at run time.
 
 use std::collections::HashSet;
 use std::path::Path;
@@ -203,6 +203,7 @@ impl AiNodeGraph {
     ///     |z| <= 1.01 in the unit frame). Its connection lists are not read.
     ///   - A waypoint node links to its autoConnections, then its connections, then drops its
     ///     disconnections. Links are one way (a to b).
+    ///
     /// Nodes that are not path nodes get no links. [game]
     pub fn build_links(&mut self) {
         for &i in &self.path.clone() {
@@ -255,10 +256,9 @@ impl AiNodeGraph {
             if flags & excluded != 0 || flags & required != required || !n.active {
                 continue;
             }
-            if let (Some(me), Some(h)) = (holder, n.held_by) {
-                if h != me {
-                    continue;
-                }
+            if let (Some(me), Some(h)) = (holder, n.held_by)
+                && h != me {
+                continue;
             }
             let d = len_sq(sub(n.data.pos, from));
             if d < spec.min * spec.min || d > spec.max * spec.max {

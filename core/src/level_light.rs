@@ -1,8 +1,8 @@
 //! Level lighting, engine-free (glam only): the nine-term irradiance that a level's fill
 //! lights make (`Irradiance`), and the light rig that an `Environment` fills (sun, ambient,
 //! irradiance, fog) with the game's reset and blend (`LightRig`).
-//! Read from the game's code: notes/level-lighting-setters.md LS-11, LS-13, LS-14 and LS-15
-//! (notes/checks-2026-10-13-irradiance.md, the emulator check of `add_light`).
+//! Read from the game's code: the unpublished notes LS-11, LS-13, LS-14 and LS-15
+//! (the emulator check of `add_light`).
 //! Not wired into the game yet.
 //!
 //! Units: the game's own. Directions are unit vectors in x right, y forward, z up.
@@ -233,7 +233,7 @@ mod tests {
         }
     }
 
-    /// The five emulator reference cases of notes/checks-2026-10-13-irradiance.md section 2.
+    /// The five emulator reference cases of the unpublished notes section 2.
     #[test]
     fn add_light_matches_the_emulator_case_1() {
         let mut ir = Irradiance::ZERO;
@@ -452,7 +452,7 @@ mod tests {
     }
 
     /// Needs the game install. Prints the Shanghai_01 default Environment's fog fields and the
-    /// fog factor at a few points, for notes/level-lighting-setters.md ("LS-29"). Run with
+    /// fog factor at a few points, for the unpublished notes ("LS-29"). Run with
     /// --nocapture.
     #[test]
     fn print_shanghai_fog() {
@@ -468,7 +468,7 @@ mod tests {
     }
 
     /// Needs the game install. Prints the Shanghai_01 default Environment's fill lights and
-    /// evaluate() at six normals, for notes/level-lighting-setters.md ("LS-16"). Run with
+    /// evaluate() at six normals, for the unpublished notes ("LS-16"). Run with
     /// --nocapture.
     #[test]
     fn print_shanghai_default_fill_irradiance() {

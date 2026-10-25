@@ -1,10 +1,10 @@
 //! The AI movement behaviour GoToTarget (phase 3). It walks the character toward a destination by
 //! writing a horizontal stick direction into `Ctx::stick`, and pushes the attack-while-moving
-//! requests. Source: notes/ai-behaviours-move.md (sections 0 to 6 and its assumptions A1 to A6).
+//! requests. Source: the unpublished notes (sections 0 to 6 and its assumptions A1 to A6).
 //! Tags as in ai_brain.rs. Not wired into sim.rs or the game yet.
 //!
 //! The far-target node route for targets over 200 m (section 1 step 7) and MoveOnWayPoints' node
-//! chain run on `Ctx::nodes` (ai_node, notes/ai-nodes.md) when the level's nodes are loaded.
+//! chain run on `Ctx::nodes` (ai_node) when the level's nodes are loaded.
 //!
 //! Not ported here (each is marked where it is left out):
 //!   - the path core (006f2060, 006ee6b0, 006ff580): `PathSource`, with a straight line for now;
@@ -22,7 +22,7 @@ use crate::ai_brain::{Behaviour, Ctx, Request, TARGET_GROUP};
 use crate::ai_node::{self, NodeSearch, CALC_NEAREST, NODE_JUMP, NODE_WAYPOINT};
 use crate::ai_perceive::Aggregate;
 
-/// TARGET_FOE [data guess, notes/ai-behaviours-move.md section 8 item 2]: the foe's point.
+/// TARGET_FOE [data guess, the unpublished notes section 8 item 2]: the foe's point.
 pub const TARGET_FOE: u32 = 0x081b1ccb;
 /// TARGET_HOME_REGION, -0x57187f4f as a 32-bit word [data guess, section 8 item 2].
 pub const TARGET_HOME_REGION: u32 = 0xa8e780b1;
@@ -402,10 +402,9 @@ impl Behaviour for MoveOnWayPoints {
             steer_to(ctx, here, is_attack_kind(self.movement_type) && self.attack, self.weapon_index);
             return;
         }
-        if let Some(&here) = ctx.waypoints.get(self.index) {
-            if len_sq(sub(here, own)) < DIRECT_REACHED_SQ {
-                self.index += 1;
-            }
+        if let Some(&here) = ctx.waypoints.get(self.index)
+            && len_sq(sub(here, own)) < DIRECT_REACHED_SQ {
+            self.index += 1;
         }
         if let Some(&point) = ctx.waypoints.get(self.index) {
             steer_to(ctx, point, is_attack_kind(self.movement_type) && self.attack, self.weapon_index);

@@ -7,7 +7,7 @@
 //! set-up `FUN_00806190`, the update `FUN_00805410` (slot 2), the ring's removal
 //! `FUN_00806030`, and the drawing `FUN_00806ac0` / `FUN_00806380`. The target query is
 //! `target_candidates` (`FUN_00799cd0`) with its test `FUN_007996c0`. Notes:
-//! `notes\effects-shockwave-tube.md`.
+//! `docs/effects-shockwave-tube.md`.
 //!
 //! Users in the data: Devastator's two in `cairo_city_a_boss` (damage 25, drawn), the
 //! power core's in `shanghai_03_waterfront_a_core`, others in the Cairo and Deep Six missions,
@@ -17,7 +17,7 @@
 //! Beyond the game [port design]: a ring may be limited to an `Arc` (it then hurts and draws
 //! only inside it) and the object may carry a `Falloff` (damage and push weaken as the ring
 //! runs). Neither is in the game's data; with neither set a ring is the game's. They are for
-//! Grindor's cinematic wave (`energon_wave.rs`, `notes\grindor-cinematic-wave.md`).
+//! Grindor's cinematic wave (`energon_wave.rs`, `docs/grindor-cinematic-wave.md`).
 
 use crate::damage::{Actor, Packet};
 use crate::formats::lxb::Node;
@@ -672,10 +672,9 @@ mod tests {
         let chunk = pack.of_type(pack::DATA).next().unwrap();
         let file = DataFile::parse(pack.data(chunk).to_vec()).unwrap();
         fn walk<'a>(node: Node<'a>, seen: &mut std::collections::HashSet<usize>, out: &mut Vec<Node<'a>>) {
-            if let Some(at) = node.offset() {
-                if !seen.insert(at) {
-                    return;
-                }
+            if let Some(at) = node.offset()
+                && !seen.insert(at) {
+                return;
             }
             if node.type_name() == Some("ShockWave") {
                 out.push(node);

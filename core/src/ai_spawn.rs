@@ -3,10 +3,10 @@
 //!
 //! Data and runtime in one module. Everything is read in place from the user's install at
 //! runtime (the install; nothing from the game is bundled. Sources:
-//! `notes\ai-spawning.md` (the first read, and the second read whose corrections win) and
-//! `notes\ai-level-data.md` section A2 (the spawner's fields as the data writes them).
+//! the unpublished notes (the first read, and the second read whose corrections win) and
+//! the unpublished notes section A2 (the spawner's fields as the data writes them).
 //! [game] is read in code, [data] is read from a mission pack, [assumed] and [stand-in] are
-//! tagged where they apply. Every assumption is listed in `notes\status.md` under
+//! tagged where they apply. Every assumption is listed in the unpublished notes under
 //! "Phase 3, enemy AI: spawners".
 //!
 //! The runtime [`Spawner`] does not place characters, route messages or look at the world
@@ -36,7 +36,7 @@ const MAX_DEPTH: u32 = 256;
 static NEXT_CHARACTER_ID: AtomicU32 = AtomicU32::new(2);
 
 // Message hashes (CRC-32 of the name, [game] checked against the handler's immediates in the
-// second read, `notes\ai-spawning.md` section 1). [game]
+// second read, the unpublished notes section 1). [game]
 /// `Enable`. Sets the spawner enabled.
 pub const MSG_ENABLE: u32 = 0xf40c_cd04;
 /// `Trigger` (the data writes `#d5d636c1`). Any hash that is not Disable or Untrigger enables. [game]
@@ -117,7 +117,7 @@ pub fn heuristic_name(heuristic: u32) -> &'static str {
 }
 
 /// characterDefinition name hashes (CRC-32 of the name), as the mission data writes them. [data]
-/// `notes\ai-spawn-characters.md` section 1.
+/// the unpublished notes section 1.
 pub const DEF_APROT_SCOUT: u32 = 0xec6f_6dfa; // CharDef_AProtScout
 pub const DEF_APROT_SNIPER: u32 = 0xb964_f164; // CharDef_AProtSniper
 pub const DEF_APROT_WARRIOR: u32 = 0x6839_538b; // CharDef_AProtWarrior
@@ -130,7 +130,7 @@ pub const DEF_DCOM_SCOUT: u32 = 0xbd6d_bb8d; // CharDef_DComScout (Shanghai)
 pub const DEF_DCOM_SNIPER: u32 = 0x7754_172d; // CharDef_DComSniper (Shanghai)
 pub const DEF_DCOM_WARRIOR: u32 = 0x67f7_9a59; // CharDef_DComWarrior (Shanghai)
 pub const DEF_STUNTICON_SNIPER: u32 = 0xf0ad_4aa4; // CharDef_StunticonSniper (Shanghai)
-/// The escort mission's variants (`work\survey\escort_spawn_dump.txt`, `notes\mission-escort-characters.md`).
+/// The escort mission's variants (`work\survey\escort_spawn_dump.txt`).
 /// Each is its base definition's pack and block with a different `fastAreaRadius` on the definition. [data]
 pub const DEF_DCOM_SCOUT_SHORT: u32 = 0x690e_95b8; // CharDef_DComScout_ShortRange (fastAreaRadius 150)
 pub const DEF_DCOM_SCOUT_FAR: u32 = 0x3a8e_8404; // CharDef_DComScoutFAR (fastAreaRadius 5000, the ambush)
@@ -139,7 +139,7 @@ pub const DEF_DCOM_WARRIOR_SHORT: u32 = 0xfdfb_1b4a; // CharDef_DComWarriorShort
 pub const DEF_CONVOY: u32 = 0xd29d_af65; // Convoy_Character_Definition
 
 /// The pack and the `X` of `characterAttributes<X>` that build a record's characterDefinition, for
-/// the enemies the install can make. [data] `notes\ai-spawn-characters.md` section 4.
+/// the enemies the install can make. [data] the unpublished notes section 4.
 ///
 /// `None` for: the player's own character and the allies (Optimus, Bumblebee, Firestorm: see
 /// `skip_reason`); AProtSniper, AProtWarrior and StunticonSniper (no pack file, see `skip_reason`);
@@ -152,7 +152,7 @@ pub const DEF_CONVOY: u32 = 0xd29d_af65; // Convoy_Character_Definition
 ///
 /// [stand-in: overrides not applied] The three escort variants map to their base pack and block. Their
 /// definitions override `fastAreaRadius` only (DComScout_ShortRange 150, DComScoutFAR 5000, DComWarriorShortRng
-/// 150; base 1000), and `character_inputs` cannot carry that. [data] `notes\mission-escort-characters.md`.
+/// 150; base 1000), and `character_inputs` cannot carry that. [data] the unpublished notes.
 /// [assumed] the variant definitions' link to the base pack (the definition's `attributes` hash is the base block).
 pub fn character_inputs(def_hash: u32) -> Option<(&'static str, &'static str)> {
     match def_hash {
@@ -185,7 +185,7 @@ pub fn skip_reason(def_hash: u32) -> &'static str {
     }
 }
 
-// The field names each object holds, as the data writes them. [data] `notes\ai-level-data.md` A2.
+// The field names each object holds, as the data writes them. [data] the unpublished notes A2.
 const SPAWNER_FIELDS: &[&str] = &[
     "LuxScriptName",
     "acceptNullTriggerMessages",
@@ -714,10 +714,9 @@ fn walk<'a>(
         return;
     }
     let kind = node.type_name();
-    if let Some(at) = node.offset() {
-        if !seen.insert((at, kind)) {
-            return;
-        }
+    if let Some(at) = node.offset()
+        && !seen.insert((at, kind)) {
+        return;
     }
     if kind == Some(SPAWNER_TYPE) {
         let mut data = read_spawner(node, host);
@@ -765,7 +764,7 @@ pub fn load(path: &Path) -> Result<Vec<SpawnerData>, String> {
 // ---------------------------------------------------------------------------------------------
 
 /// Which of the spawner's three trigger arrays a send comes from. [game] the three arrays are
-/// trigOnDeath, trigOnSpawn and trigDone (`notes\ai-spawning.md`).
+/// trigOnDeath, trigOnSpawn and trigDone.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SpawnArray {
     /// trigOnDeath: sent once for each character that died (since the last update).
@@ -792,7 +791,7 @@ pub enum Action {
 /// What the spawner asks of the world. Implemented by the game.
 pub trait SpawnWorld {
     /// Whether the character with this id still exists and is alive. [game] the death test is
-    /// the character's own flags (`notes\ai-spawning.md` section 3); the caller maps it here (stand-in).
+    /// the character's own flags (the unpublished notes section 3); the caller maps it here (stand-in).
     fn is_alive(&self, id: u32) -> bool;
     /// The ground under `p` (a sweep down), or `None` when there is none. No hit, no spawn. [game] `00737720`.
     fn ground_at(&self, p: [f32; 3]) -> Option<[f32; 3]>;
@@ -802,7 +801,7 @@ pub trait SpawnWorld {
     fn straight_corridor(&self, from: [f32; 3], to: [f32; 3]) -> bool;
 }
 
-/// A spawner's run-time state (the fields of the object `obj` in `notes\ai-spawning.md`).
+/// A spawner's run-time state (the fields of the object `obj` in the unpublished notes).
 #[derive(Clone, Debug)]
 pub struct Spawner {
     pub data: SpawnerData,
@@ -888,11 +887,10 @@ impl Spawner {
 
         // The deferred-spawning gate (DAT_00cf5c5f, useDeferredSpawning) is treated as open. [stand-in]
         if (self.alive.len() as i64) < self.data.max_enemies_at_once {
-            if self.spawn_timer <= 0.0 && self.max_delay_timer <= 0.0 && (self.total as i64) < self.data.max_enemies_lifetime {
-                if let Some(spawn) = self.spawn_one(world, rng) {
-                    out.push(spawn);
-                    self.send(&mut out, SpawnArray::Spawn, &self.data.trig_on_spawn);
-                }
+            if self.spawn_timer <= 0.0 && self.max_delay_timer <= 0.0 && (self.total as i64) < self.data.max_enemies_lifetime
+                && let Some(spawn) = self.spawn_one(world, rng) {
+                out.push(spawn);
+                self.send(&mut out, SpawnArray::Spawn, &self.data.trig_on_spawn);
             }
         } else {
             self.max_delay_timer = self.data.max_enemy_delay;

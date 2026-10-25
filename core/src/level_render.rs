@@ -4,7 +4,7 @@
 //! world = (the thing's own matrix, if any) x (the bind of the Object node it rides, absolute in
 //! the object's space) x (every enclosing `Instance` matrix). A `RenderThing` is an attachment of
 //! an Object and rides the node its `index` names. [data] In the shanghai zone a RenderThing has
-//! no matrix of its own; only the node rides (`notes\level-render.md`).
+//! no matrix of its own; only the node rides.
 //!
 //! Each `RenderThing` holds a `meshes` list, and each entry names one model with its own
 //! `lod_distances`. [data] In shanghai every RenderThing has exactly one entry, so `lod` is 0
@@ -110,7 +110,7 @@ pub struct LevelRender {
 
 /// A placed TriggerableParticle (LS-57). [data] fields `LuxScriptName`, `acceptNullTriggerMessages`, `id`
 /// (a ParticleTemplate), `useRot`, `useScale`. [game] the loader 00746fc0 and ctor 00746e40
-/// (`notes\level-animthing-effects.md` LS-49, LS-53). It is NOT started at load: the trigger path starts it.
+/// (the unpublished notes LS-49, LS-53). It is NOT started at load: the trigger path starts it.
 pub struct PlacedTrigEmitter {
     pub template: crate::particles::Template,
     pub world: [f32; 12],
@@ -365,7 +365,7 @@ pub(crate) fn flat32(m: &Mat) -> [f32; 12] {
 /// an Object that is placed elsewhere; following the pointer would place it a second time
 /// under the wrong matrices, and a mission pack is walked without end that way.
 /// [assumed: the list of types; the game builds an Instance's `things` and an Object's
-/// attachments (`notes\zone-loading.md` part 2), each component's own builder is unread]
+/// attachments (the unpublished notes part 2), each component's own builder is unread]
 pub(crate) fn carries_placement(node: Node) -> bool {
     matches!(node.type_name(), None | Some("Scene" | "Instance" | "Object" | "DamageLink" | "DetachLink"))
 }
@@ -419,14 +419,13 @@ fn visit(node: Node, acc: Mat, linked: bool, deferred_stage: u8, placed: bool, o
     };
     // [data] A Colorizer sits in the placed Instance's own `things` (shanghai_01 `TaxiCar_White02`): its
     // colour is picked once for that Instance [game 007db420].
-    if let (true, Some(key)) = (instance.is_some(), owner) {
-        if !sink.tints.contains_key(&key) {
-            let colorizer = node.get("things").into_iter().flat_map(Node::items)
-                .find(|n| n.type_name() == Some("Colorizer")).and_then(crate::colorizer::Colorizer::read);
-            if let Some(colorizer) = colorizer {
-                let colour = colorizer.pick(sink.colour_seed, crate::colorizer::TIME_S);
-                sink.tints.insert(key, colour);
-            }
+    if let (true, Some(key)) = (instance.is_some(), owner)
+        && !sink.tints.contains_key(&key) {
+        let colorizer = node.get("things").into_iter().flat_map(Node::items)
+            .find(|n| n.type_name() == Some("Colorizer")).and_then(crate::colorizer::Colorizer::read);
+        if let Some(colorizer) = colorizer {
+            let colour = colorizer.pick(sink.colour_seed, crate::colorizer::TIME_S);
+            sink.tints.insert(key, colour);
         }
     }
     // As `collision_world::visit`: a typed node reached again at the same place and in the
@@ -445,40 +444,38 @@ fn visit(node: Node, acc: Mat, linked: bool, deferred_stage: u8, placed: bool, o
             let riding = compose(&bind_of(node, index), &acc);
             if placed && thing.type_name() == Some("ParticleEmitter") {
                 let key = (thing.offset().unwrap_or(0), flat(&riding).map(|v| (v * KEY_SCALE).round() as i64), owner);
-                if sink.seen_emitters.insert(key) {
-                    if let Some(template) = thing.get("id").and_then(crate::particles::Template::read) {
-                        sink.emitters.push(PlacedEmitter { template, world: flat32(&riding),
-                            auto_start: thing.get("autoStart").and_then(Node::int).unwrap_or(1) != 0,
-                            use_rotation: thing.get("useRot").and_then(Node::int).unwrap_or(1) != 0,
-                            use_scale: thing.get("useScale").and_then(Node::int).unwrap_or(0) != 0,
-                            spawn_chance: thing.get("spawnChance").and_then(Node::float).unwrap_or(1.0),
-                            object_position: glam::Vec3::from_array(acc[3].map(|v| v as f32)),
-                            source: format!("{} @ {object_offset:#x} node {index}", sink.label),
-                            owner,
-                            stage: deferred_stage,
-                        });
-                    }
+                if sink.seen_emitters.insert(key)
+                    && let Some(template) = thing.get("id").and_then(crate::particles::Template::read) {
+                    sink.emitters.push(PlacedEmitter { template, world: flat32(&riding),
+                        auto_start: thing.get("autoStart").and_then(Node::int).unwrap_or(1) != 0,
+                        use_rotation: thing.get("useRot").and_then(Node::int).unwrap_or(1) != 0,
+                        use_scale: thing.get("useScale").and_then(Node::int).unwrap_or(0) != 0,
+                        spawn_chance: thing.get("spawnChance").and_then(Node::float).unwrap_or(1.0),
+                        object_position: glam::Vec3::from_array(acc[3].map(|v| v as f32)),
+                        source: format!("{} @ {object_offset:#x} node {index}", sink.label),
+                        owner,
+                        stage: deferred_stage,
+                    });
                 }
                 continue;
             }
             // [LS-57] A placed TriggerableParticle: collected only (not started). Same rule as the emitter above.
             if placed && deferred_stage == 0 && thing.type_name() == Some("TriggerableParticle") {
                 let key = (thing.offset().unwrap_or(0), flat(&riding).map(|v| (v * KEY_SCALE).round() as i64), owner);
-                if sink.seen_emitters.insert(key) {
-                    if let Some(template) = thing.get("id").and_then(crate::particles::Template::read) {
-                        sink.trig_emitters.push(PlacedTrigEmitter { template, world: flat32(&riding),
-                            lux_script_name: thing.get("LuxScriptName").and_then(|n| n.enum_hash().or_else(|| n.int().map(|v| v as u32))).unwrap_or(0),
-                            accept_null: thing.get("acceptNullTriggerMessages").is_some_and(|f| match f.enum_name() {
-                                Some("true") => true,
-                                Some("false") => false,
-                                _ => f.int().is_some_and(|v| v != 0),
-                            }),
-                            use_rotation: thing.get("useRot").and_then(Node::int).unwrap_or(1) != 0,
-                            use_scale: thing.get("useScale").and_then(Node::int).unwrap_or(0) != 0,
-                            owner,
-                            source: format!("{} @ {object_offset:#x} node {index}", sink.label),
-                        });
-                    }
+                if sink.seen_emitters.insert(key)
+                    && let Some(template) = thing.get("id").and_then(crate::particles::Template::read) {
+                    sink.trig_emitters.push(PlacedTrigEmitter { template, world: flat32(&riding),
+                        lux_script_name: thing.get("LuxScriptName").and_then(|n| n.enum_hash().or_else(|| n.int().map(|v| v as u32))).unwrap_or(0),
+                        accept_null: thing.get("acceptNullTriggerMessages").is_some_and(|f| match f.enum_name() {
+                            Some("true") => true,
+                            Some("false") => false,
+                            _ => f.int().is_some_and(|v| v != 0),
+                        }),
+                        use_rotation: thing.get("useRot").and_then(Node::int).unwrap_or(1) != 0,
+                        use_scale: thing.get("useScale").and_then(Node::int).unwrap_or(0) != 0,
+                        owner,
+                        source: format!("{} @ {object_offset:#x} node {index}", sink.label),
+                    });
                 }
                 continue;
             }
@@ -499,7 +496,7 @@ fn visit(node: Node, acc: Mat, linked: bool, deferred_stage: u8, placed: bool, o
         }
         visit(child, acc, linked, deferred_stage, placed, owner, masks, depth + 1, sink);
     }
-    if node.len() > 0 {
+    if !node.is_empty() {
         for child in node.items() {
             visit(child, acc, linked, deferred_stage, placed, owner, masks, depth + 1, sink);
         }

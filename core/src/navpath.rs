@@ -1,16 +1,16 @@
 //! Path planning over the navigation mesh (phase 3), the way the game plans its paths.
 //!
-//! Read from `notes\ai-nav-search.md` (the search 006ee6b0 and its open list, relax and close),
-//! `notes\ai-nav-path.md` (the path core 006f2060, the straight test 006f0950, the smoothing
-//! 006f05e0, the follower 006ff580) and `notes\ai-nav-build.md` (the edge cost 006f1110, the
+//! Read from the unpublished notes (the search 006ee6b0 and its open list, relax and close),
+//! the unpublished notes (the path core 006f2060, the straight test 006f0950, the smoothing
+//! 006f05e0, the follower 006ff580) and the unpublished notes (the edge cost 006f1110, the
 //! heuristic 006f1980, the cell gate 006f04f0, the portal metric 006fa6e0).
 //!
 //! Here a graph node is one triangle of `NavMesh` (the game's node is one triangle block with
 //! three links). Tags as in `navmesh.rs`: `[game]` read in code, `[data]` from the install,
-//! `[assumed]` a guess (each one line in `notes\status.md`, "Phase 3, navigation mesh", path
+//! `[assumed]` a guess (each one line in the unpublished notes, "Phase 3, navigation mesh", path
 //! planning), `[stand-in]` a placeholder the game does differently.
 //!
-//! Second read (`notes\ai-nav-path.md` "Second read: the waypoint builder") applied: the search
+//! Second read (the unpublished notes "Second read: the waypoint builder") applied: the search
 //! entry point (`entry_point`, two branches), the straight test without the goal triangle check,
 //! and the waypoint builder (`build_records`: sampled waypoints on the shrunk portals, node
 //! records, output pass, kind-2 corner pass). The DFS over cells is `[stand-in]` (one shared edge
@@ -492,7 +492,7 @@ impl Frontier {
 
     /// A node is unseen when it is neither open nor closed (006eeb51, `flags & 3 == 0`).
     fn is_unseen(&self, t: usize) -> bool {
-        self.nodes.get(&t).map_or(true, |n| n.open.is_none() && !n.closed)
+        self.nodes.get(&t).is_none_or(|n| n.open.is_none() && !n.closed)
     }
 
     /// The open insert (006eec70): the node goes on the list only when |f| is below the cutoff or
@@ -606,10 +606,9 @@ pub fn search(
                     }
                 }
             }
-            if let Some(n) = st.nodes.get(&far) {
-                if n.h < FLT_MAX && best.map_or(true, |(bh, _)| n.h < bh) {
-                    best = Some((n.h, far));
-                }
+            if let Some(n) = st.nodes.get(&far)
+                && n.h < FLT_MAX && best.is_none_or(|(bh, _)| n.h < bh) {
+                best = Some((n.h, far));
             }
         }
         st.node(cur).closed = true;
@@ -916,7 +915,7 @@ fn nearest_segment(records: &[Record], from_k: usize, own: Vec3) -> Option<(usiz
     for k in from_k..=n - 2 {
         let q = closest_on_segment(own, records[k].point, records[k + 1].point);
         let d = own.distance(q);
-        if best.map_or(true, |(_, bd)| d <= bd) {
+        if best.is_none_or(|(_, bd)| d <= bd) {
             best = Some((k, d));
         }
     }
@@ -997,17 +996,13 @@ impl Follower {
             }
             return self.target();
         }
-        if n >= 2 {
-            if let Some(stored) = self.dest {
-                if (dest - stored).length_squared() <= self.dest_tolerance_sq {
-                    if let Some((k, d)) = nearest_segment(&self.records, self.index, own) {
-                        if d <= self.near_tolerance && self.accept_flag == 0 {
-                            self.index = k;
-                            return self.target();
-                        }
-                    }
-                }
-            }
+        if n >= 2
+            && let Some(stored) = self.dest
+                && (dest - stored).length_squared() <= self.dest_tolerance_sq
+                    && let Some((k, d)) = nearest_segment(&self.records, self.index, own)
+                        && d <= self.near_tolerance && self.accept_flag == 0 {
+            self.index = k;
+            return self.target();
         }
         self.records.clear();
         self.index = 0;

@@ -10,7 +10,7 @@
 //! 00595f30 (category record init), 00596200 (category update, pitch from disassembly
 //! 00596350-0059637b), 007719d0 (music play modes), 00771540 (audio manager update: music
 //! fades and listener), 007705c0 / 007706d0 (MusicPlayer load and trigger), 00773cd0 /
-//! 00773de0 / 00599070 (SetMusicVolume and its fade). Write-up: `notes\sound.md`
+//! 00773de0 / 00599070 (SetMusicVolume and its fade). Write-up: `docs/sound.md`
 //! "Sound mix: presets and music (2026-10-16)".
 
 use std::path::Path;
@@ -235,12 +235,11 @@ impl CategoryMix {
     /// update once it reaches 0. [game]
     pub fn release(&mut self, id: u32) {
         self.dirty = true;
-        if let Some(s) = self.slots.iter_mut().find(|s| s.id == id) {
-            if s.count > 0 {
-                s.count -= 1;
-                if s.pause {
-                    self.pause_count -= 1;
-                }
+        if let Some(s) = self.slots.iter_mut().find(|s| s.id == id)
+            && s.count > 0 {
+            s.count -= 1;
+            if s.pause {
+                self.pause_count -= 1;
             }
         }
     }

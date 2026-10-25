@@ -49,7 +49,7 @@ fn main() {
     let mut first_up_done = false;
     let mut pullup_start = None;
     let mut pullup_finished = None;
-    let limit = 5.0 / DT as f32;
+    let limit = 5.0 / DT;
     for _ in 0..limit as usize {
         let old_phase = climb.phase;
         let old_clip = climb.clip_data(&t).map(|clip| clip.id.as_str()).unwrap_or("?").to_owned();

@@ -905,10 +905,9 @@ fn script(data: &[u8]) -> Script {
                 _ => {}
             }
             // A function's code follows its header: step over it.
-            if op == 0x9b || op == 0x8e {
-                if let Ok(code) = data.u16_at(at.saturating_sub(2)) {
-                    at += usize::from(code);
-                }
+            if (op == 0x9b || op == 0x8e)
+                && let Ok(code) = data.u16_at(at.saturating_sub(2)) {
+                at += usize::from(code);
             }
         }
     }
@@ -1179,7 +1178,7 @@ impl Canvas {
                     }
                 }
                 crossings.sort_by(f32::total_cmp);
-                for pair in crossings.chunks_exact(2) {
+                for pair in crossings.as_chunks::<2>().0 {
                     let (x0, x1) = (pair[0].clamp(0.0, self.width as f32), pair[1].clamp(0.0, self.width as f32));
                     if x1 <= x0 {
                         continue;
@@ -1581,10 +1580,9 @@ impl Movie {
         }
         let to_child = to_canvas.then(&matrix);
         self.draw(id, &to_child, &tint, pose, &child, clock, canvas);
-        if let Some(a) = tweak.attach {
-            if let Some(rect) = self.bitmap_rect(a.bitmap, a.width, a.height) {
-                self.draw_shape(&rect, &to_child, &tint, canvas);
-            }
+        if let Some(a) = tweak.attach
+            && let Some(rect) = self.bitmap_rect(a.bitmap, a.width, a.height) {
+            self.draw_shape(&rect, &to_child, &tint, canvas);
         }
     }
 

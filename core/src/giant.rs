@@ -6,7 +6,7 @@
 //! `AttackSpecial` (the vortex). [data global_states.txt 6484] This module is the port's
 //! player binding in their place: the pad's buttons and the stick become those messages.
 //! Everything else he does (the clips, their sounds, shakes and effects, the walk, the
-//! shockwaves his pound's Trigger events set off) is his own data. `notes\devastator.md`.
+//! shockwaves his pound's Trigger events set off) is his own data. `docs/devastator.md`.
 
 use std::collections::HashMap;
 use std::f32::consts::FRAC_PI_4;
@@ -110,7 +110,7 @@ const LIMBS: [&[u8]; 4] = [b"Foot_L", b"Foot_R", b"Hand_L", b"Hand_R"];
 
 /// The shake his landing limbs start, at his place. [assumed port design] His clips have none on
 /// the walk (the boss is never followed by a camera); this is the one the robots' plain jump
-/// landing starts (`notes\camera.md` "Shakes"), 47 m full and 90 m gone, so his scaled camera
+/// landing starts (`docs/camera.md` "Shakes"), 47 m full and 90 m gone, so his scaled camera
 /// feels each step less the further out it is. Settles: play.
 pub const FOOTFALL_SHAKE: u32 = crc32(b"SoftCameraShake");
 
@@ -156,7 +156,7 @@ pub fn armour(mut packet: crate::damage::Packet) -> crate::damage::Packet {
 }
 
 /// [assumed port design] Sounds of the boss mission's bank [data] that nothing of his cues, given
-/// to him (the audit of 2026-10-23, `notes\devastator.md`): the gatling's overheat (the pods' data
+/// to him (the audit of 2026-10-23, `docs/devastator.md`): the gatling's overheat (the pods' data
 /// has none; the bank's heavy machine gun's), his blasts sized for him (the data's missiles end in
 /// `WPN_MIS_SM_EXPLO`, the bombs in `EXP_OPTIMUS_MISSLE`), the eruption's launch, a pod blowing, its
 /// sparks, his roar (`DEV_ROAR`, whose sound is `/ANIM_DEVA_ROAR_02`'s four samples [data]; only his

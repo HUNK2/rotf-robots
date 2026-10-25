@@ -1,7 +1,7 @@
 //! The flying form's moving parts: FlyMode's per-step visual routine 0086cbf0
-//! (`notes\flight-forces.md` "0086cbf0 flight_surface_anim"), called near the end of every
+//! (`docs/flight-forces.md` "0086cbf0 flight_surface_anim"), called near the end of every
 //! FlyMode update (00864320, after the steering), and the rotor-speed smoothing at the end of
-//! the helicopter steering 00867f20 (SM, `notes\flight-helicopter.md`).
+//! the helicopter steering 00867f20 (SM, `docs/flight-helicopter.md`).
 //!
 //! A jet (`modeFly.helicopter` false) turns its control surfaces by the rates of its own angles:
 //! the ailerons and flaperons by the roll rate, the "rutterwings" (the tailplanes) by the pitch
@@ -191,7 +191,7 @@ impl Surfaces {
         // The turns and their signs (0086d0c6-0086d557), each `rotate_x_matrix` (0056fb50,
         // positive Rx) or `rotate_z_matrix` (0056fc50, positive Rz); the negated ones are
         // `-0.0 - x` (subss from 00b6a3ac). tun+0xbc aileronScale, +0xc0 elevatorScale,
-        // +0xc4 rudderScale (the loader's offsets, `notes\flight-attributes.md`).
+        // +0xc4 rudderScale (the loader's offsets, `docs/flight-attributes.md`).
         let aileron = tun.aileron_scale * roll;
         let elevator = -tun.elevator_scale * a;
         let rudder = -tun.rudder_scale * b;

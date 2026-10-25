@@ -1,4 +1,4 @@
-//! One step's contact pass for a moving body against static bodies (`notes\physics.md` 1.5): the
+//! One step's contact pass for a moving body against static bodies (`docs/physics.md` 1.5): the
 //! loop of 006e1bc0 (pair input), the pair cells (`pair_sweep`) and 006e2c10 (the hits in order of
 //! t), repeated until a pass has no hit.
 //!
@@ -184,7 +184,7 @@ fn origin(m: &[f32; 12]) -> Vec3 {
     Vec3::new(m[9], m[10], m[11])
 }
 
-/// [game] the contact pass for one moving body against static nodes (`notes\physics.md` 1.5).
+/// [game] the contact pass for one moving body against static nodes (`docs/physics.md` 1.5).
 pub fn contact_pass(body: &mut MovingBody, nodes: &mut [StaticNode]) -> PassResult {
     contact_pass_with(body, nodes, |_, _, _| {})
 }
@@ -419,7 +419,7 @@ mod tests {
         // Bumblebee's car cube (half 1.5 x 3 x 1, `DriveTuning::body_half`), turned 30 degrees about z,
         // driving at 30 m/s along y into a wall whose face is y = 10.
         let half = Vec3::new(1.5, 3.0, 1.0);
-        let q = glam::Quat::from_rotation_z(0.5235988);
+        let q = glam::Quat::from_rotation_z(std::f32::consts::FRAC_PI_6);
         let pose = |o: Vec3| {
             let (x, y, z) = (q * Vec3::X, q * Vec3::Y, q * Vec3::Z);
             [x.x, x.y, x.z, y.x, y.y, y.z, z.x, z.y, z.z, o.x, o.y, o.z]

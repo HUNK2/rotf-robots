@@ -8,7 +8,6 @@
 //! What holds today is asserted; the rest is printed (`cargo test -p tf2-core --test
 //! roster_animgraph -- --nocapture`).
 
-#[allow(dead_code)]
 #[path = "../examples/animgraph_check.rs"]
 mod checker;
 

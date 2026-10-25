@@ -1,8 +1,8 @@
 //! The CombatRepair special (Ratchet and Long Haul): the cooldown, the heal zone the user puts
 //! down, and the heal on each character inside it. Pure arithmetic, no engine types. Wired by
-//! `game\src\targets.rs` (`heal_step`). Source: notes/special-combat-repair.md, sections "The heal
+//! `game\src\targets.rs` (`heal_step`). Source: docs/special-combat-repair.md, sections "The heal
 //! (second read)" and "The zone holder (third read)", and the stand-in pass of 2026-10-18
-//! (`notes\standin-pass\body.md`).
+//! (the unpublished notes).
 //!
 //! The zone is the `HealAreaEffect` thing of the character's own pack (vtable 00b60aa8), on
 //! node index 0 of his object, named `CombatRepair` (`CombatRepairVehicle` in the car). [data]
@@ -236,6 +236,7 @@ impl Receiver {
 /// - secs per tic off (`<= 0`, the case for all data): `rate * dt`, continuous.
 /// - else: `tic += dt`; when `tic` reaches the interval, the interval is subtracted and one
 ///   tic's heal `rate * interval` is returned; otherwise 0.
+///
 /// [game 0072d540] the rate is hit points per second of the update's dt; a tic is due once
 /// `tic` is no longer below the interval (`if (tic < secs) skip`, so `>=`), and one tic at most
 /// per step (the interval is subtracted once).

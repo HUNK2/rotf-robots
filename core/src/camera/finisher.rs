@@ -1,6 +1,6 @@
 //! The slam's finisher camera: the camera behaviour the `FinishMoveEvent`'s `startCamera` pushes
 //! (`009192c0` -> constructor `00917b40`, vtable 00b65e98, key 0x768ce890, priority 7), framing
-//! the attacker and the target he holds. Read in `notes\camera-finisher.md`. A cut in (the
+//! the attacker and the target he holds. Read in `docs/camera-finisher.md`. A cut in (the
 //! camera's rate set to 0), a fixed eye chosen once to one side of the pair, the look-at point
 //! following both every frame, no roll; it lasts until `endCamera` (`009193d0`). [game]
 
@@ -16,7 +16,7 @@ pub struct Side {
     pub bottom: Vec3,
     /// The top height: the bottom plus `character_camera_height` (0070abe0).
     pub top: f32,
-    /// The STEP record's `+0x170[+0x244]` (his body radius, `notes\character-height-fields.md`).
+    /// The STEP record's `+0x170[+0x244]` (his body radius, `docs/character-height-fields.md`).
     pub reach: f32,
 }
 
@@ -62,7 +62,7 @@ pub struct Finisher {
 const FOV: f32 = 50.0;
 
 impl Finisher {
-    /// Its entry (slot 0, `009186f0`; disassembly read in `notes\camera-finisher-eye.md`). `ray`
+    /// Its entry (slot 0, `009186f0`; disassembly read in `docs/camera-finisher-eye.md`). `ray`
     /// is the camera's ray helper 00917dc0: the distance from the first point to the first
     /// blocking object on the segment to the second, else the segment's length. [game]
     /// - hw = half the pair's size (`pair`); D = max(hw / tan 50, 15).
@@ -73,6 +73,7 @@ impl Finisher {
     ///   less 2) and the clear way up to the higher top; then slid along the pair by a random
     ///   between -(the clear way back, 2 hw) and the clear way forward (hw / 2).
     /// - The field of view widened to atan(hw / d) when tan 50 < hw / d, d the eye's distance.
+    ///
     /// [game 009186f0, 00551d60, 00466960 = atan] [stand-in: the random stream is the camera's
     /// own, `Random`; the game's is shared] settles: the state's global address in 00551d60 and its readers, to decide whether the port can share one stream; a run-time value, so also a recording of the stream at a finisher's entry.
     pub fn enter(him: &Side, it: &Side, random: &mut Random, seconds: u32, ray: &dyn Fn(Vec3, Vec3) -> f32) -> Self {

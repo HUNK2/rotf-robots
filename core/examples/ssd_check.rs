@@ -6,7 +6,7 @@ use tf2_core::{
 };
 fn main() -> Result<(), String> {
     let dir = tf2_core::install::dir();
-    let data = character::load(&dir, "bumblebee")?;
+    let data = character::load(dir, "bumblebee")?;
     let noise = tf2_core::formats::texture::parse(
         &std::fs::read(dir.join("Textures/NoiseVolume.apk")).map_err(|e| e.to_string())?,
     )?;

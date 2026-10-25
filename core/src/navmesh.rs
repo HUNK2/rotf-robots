@@ -1,6 +1,6 @@
 //! The navigation mesh the game builds at mission load from its `NavSilhouette` objects.
 //!
-//! Read from the game's code (`notes\ai-nav-build.md`, the three reads, the third one
+//! Read from the game's code (the three reads, the third one
 //! corrects the earlier ones): each silhouette outline is inserted into one triangulation of
 //! the level's box, vertex by vertex (point location, 1-to-3 or 2-to-4 splits, edge flips),
 //! then each outline segment is inserted as a constraint edge (marked cells). After every
@@ -8,7 +8,7 @@
 //! inside it. Triangles are clockwise. Indices are used instead of pointers.
 //!
 //! Tags used below: `[game]` read in code, `[data]` from the install, `[assumed]` a guess
-//! (see `notes\status.md` "Phase 3, navigation mesh"), `[stand-in]` a placeholder.
+//! (see the unpublished notes "Phase 3, navigation mesh"), `[stand-in]` a placeholder.
 
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
@@ -271,7 +271,7 @@ pub fn load(path: &Path) -> Result<(Vec<Silhouette>, Vec<String>), String> {
         out.extend(read_silhouettes(&file, &mut skipped));
         for s in &mut out[before..] {
             s.name = format!("{file_name}#{}:{}", chunk.index, s.name);
-            s.object.0 = chunk.index as usize;
+            s.object.0 = chunk.index;
         }
     }
     Ok((out, skipped))
@@ -436,7 +436,7 @@ pub struct NavMesh {
     pub short_pairs: usize,
     /// Vertex insertions where the game's 5 mm on-edge rule gave a split that inverted a
     /// triangle, so the tight 20 micrometre band was used for that insertion ([assumed]
-    /// fallback; see `notes\status.md`).
+    /// fallback; see the unpublished notes).
     pub tight_fallbacks: usize,
 }
 
@@ -961,10 +961,9 @@ impl NavMesh {
         let a = [cells[0].origin, cells[1].origin, cells[2].origin];
         let mut outer = HashMap::new();
         for k in 0..3 {
-            if let Some((u, j)) = cells[k].twin {
-                if u != t {
-                    outer.insert((a[k], a[(k + 1) % 3]), (u, j));
-                }
+            if let Some((u, j)) = cells[k].twin
+                && u != t {
+                outer.insert((a[k], a[(k + 1) % 3]), (u, j));
             }
         }
         let new: Vec<NewTri> = (0..3)
@@ -998,17 +997,15 @@ impl NavMesh {
                 let d = cu[j2].origin;
                 let (mu0, mu1, mu2) = (cu[j].marked, cu[j1].marked, cu[j2].marked);
                 for idx in [k1, k2] {
-                    if let Some(tw) = cells[idx].twin {
-                        if tw.0 != u {
-                            outer.insert((cells[idx].origin, cells[(idx + 1) % 3].origin), tw);
-                        }
+                    if let Some(tw) = cells[idx].twin
+                        && tw.0 != u {
+                        outer.insert((cells[idx].origin, cells[(idx + 1) % 3].origin), tw);
                     }
                 }
                 for idx in [j1, j2] {
-                    if let Some(tw) = cu[idx].twin {
-                        if tw.0 != t {
-                            outer.insert((cu[idx].origin, cu[(idx + 1) % 3].origin), tw);
-                        }
+                    if let Some(tw) = cu[idx].twin
+                        && tw.0 != t {
+                        outer.insert((cu[idx].origin, cu[(idx + 1) % 3].origin), tw);
                     }
                 }
                 killed.push(u);
@@ -1118,10 +1115,9 @@ impl NavMesh {
             ];
             let mut outer = HashMap::new();
             for (tri, idx) in [(t, k + 1), (t, k + 2), (u, j + 1), (u, j + 2)] {
-                if let Some((x, y)) = self.tris[tri].cells[idx % 3].twin {
-                    if x != t && x != u {
-                        outer.insert((self.corner(tri, idx), self.corner(tri, idx + 1)), (x, y));
-                    }
+                if let Some((x, y)) = self.tris[tri].cells[idx % 3].twin
+                    && x != t && x != u {
+                    outer.insert((self.corner(tri, idx), self.corner(tri, idx + 1)), (x, y));
                 }
             }
             let ids = self.commit(&[t, u], &new, &outer)?;
@@ -1305,10 +1301,9 @@ impl NavMesh {
             self.apply_heights_to(t, s, top, limit);
             touched += 1;
             for k in 0..3 {
-                if let Some((u, _)) = self.tris[t].cells[k].twin {
-                    if !seen.contains(&u) {
-                        stack.push(u);
-                    }
+                if let Some((u, _)) = self.tris[t].cells[k].twin
+                    && !seen.contains(&u) {
+                    stack.push(u);
                 }
             }
         }
@@ -1497,7 +1492,7 @@ mod tests {
 
     /// The us_test counts for the notes (reads the install; run with --ignored --nocapture).
     #[test]
-    #[ignore = "reads the install's levels/us_test; prints the counts for notes/status.md"]
+    #[ignore = "reads the install's levels/us_test; prints the counts for the unpublished notes"]
     fn us_test_counts() {
         let (sils, _) = load(crate::install::dir().join("levels/us_test/zone.str").as_path()).unwrap();
         let m = NavMesh::build(None, &sils).unwrap();

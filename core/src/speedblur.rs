@@ -1,5 +1,5 @@
 //! Turbo's masked depth-of-field pass, read from the owned game's shaders and code.
-//! See notes/shaders.md "Turbo speed blur port". No renderer or bundled game assets.
+//! See docs/shaders.md "Turbo speed blur port". No renderer or bundled game assets.
 
 use std::path::Path;
 
@@ -79,11 +79,10 @@ pub fn load(game_dir: &Path, level: &str) -> Result<(Preset, Texture), String> {
     // Pack chunk ids differ from the texture header's runtime asset id.
     let mut mask = None;
     for chunk in pack.of_type(pack::TEXTURE) {
-        if let Some(t) = texture::parse(pack.data(chunk))? {
-            if t.id == preset.mask_id {
-                mask = Some(t);
-                break;
-            }
+        if let Some(t) = texture::parse(pack.data(chunk))?
+            && t.id == preset.mask_id {
+            mask = Some(t);
+            break;
         }
     }
     let mask = mask.ok_or("SpeedBlur: referenced mask texture missing")?;

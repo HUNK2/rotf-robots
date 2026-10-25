@@ -1,4 +1,4 @@
-//! Installed Decepticon scout and shared character combat. See notes/damage.md.
+//! Installed Decepticon scout and shared character combat. See docs/damage.md.
 use crate::camera::Sight;
 use crate::formats::{
     hash::crc32,
@@ -50,7 +50,7 @@ const FALLBACK_AGENT_HEIGHT: f32 = 4.0;
 /// brain data (brains_full.txt), read against this 0.2 m.
 const AT_TACTICS_POINT: f32 = 0.2;
 /// The ground probe starts this far above the feet, metres [assumed] 1.5 m: the margin of the rule in
-/// notes/ai-nav-floor.md (the game's value is unread). Settle: the game's ground probe for a walker.
+/// the unpublished notes (the game's value is unread). Settle: the game's ground probe for a walker.
 pub const GROUND_MARGIN: f32 = 1.5;
 /// The level's floor ball sits this far below its probe top (level_world FLOOR_BALL, 0.3 m [data]
 /// from that file), so the probe is started at `z + GROUND_MARGIN - sim::STEP - PROBE_BALL`: its top is
@@ -59,14 +59,14 @@ const PROBE_BALL: f32 = 0.3;
 
 /// The collision ground under `(x, y)` for feet at `z`: `floor` (the arena's `floor`) probed from
 /// `z + GROUND_MARGIN` going down. None when no floor is found (`NO_FLOOR`). Never probed from a height
-/// far above (it finds roofs) or from a mesh floor (it can start under the ground) [notes/ai-nav-floor.md].
+/// far above (it finds roofs) or from a mesh floor (it can start under the ground).
 pub fn probe_ground(floor: impl Fn(f32, f32, f32) -> f32, x: f32, y: f32, z: f32) -> Option<f32> {
     let found = floor(x, y, z + GROUND_MARGIN - sim::STEP - PROBE_BALL);
     (found > crate::level_world::NO_FLOOR).then_some(found)
 }
 
 /// A grounded walker's feet take the collision ground under them, probed from `GROUND_MARGIN` above
-/// its feet (`probe_ground`); no floor found: z kept [assumed, notes/ai-nav-floor.md]. Only grounded
+/// its feet (`probe_ground`); no floor found: z kept [assumed]. Only grounded
 /// feet are moved: when the feet are above the floor under them by more than a step (the sim's own
 /// airborne test, sim.rs `step`), the jump or the fall is left to the sim. Nothing is taken from a mesh.
 pub fn settle_on_ground(pos: &mut Vec3, floor: impl Fn(f32, f32, f32) -> f32 + Copy) {
@@ -80,7 +80,7 @@ pub fn settle_on_ground(pos: &mut Vec3, floor: impl Fn(f32, f32, f32) -> f32 + C
 }
 
 /// The mesh path with the walker's own height. [assumed] A path point keeps its x and y; its z is the
-/// mesh floor, which is not a ground height (notes/ai-nav-floor.md). The walker keeps its own z, which
+/// mesh floor, which is not a ground height. The walker keeps its own z, which
 /// `settle_on_ground` sets from the collision, so the mesh z never reaches the walker's position.
 struct OwnHeight(MeshPath);
 
@@ -111,7 +111,7 @@ impl sim::World for FightWorld<'_> {
     // [fix] The car form's ground: the wheel rays and the chassis sweep. Without these two the enemy's
     // car had no ground at all (the trait's defaults are None) and fell; the player's car gets them from
     // `Arena` directly (sim.rs `impl World for Arena`). Found from work/ai_check4_1.log (Shanghai mission).
-    // [assumed] The enemy's car takes the same ground as the player's (notes/status.md, Phase 3 enemy AI).
+    // [assumed] The enemy's car takes the same ground as the player's (Phase 3 enemy AI).
     // [stand-in] `separate_targets` is not forwarded here (the car's push-out from target cylinders). OPEN:
     // the game's push-out routine is not read; settles: the car's step that takes separate_targets.
     fn wheel_ray(&self, from: Vec3, to: Vec3) -> Option<crate::vehicle::GroundHit> {
@@ -829,7 +829,7 @@ impl Enemy {
         // character's own tacticsType [assumed]. Without a nav mesh (the test arena) the candidate
         // search is ai_tactics' stand-off stand-in [stand-in]: before 2026-10-20 the FOE destination
         // was the player's own place, which a scout never reaches, so its steer pressed WeaponMode
-        // every step and its melee presses fell in StateWeapon (notes/status.md).
+        // every step and its melee presses fell in StateWeapon.
         if let Some(data) = scout.tactics {
             let mesh = self.nav.clone();
             let tactics_type = if self.tactics_type != 0 { self.tactics_type } else { data.tactics_type };
@@ -863,7 +863,7 @@ impl Enemy {
         // the stand-in brain had it.
         let record = self.tactics;
         let usable = record.usable_point();
-        // [assumed] The point's z is the mesh floor, not a height the enemy stands at (notes/ai-nav-floor.md).
+        // [assumed] The point's z is the mesh floor, not a height the enemy stands at.
         // It takes the enemy's own z, so the arrival tests of GoToTarget (3D in ai_move.rs) are flat.
         let tactics_point = if scout.tactics.is_some() {
             usable.map(|p| [p.x, p.y, self.state.pos.z])
@@ -888,7 +888,7 @@ impl Enemy {
         // Distance to the home point, horizontal [assumed]. None without a home point [data]. OPEN: the game's
         // home distance is the 00725400 distance on the c9e0a56c path (its plane is not read).
         let home_distance = self.home.map(|h| Vec2::new(h[0] - self.state.pos.x, h[1] - self.state.pos.y).length());
-        // [assumed] flat (x, y): the point's z is the mesh floor, not the enemy's height (notes/ai-nav-floor.md).
+        // [assumed] flat (x, y): the point's z is the mesh floor, not the enemy's height.
         let flat_to_point = usable.map(|p| Vec2::new(p.x - self.state.pos.x, p.y - self.state.pos.y).length());
         let at_tactics_point = flat_to_point.is_some_and(|d| d <= AT_TACTICS_POINT);
         ctx.senses = Senses {
@@ -960,7 +960,7 @@ impl Enemy {
             tactics_at_point: at_tactics_point,
             tactics_point_unset: usable.is_none(),
             // [assumed] flat distance to the point. The game's 00830950 is 3D (third read), but the point's z
-            // is the mesh floor here (notes/ai-nav-floor.md), so a 3D distance would mix mesh z with world z.
+            // is the mesh floor here, so a 3D distance would mix mesh z with world z.
             tactics_point_distance: flat_to_point,
             // [assumed] the group point is the enemy's own place and the nearest live member is the
             // one fed (see nearest_per_group). The member list is the integrator's (`group_input`).
@@ -1032,16 +1032,15 @@ impl Enemy {
         let (buttons, fire) = if passive { (0, false) } else { (buttons, fire) };
         // Face (Idle's track, 00823640 [game]): turn the body toward the point at a limited rate. The
         // rate is [assumed] (AI_FACE_RATE, OPEN). Mode::Action blocks the turn, as the stand-in did.
-        if let Some(point) = ctx.face {
-            if !self.state.dead() && self.state.mode != sim::Mode::Action {
-                let to = Vec2::new(point[0] - self.state.pos.x, point[1] - self.state.pos.y);
-                if to.length_squared() > 0.0 {
-                    let want = (-to.x).atan2(to.y);
-                    let turn = (want - self.state.yaw + std::f32::consts::PI).rem_euclid(std::f32::consts::TAU)
-                        - std::f32::consts::PI;
-                    let step = AI_FACE_RATE * dt;
-                    self.state.yaw += turn.clamp(-step, step);
-                }
+        if let Some(point) = ctx.face
+            && !self.state.dead() && self.state.mode != sim::Mode::Action {
+            let to = Vec2::new(point[0] - self.state.pos.x, point[1] - self.state.pos.y);
+            if to.length_squared() > 0.0 {
+                let want = (-to.x).atan2(to.y);
+                let turn = (want - self.state.yaw + std::f32::consts::PI).rem_euclid(std::f32::consts::TAU)
+                    - std::f32::consts::PI;
+                let step = AI_FACE_RATE * dt;
+                self.state.yaw += turn.clamp(-step, step);
             }
         }
         // The aim of a fire or melee request: the AI aim point with its spread (ai_aim_point). Drawn
@@ -1314,7 +1313,7 @@ pub fn intersect_cylinder(from: Vec3, to: Vec3, target: &Target) -> Option<f32> 
 }
 
 /// The control button (`control::button`, the bit of `Input::buttons_down`) of a game AI button id
-/// (`ai_attack`'s BTN_ constants and the enum of notes/state-machine.md). [game] for the ids the
+/// (`ai_attack`'s BTN_ constants and the enum of docs/state-machine.md). [game] for the ids the
 /// behaviours request. None: no control button is known for the id, and it is not pressed.
 /// 0x15 is VehicleMode (`control::button::VEHICLE_MODE`) and the weapon mode is 0x18 [game, enum;
 /// 0082ac80 raw presses 0x18, settled 2026-10-20]. 0x1c is FlyingMode [game 01185160: the bindings
@@ -1578,7 +1577,7 @@ mod tests {
         // The objective brain (brainObjectiveAttackEscort, brainList index 2, priority 0.75) wins the brain choice
         // only because its score is the aggregate x priority (ai_bind::weight_root, [game 0082eae0]). Unscaled, it
         // tied brainDComScout (index 1, 0.5) at 1.0 and lost by list order. The undamaged enemy passes its
-        // inverted 5ada9b7c link (notes/mission-attack-escort-trace.md, "5ada9b7c ... settled").
+        // inverted 5ada9b7c link ("5ada9b7c ... settled").
         assert!(escort_seen, "no Escort goal or entry chosen: {}\n{}", enemy.brain_report(), enemy.diag);
         assert!(fire_seen, "no fire button: {}", enemy.brain_report());
         assert_eq!(away, 0, "every shot goes toward the convoy (+y): {}", enemy.brain_report());

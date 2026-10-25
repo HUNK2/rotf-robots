@@ -1,5 +1,5 @@
 //! One world step of an avatar body against static bodies, the parts of 006df7c0 in their order
-//! (`notes\physics.md` 1.9): gravity and damping (006e96c0), the force integration (006de230), the control
+//! (`docs/physics.md` 1.9): gravity and damping (006e96c0), the force integration (006de230), the control
 //! step with its contact planes (006db490), the prediction (006db1f0), the contact pass with the contact
 //! generator (006e2c10 / 006e6a10), the refresh of the body's contacts (006e7550 / 006d7c20), the
 //! solver (006df7c0 lines 171-404) and the pose pass (lines 405-444).
@@ -401,7 +401,7 @@ pub struct AvatarOutput {
     pub wall: Option<Vec3>,
 }
 
-/// [game] One world step of the avatar (006df7c0, `notes\physics.md` 1.9) against `nodes`.
+/// [game] One world step of the avatar (006df7c0, `docs/physics.md` 1.9) against `nodes`.
 /// `recast(node, from, to)` is 005be420 against that static body: the nearest hit's point and normal.
 ///
 /// [game 006e8e20, third pass 2026-10-20] the avatar body's +0x28 is 1/mass, the mass being the avatar
@@ -553,7 +553,7 @@ fn pass_and_solve(body: &mut AvatarBody, moving: &mut MovingBody, sb: SolverBody
     // holder's +0x1c8 and radius (006dcf00) in the gate, so that the gate takes the more recently woken holder's test.
     let d = moving.displacement;
     let d2 = (d.x * d.x + d.y * d.y) + d.z * d.z;
-    let swept = posed(moving.shape, moving.pose).map_or(true, |p| {
+    let swept = posed(moving.shape, moving.pose).is_none_or(|p| {
         let r = crate::mpr::sweep_radius(&p, d);
         0.0001 < d2 && (r * r < d2 || 1.4 < d2)
     });
@@ -867,7 +867,7 @@ pub fn step_chassis(body: &mut AvatarBody, inp: &ChassisInput, masks: [u16; 2], 
 }
 
 /// The movement step record's fields the owner's ground test (008524b0) reads and writes
-/// (`notes\character-ground-test.md`, `notes\character-height-fields.md`).
+/// (`docs/character-ground-test.md`, `docs/character-height-fields.md`).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct GroundRecord {
     /// +0x26c: on the ground (what the state machine's `checkOnGround` reads).
@@ -1132,7 +1132,7 @@ mod tests {
     /// Two robots WALKING at each other (the ground control (1, 1, 0) asks for 6 m/s every step, [trace]).
     /// At 0.19 m a step they are never swept against each other (006dcf00: 0.8 of the 2 m radius); the
     /// discrete test (005b4aa0) gives the pair a contact each step and the solver's pair rows hold them
-    /// apart, a little overlapped, standing still (`notes\physics.md` 1.13). Before the broad phase was read
+    /// apart, a little overlapped, standing still (`docs/physics.md` 1.13). Before the broad phase was read
     /// they were swept, committed to their predictions and walked through each other.
     #[test]
     fn walkers_hold_each_other_apart() {

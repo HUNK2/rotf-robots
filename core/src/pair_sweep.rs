@@ -1,4 +1,4 @@
-//! The pair matrix (00b8db28, `notes\physics.md` 1): the swept test of two moving shapes.
+//! The pair matrix (00b8db28, `docs/physics.md` 1): the swept test of two moving shapes.
 //!
 //! [game] A cell is a W wrapper (005e5030 for sphere x sphere, the others differ only in the call
 //! set-up of their primitive) over the pair primitive (00616ed0), which is the same GJK ray cast as
@@ -95,7 +95,7 @@ pub struct SoupTri {
 }
 
 impl PairShape<'_> {
-    /// The shape type number (`notes\collision-shapes.md`), the cell's row or column.
+    /// The shape type number (`docs/collision-shapes.md`), the cell's row or column.
     pub fn kind(&self) -> u32 {
         match self {
             PairShape::Triangle { .. } => 0,
@@ -177,7 +177,7 @@ enum Placement<'a> {
     Sphere(gjk::Sphere),
     Cube(Placed<Cuboid>),
     /// [game] capsule, cylinder, cone, pencil: the transform helpers 005e32a0, 005e3140, 005e2fe0,
-    /// 005e2e80 (`gjk_world`'s frame rule, bit-exact in `notes\collision-support-swept.md`).
+    /// 005e2e80 (`gjk_world`'s frame rule, bit-exact in `docs/collision-support-swept.md`).
     Capsule(Placed<Capsule>),
     Cylinder(Placed<Cylinder>),
     Cone(Placed<Cone>),
@@ -305,7 +305,7 @@ impl<'a> Placement<'a> {
     }
 }
 
-/// [game] the cells whose primitive inlines both supports (`notes\physics.md` 1.4): 0063a470
+/// [game] the cells whose primitive inlines both supports (`docs/physics.md` 1.4): 0063a470
 /// [3][3], 0063c3a0 [3][4], 0064c9c0 [4][4], 0064e8d0 [4][5], 006507e0 [4][6], 0065dae0 [5][4],
 /// 0065f9f0 [5][5], 00661900 [5][6], 0066ec00 [6][4], 00670b10 [6][5], 00672a20 [6][6]. The other
 /// cells call a helper (the capsule as B against a cone or pencil, any capsule A but [3][3]).

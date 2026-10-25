@@ -40,7 +40,7 @@ pub enum Kind {
 }
 
 /// One of a flamethrower's damage volumes: a `FlameThrowerDummy` of its object and the
-/// `Collision` sphere on the same node. [data] (`notes\weapon-flamethrower.md` B, C)
+/// `Collision` sphere on the same node. [data] (`docs/weapon-flamethrower.md` B, C)
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct FlameSphere {
     /// The node's rest place in the weapon object's own space.
@@ -347,7 +347,7 @@ fn read_flame(object: Option<Node>) -> ([FlameSphere; 3], usize) {
     let mut out = ([FlameSphere::default(); 3], 0);
     let Some(object) = object else { return out };
     let attached: Vec<Node> = object.get("attachments").into_iter().flat_map(|a| a.items()).collect();
-    let int = |node: Option<Node>| node.and_then(Node::int).unwrap_or(0) as i64;
+    let int = |node: Option<Node>| node.and_then(Node::int).unwrap_or(0);
     let mut dummies: Vec<(i64, i64, f32)> = attached
         .iter()
         .filter_map(|a| {
@@ -768,7 +768,7 @@ pub struct WeaponTuning {
     pub listen_to_anim_event: bool,
 }
 
-/// The charged shot, by the data's names (`notes\weapon-charged-shot.md`). [data]
+/// The charged shot, by the data's names (`docs/weapon-charged-shot.md`). [data]
 #[derive(Clone, Copy, Default, Debug)]
 pub struct ChargeTuning {
     /// `hasChargedShot`.
@@ -1014,7 +1014,7 @@ fn tuning_from(node: Node, kind: Kind) -> WeaponTuning {
             t.explosive_damage = num("overwriteExplosiveDamage");
             t.explosive_min_damage = num("overwriteExplosiveMinDamage");
             t.lock_on_time = num("missileCrosshairLockOnTime");
-            t.guided = node.get("guided").map_or(true, Node::is_true);
+            t.guided = node.get("guided").is_none_or(Node::is_true);
             t.lock_bracket_stay = num("lockOnBracketStayOnTime");
             t.lock_box = [num("missileLockOnBoxWidth"), num("missileLockOnBoxHeight")];
             t.guidance_delay = [num("minGuidanceDelay"), num("maxGuidanceDelay")];
@@ -1076,7 +1076,7 @@ fn tuning_from(node: Node, kind: Kind) -> WeaponTuning {
         };
     }
     // [game 007bca70] automatic unless the data says not.
-    t.automatic_firing = node.get("automaticFiring").map_or(true, Node::is_true);
+    t.automatic_firing = node.get("automaticFiring").is_none_or(Node::is_true);
     let plain = |name| node.get(name).and_then(Node::float).or_else(|| attribute_default(name, kind)).unwrap_or(0.0);
     t.charge = ChargeTuning {
         has: node.get("hasChargedShot").is_some_and(Node::is_true),
@@ -1597,7 +1597,7 @@ impl Weapon {
     }
 
     /// The charged shot's update (`FUN_007ad1c0`, called by the weapon's own update before
-    /// its clocks go on), `notes\weapon-charged-shot.md`. [game] Past
+    /// its clocks go on), `docs/weapon-charged-shot.md`. [game] Past
     /// `timeTilChargeStarts` of holding, the charge runs while the trigger is down (and
     /// `chargeHoldDuration`, where positive, has not run out past full); the update the
     /// trigger is found up, it fires: `floor((count - 1) * level) + 1` firings at once
@@ -1723,7 +1723,7 @@ impl Weapon {
 }
 
 /// A flamethrower's flame while the trigger is held (`FUN_0074c200`,
-/// `notes\weapon-flamethrower.md`). [game] Its volumes come on one after another, each
+/// `docs/weapon-flamethrower.md`). [game] Its volumes come on one after another, each
 /// `delayTilTurningOnNextDummy` after the one before; a tick falls 1 s after the start
 /// and then every `1 / damageTicsPerSecond`.
 /// [game 0074d610] THE DAMAGE is the weapon's contact handler (a listener at weapon `+0x45c`,
@@ -2099,7 +2099,7 @@ impl Missile {
 }
 
 /// A grenade in flight (`GrenadeProjectile`: launch `FUN_00789b80`, arm `FUN_00786a60`,
-/// update `FUN_00786ff0`, contact `FUN_007876b0`, end `FUN_007891e0`; `notes\weapon-kinds.md`
+/// update `FUN_00786ff0`, contact `FUN_007876b0`, end `FUN_007891e0`; `docs/weapon-kinds.md`
 /// "GrenadeProjectile"). [game] It is thrown once, along the way to the aim point tilted
 /// by `launchArcAngle`, at `launchSpeed`; after that it is a body under `Zgravity` that
 /// goes off when its drawn lifetime is up, when it touches something, or (a proximity one)
@@ -2107,7 +2107,7 @@ impl Missile {
 /// [game 00789b80 l.48-84, 00789d9c-00789ef5] The arc turns the way about way x (0, 0, 1) (x when
 /// |way.z| > 0.999) by `launchArcAngle` as stored (`attr+0x158` in EAX), through 005708f0 ->
 /// 00570770, whose matrix applied to a row vector is a right-handed turn (its rows emulated in
-/// `notes\special-jetfire-mines.md` "fireDummy angle signs"): a positive angle tilts it UP.
+/// `docs/special-jetfire-mines.md` "fireDummy angle signs"): a positive angle tilts it UP.
 /// [game 00789b80 l.129-143, 007254e0, 006e96c0, 006de230, 006e8e20] Gravity is `Zgravity`
 /// whole: the launch stores the force `Zgravity * body +0x24` (the mass, `body_set_mass_properties`)
 /// and the integrator adds it as v += (invmass * dt) * force with invmass = `+0x28` = 1/mass, so
@@ -2118,7 +2118,7 @@ impl Missile {
 /// scout's `grenadelauncher` has 100 too, dcomscout.txt l.379801-379805).
 /// [game 00787650, 00786ff0, 007873f0] The launch's 0.05 s timer message ddf4c407 is handled by
 /// GrenadeProjectile's slot 3 (vtable 00b5ebe0), which clears bit 1 of its object's +0x60: the
-/// "disabled" bit the broad phase (006e5e00, `notes\physics.md` 1.13) and the world queries
+/// "disabled" bit the broad phase (006e5e00, `docs/physics.md` 1.13) and the world queries
 /// (005be890, 005be5a0) skip, so for its first 0.05 s the grenade has no physics contacts (world or
 /// body). The proximity test does NOT wait: 00786ff0 (the update) calls 007873f0 every update, and
 /// 007873f0 gates only on +0x58, the owner, +0x59 (armed) and +0x5a. A grenade that touches the world and does
@@ -2835,7 +2835,7 @@ mod grenade_tests {
         for proximity in [true, false] {
             let mut g = Grenade::launch(Vec3::ZERO, Vec3::Y, Vec3::Y, Vec3::ZERO, &slow(proximity), &mut || 0.5);
             let (mut bounces, mut was_falling) = (0, true);
-            while let Ok(_) = g.step(&slow(proximity), &floor, &|_| None, 0.032) {
+            while g.step(&slow(proximity), &floor, &|_| None, 0.032).is_ok() {
                 assert!(g.position.z > -1.0);
                 bounces += u32::from(was_falling && g.velocity.z > 0.0);
                 was_falling = g.velocity.z <= 0.0;
@@ -3065,14 +3065,13 @@ impl Snaker {
             life: f32::INFINITY,
         };
         let up = Vec3::Z * check_height;
-        // [game 0078d560] the ground check's query takes mask 1 (PUSH), `notes\collision-query-masks.md`.
-        if let Some(hit) = world.sight_mask(position + up, position - up, crate::collision_masks::PUSH) {
-            if hit.normal.normalize_or_zero().z > 0.25 {
-                s.grounded = true;
-                s.settled = true;
-                s.normal = Vec3::Z;
-                s.position = hit.point;
-            }
+        // [game 0078d560] the ground check's query takes mask 1 (PUSH), `docs/collision-query-masks.md`.
+        if let Some(hit) = world.sight_mask(position + up, position - up, crate::collision_masks::PUSH)
+            && hit.normal.normalize_or_zero().z > 0.25 {
+            s.grounded = true;
+            s.settled = true;
+            s.normal = Vec3::Z;
+            s.position = hit.point;
         }
         s
     }
@@ -3150,7 +3149,7 @@ impl Snaker {
     fn slide(&mut self, t: &SnakerTuning, world: &dyn crate::camera::Sight, dt: f32) {
         let ahead = self.position + self.direction * t.speed * dt;
         let h = self.normal * self.check_height;
-        // [game 0078da10] the slide's ray takes mask 1 (PUSH), `notes\collision-query-masks.md`.
+        // [game 0078da10] the slide's ray takes mask 1 (PUSH), `docs/collision-query-masks.md`.
         let Some(hit) = world.sight_mask(ahead + h, ahead - h, crate::collision_masks::PUSH) else {
             self.alive = false;
             return;
@@ -3177,7 +3176,7 @@ impl Snaker {
     fn hits_wall(&self, t: &SnakerTuning, world: &dyn crate::camera::Sight, dt: f32) -> bool {
         let base = self.position + self.normal * self.check_height;
         let reach = self.forward * t.speed * dt;
-        // [game 0078e300] the wall ray takes mask 1 (PUSH), `notes\collision-query-masks.md`.
+        // [game 0078e300] the wall ray takes mask 1 (PUSH), `docs/collision-query-masks.md`.
         world.sight_mask(base + reach, base - reach, crate::collision_masks::PUSH).is_some_and(|hit| self.normal.dot(hit.normal.normalize_or_zero()) < 0.5)
     }
 }
@@ -3317,7 +3316,7 @@ pub fn aim_point(eye: Vec3, forward: Vec3, body: Vec3, world: &dyn crate::camera
     let far = eye + forward * AIM_REACH;
     let along = (body - eye).dot(forward).clamp(0.0, AIM_REACH);
     let from = eye + forward * along;
-    // [game 007b2310] weapon_aim_point's line takes mask 3 (PUSH | PUNCH), `notes\collision-query-masks.md`.
+    // [game 007b2310] weapon_aim_point's line takes mask 3 (PUSH | PUNCH), `docs/collision-query-masks.md`.
     match world.sight_mask(from, far, crate::collision_masks::PUSH | crate::collision_masks::PUNCH) {
         Some(hit) => Aim { point: hit.point, normal: hit.normal, distance: (from - hit.point).length() },
         None => Aim { point: far, normal: Vec3::ZERO, distance: (from - far).length() },
@@ -3906,8 +3905,7 @@ mod tests {
             damage: 100.0,
             ..cannon()
         };
-        let mut w = Weapon::default();
-        w.heat = t.heat_capacity;
+        let mut w = Weapon { heat: t.heat_capacity, ..Default::default() };
         w.set_sniping(true);
         w.step(&t, false, crate::sim::GAME_UPDATE);
         assert!(w.snipe_clock > 0.0);
@@ -4776,10 +4774,9 @@ mod sound_tests {
                     }
                 }
             }
-            if w.sounds_cut {
-                if let Some(handle) = kept.take() {
-                    mixer.key_off(handle);
-                }
+            if w.sounds_cut
+                && let Some(handle) = kept.take() {
+                mixer.key_off(handle);
             }
             mixer.render(&lib, &mut buffer);
             fired

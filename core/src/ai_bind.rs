@@ -6,7 +6,7 @@
 //! [`Report`]. [`build`] never fails because of a stand-in: it fails only when a brain the list
 //! names is not in the data.
 //!
-//! How the data maps. Every line marked [assumed] is also logged in notes/status.md, Phase 3.
+//! How the data maps. Every line marked [assumed] is also logged in the unpublished notes, Phase 3.
 //! - A brain root becomes one `Root`. Its perceptions are the root's score (`Root::perceptions`,
 //!   the brain-choice score of `best_brain`). Its goals become the `Goal`s of one `Brain`, which
 //!   `Brain::new` sorts by static priority.
@@ -40,7 +40,7 @@
 //!   [stand-in].
 //! - The brainList priority multiplies the root's score in `build` [game 0082eae0, see `weight_root`]:
 //!   the brain choice reads priority x aggregate. It is also kept in [`Report::brain_priorities`].
-//!   notes/ai-brain.md "Brain choice (Q2)" item 5 says the priority is not read; that is refuted by
+//!   the unpublished notes "Brain choice (Q2)" item 5 says the priority is not read; that is refuted by
 //!   0082eae0 (the entry's score function), and the note should be corrected.
 //! - A GoToTarget takes its own perception aggregate (`ai_move::GoToTarget::new`), so no wrapper
 //!   is needed. Every other ported behaviour takes an aggregate the same way.
@@ -534,7 +534,7 @@ pub fn goal_table(brain_data: &BrainRoot, make_path: &dyn Fn() -> Box<dyn PathSo
 /// there is no brain]. [assumed] the float at entry+0x14 is the data's `priority` (the loader's store
 /// of that field is in 00820d80 / 0082e9a0, not read in full). Without this, a brain with a lower
 /// priority ties a higher one at 1.0 and wins by list order (the scout's DComScout at 0.5 beat the
-/// Escort brain at 0.75 that way, notes/status.md "Twenty-first pass").
+/// Escort brain at 0.75 that way, the unpublished notes "Twenty-first pass").
 fn weight_root(root: Root, priority: f32) -> Root {
     let inner = root.perceptions;
     Root {

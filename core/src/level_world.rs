@@ -4,12 +4,12 @@
 //! What is the game's and what is not:
 //! - [data] the shapes, their placement and their masks (`collision_world`, `collision_masks`).
 //! - [game] a query takes a body when the body's mask word shares a bit with the query's
-//!   mask (the sweep 005b2630, `notes\collision-world-query.md`). [assumed] that word is the
+//!   mask (the sweep 005b2630, `docs/collision-world-query.md`). [assumed] that word is the
 //!   SEND mask: every static preset takes nothing, and the gun traces (mask 2, PUNCH) must
 //!   stop on walls. Settled by finding what fills the record's +0x18.
 //! - [assumed] the ground under the player's character and under a wheel is asked for with
 //!   `CHARACTER_MASK` (see it). No ray of the original was found to be "the ground probe of
-//!   a walking character" (`notes\character-world-probes.md`): its bodies meet the world
+//!   a walking character" (`docs/character-world-probes.md`): its bodies meet the world
 //!   through the pair tests.
 //! - [stand-in] `floor` and `push_out` themselves: the original moves a character by its
 //!   swept pair tests against the world (not ported); here the floor is one ray down and
@@ -33,8 +33,8 @@ use crate::vehicle::GroundHit;
 
 /// What the PLAYER's character meets: PUSH | AVATAR_PUSH | PLAYER_PUSH (0x45).
 /// [game] 007c84c0 and 007c86a0 test an avatar's step (P to P + V * dt) with this mask
-/// (`notes\character-world-probes.md`), and the avatar's body is created with it for the
-/// player, with 0x0d for an AI (006e7b60, `notes\character-world-contact.md`). The first
+/// (`docs/character-world-probes.md`), and the avatar's body is created with it for the
+/// player, with 0x0d for an AI (006e7b60, `docs/character-world-contact.md`). The first
 /// version here used the ledge catch's 0x5d, which has AI_PUSH too: he then stood on
 /// enemy-only blockers (a box at z 23 and a barrier at z 65 over Shanghai's (0, 0)).
 pub const CHARACTER_MASK: u16 = bits::PUSH | bits::AVATAR_PUSH | bits::PLAYER_PUSH;
@@ -67,7 +67,7 @@ pub struct ClimbQueryResult {
 /// broad phase that replaces 006e5e00's; it only has to keep every primitive the sweep can reach.
 const RAY_TOL_PAIR: f32 = 0.05;
 /// The avatar body's linear damping per step (+0x2c, 006e96c0). [trace] 0.9995 in every captured
-/// Bumblebee body (`notes\driving.md`); [assumed] the robot's pencil body has it too.
+/// Bumblebee body (`docs/driving.md`); [assumed] the robot's pencil body has it too.
 const AVATAR_DAMPING: f32 = 0.9995;
 /// [game] 00853420: the ground probe's mask for the player's character (0x09 for an AI's).
 const PLAYER_PROBE_MASK: u16 = 0x41;
@@ -150,7 +150,7 @@ impl LevelWorld {
         self
     }
 
-    /// The climb's ledge search (`notes\climbing.md` "What starts a climb"): walk the nav mesh from `from` along
+    /// The climb's ledge search (`docs/climbing.md` "What starts a climb"): walk the nav mesh from `from` along
     /// `toward` for `reach`, edge by edge, until the far side's top is above `from.z`; that edge is the wall. A far
     /// top flagged canNotClimb, or an open top, is no wall: None. [game] 006f7130 reports the
     /// near/far cell floors as the bottom/top. Collision probes do not choose these heights:
@@ -201,10 +201,9 @@ impl LevelWorld {
                     continue;
                 }
                 let (a, b) = edge_xy(mesh, tri, k);
-                if let Some(s) = nav_segment_hit(origin, dir, reach, a, b) {
-                    if s >= passed && exit.is_none_or(|(best, _)| s < best) {
-                        exit = Some((s, k));
-                    }
+                if let Some(s) = nav_segment_hit(origin, dir, reach, a, b)
+                    && s >= passed && exit.is_none_or(|(best, _)| s < best) {
+                    exit = Some((s, k));
                 }
             }
             let Some((s,k)) = exit else {
@@ -273,7 +272,7 @@ impl LevelWorld {
     /// Takes one Instance's primitives out of every query, for good: a destroyed scripted Instance stops being solid.
     /// No grid is rebuilt; the grid keeps the primitives as candidates and `takes` skips them. Returns how many
     /// primitives the Instance holds (0 when no primitive has this owner). [stand-in] what the game removes on death is
-    /// not read (`notes\mission-level-instances.md`); this removes only the collision.
+    /// not read; this removes only the collision.
     pub fn remove_owner(&self, owner: Owner) -> usize {
         match self.owners.get(&owner) {
             Some(&n) => {
@@ -343,7 +342,7 @@ impl LevelWorld {
     }
 
     /// One step of the avatar's pencil, feet at `from` going to `*pos`, through the game's contact pass
-    /// (`physics_contact`, `notes\physics.md` 1.5): the pair cells against every primitive near the path,
+    /// (`physics_contact`, `docs/physics.md` 1.5): the pair cells against every primitive near the path,
     /// the hits in order of t, commit and slide, the approaching velocity cut. A committed step ends at the
     /// slid end (`*pos`); otherwise `*pos` is left as the caller integrated it. Returns whether a contact
     /// that is not a floor responded (a wall).
@@ -384,7 +383,7 @@ impl LevelWorld {
         res.contacts.iter().any(|c| c.responded && !c.floor)
     }
 
-    /// One world step of the robot on foot (`physics_avatar::step`, `notes\physics.md` 1.9): gravity, the
+    /// One world step of the robot on foot (`physics_avatar::step`, `docs/physics.md` 1.9): gravity, the
     /// control step's planes, the prediction, the contact pass with floors and walls alike, the refresh of
     /// the contacts `body` keeps, the solver and the pose pass. `feet` and `velocity` are where the step
     /// starts (the velocity as the mode left it), `controlled` what the mode's control asks along x and y.
@@ -511,7 +510,7 @@ impl LevelWorld {
     }
 
     /// One world step of the car's chassis with its kept contacts (`physics_avatar::step_chassis`,
-    /// `notes\physics.md` 1.11): the pass, the refresh, the solver with the cube's arms, the pose pass. The
+    /// `docs/physics.md` 1.11): the pass, the refresh, the solver with the cube's arms, the pose pass. The
     /// responded contacts come back as the chassis' contacts, as `move_chassis` gives them.
     /// [stand-in] the nodes are the primitives whose boxes meet the step's box, rebuilt each step.
     pub fn step_chassis(&self, body: &mut crate::physics_avatar::AvatarBody, inp: &crate::physics_avatar::ChassisInput, ai: bool,
@@ -760,7 +759,7 @@ impl World for LevelWorld {
     }
 
     /// The jump's ledge catch: [game] a ball of his radius let straight down, against mask
-    /// 0x5d (0087a200 / 0087dde0, `notes\character-world-probes.md`). Answers the spot under
+    /// 0x5d (0087a200 / 0087dde0, `docs/character-world-probes.md`). Answers the spot under
     /// its centre at the height its underside stops.
     fn drop_onto(&self, from: Vec3, to_z: f32, radius: f32) -> Option<Vec3> {
         self.sweep_from_outside(from, Vec3::new(from.x, from.y, to_z), radius, LEDGE_MASK)

@@ -1,5 +1,5 @@
 //! The tactics point of a DComScout on the us_test street (`core\src\ai_tactics.rs`).
-//! `cargo run --manifest-path C:/Bumblebee/Cargo.toml -p tf2-core --example tactics_check`
+//! `cargo run -p tf2-core --example tactics_check`
 //!
 //! The mesh is the one-placement-per-object mesh of `nav_dump` (`levels/us_test/zone.str`). The
 //! target is the walkable triangle nearest the middle of the mesh box, and the attacker stands
@@ -95,11 +95,10 @@ fn main() {
     for step in 0..36 {
         let a = step as f32 * 10.0_f32.to_radians();
         let p = Vec3::new(target_pos.x + 80.0 * a.cos(), target_pos.y + 80.0 * a.sin(), floor);
-        if let Some(t) = mesh.locate(p) {
-            if walkable(t) && mesh.tri_floor(t) == floor {
-                attacker_pos = Some(Vec3::new(p.x, p.y, floor));
-                break;
-            }
+        if let Some(t) = mesh.locate(p)
+            && walkable(t) && mesh.tri_floor(t) == floor {
+            attacker_pos = Some(Vec3::new(p.x, p.y, floor));
+            break;
         }
     }
     let Some(attacker_pos) = attacker_pos else {

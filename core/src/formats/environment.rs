@@ -1,5 +1,5 @@
 //! A level's `Environment`: its light, fog, bloom, colour filter and exposure
-//! (`notes\shaders.md` "The environment"). The class is `Environment` (factory
+//! (`docs/shaders.md` "The environment"). The class is `Environment` (factory
 //! `FUN_005690a0`, loader `FUN_00567660`); a level's own is a root of one of its zone
 //! pack's data chunks, with the flag `DEFAULT`, and the zone's first data chunk holds the
 //! special ones every level has (`Environment_SpeedBlur`, `Environment_LowHeath`...).
@@ -73,7 +73,7 @@ pub struct Environment {
     pub bloom_enabled: bool,
     /// The DOF and DOF_USE_SOFTER flags and the DOF fields as stored: `dofBlurAmount`, `dofMaxBlur`,
     /// `dofNearFocus`, `dofFarFocus`, `dofNearFalloff`, `dofFarFalloff`, `dofKernelTap`.
-    /// `shadowRange` and `shadowMapSize` (the sun's two shadow maps, `notes\level-lighting.md`: 60 / 1320).
+    /// `shadowRange` and `shadowMapSize` (the sun's two shadow maps, the unpublished notes: 60 / 1320).
     pub shadow_range: f32,
     pub shadow_map_size: f32,
     pub dof_enabled: bool,

@@ -480,7 +480,7 @@ impl<'a> Session<'a> {
                 self.gun.fired(self.clips, Hand { name: def.name, slot, child: None });
                 self.shot_timer = 0.25;
                 self.shots += 1;
-                if self.shots % 24 == 0 {
+                if self.shots.is_multiple_of(24) {
                     self.gun.overheated(self.clips, def);
                     self.cooling = 2.0;
                 }
@@ -685,7 +685,7 @@ fn seg_falls(x: &mut Session) {
     // air, for each drop, and landing with the stick any way round the aim.
     for top in [6.0f32, 14.0, 24.0, 45.0, 90.0] {
         // All four diagonals: plain `Weapon_RunFwdL` / `Weapon_RunBackR` are reached only by the
-        // entry walk of a landing with the stick in their sectors (`notes\animgraph-gaps\strafe.md`).
+        // entry walk of a landing with the stick in their sectors (the unpublished notes).
         let diagonals = [Vec2::new(1.0, 1.0), Vec2::new(-1.0, -1.0), Vec2::new(-1.0, 1.0), Vec2::new(1.0, -1.0)].map(Vec2::normalize);
         for stick in [Vec2::Y, Vec2::NEG_Y, Vec2::X, Vec2::NEG_X, Vec2::ZERO].into_iter().chain(diagonals) {
             for let_go in [false, true] {
@@ -1047,7 +1047,7 @@ fn seg_climb(x: &mut Session) {
     // Catch and leave the stick at rest: the catch clip plays until it finishes (the Catch phase
     // leaves on the finish or a push, `00856d00` l.120-137), from the ground and from a jump at
     // the wall. Every catch above pushes the stick on its first update, so the catch was left in
-    // the update it started (`notes\animgraph-gaps\climb.md`).
+    // the update it started (the unpublished notes).
     x.fresh();
     x.wall();
     x.s.pos = Vec3::new(0.0, 27.0, 0.0);

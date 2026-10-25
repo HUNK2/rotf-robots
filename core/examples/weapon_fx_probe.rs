@@ -19,20 +19,18 @@ fn walk(file: &DataFile, node: Node, path: String, depth: usize, out: &mut Vec<S
     if depth > 9 {
         return;
     }
-    if node.type_name() == Some("ParticleEmitter") {
-        if let Some(t) = node.get("id").and_then(Template::read) {
-            out.push(format!("{path} emitter {:08x} {}", t.name, file.name(t.name).unwrap_or("?")));
-        }
+    if node.type_name() == Some("ParticleEmitter")
+        && let Some(t) = node.get("id").and_then(Template::read) {
+        out.push(format!("{path} emitter {:08x} {}", t.name, file.name(t.name).unwrap_or("?")));
     }
     for (name, child) in node.fields() {
         let key = file.name(name).unwrap_or("?").to_string();
         let lower = key.to_lowercase();
-        if lower.contains("effect") || lower.contains("fx") || lower.contains("particle") {
-            if let Some(t) = Template::read(child) {
-                let ends: Vec<String> = t.elements.iter().map(|e| format!("{}..{}", e.start, e.end)).collect();
-                out.push(format!("{path}.{key} {:08x} {} elements {ends:?}", t.name, file.name(t.name).unwrap_or("?")));
-                continue;
-            }
+        if (lower.contains("effect") || lower.contains("fx") || lower.contains("particle"))
+            && let Some(t) = Template::read(child) {
+            let ends: Vec<String> = t.elements.iter().map(|e| format!("{}..{}", e.start, e.end)).collect();
+            out.push(format!("{path}.{key} {:08x} {} elements {ends:?}", t.name, file.name(t.name).unwrap_or("?")));
+            continue;
         }
         walk(file, child, format!("{path}.{key}"), depth + 1, out);
     }

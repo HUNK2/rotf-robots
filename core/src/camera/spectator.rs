@@ -1,5 +1,5 @@
 //! `CameraSpectator`: a level component that hands the game camera to an automatic "spectator" director which
-//! frames a target with a run of generated shots (placed in 5 levels). [game] `notes\camera.md`
+//! frames a target with a run of generated shots (placed in 5 levels). [game] `docs/camera.md`
 //! "CameraSpectator".
 //!
 //! Component: registrar 00ae25e0 (factory 0091c660), constructor 0091c080, loader 0091c1f0, vtable 00b65ed8

@@ -1,6 +1,6 @@
 //! Climbing walls: what counts as one, the frame the climb works in, and the climb mode's
 //! own rules. Read from the original's code and checked against the 12 climbs in run 1
-//! (`notes\climbing.md`). Tags as in `sim.rs`.
+//! (`docs/climbing.md`). Tags as in `sim.rs`.
 
 use std::f32::consts::{FRAC_1_SQRT_2, FRAC_PI_4, PI, SQRT_2};
 
@@ -511,7 +511,7 @@ pub fn update(c: &mut Climb, body: Body, stick: Vec2, wall_now: Option<Wall>, t:
             } else if (c.phase != Phase::Down || c.finished) && !pulling {
                 c.set_phase(Phase::Down, "ClimbDown", velocity, t);
             }
-        } else if angle >= -FRAC_PI_4 && angle < FRAC_PI_4 {
+        } else if (-FRAC_PI_4..FRAC_PI_4).contains(&angle) {
             if below_top {
                 if (c.phase != Phase::Up || c.finished) && !pulling {
                     c.set_phase(Phase::Up, "ClimbUp", velocity, t);
@@ -573,8 +573,7 @@ mod tests {
     /// The climb set's clips with their real lengths, loops and root travel, the travel spread
     /// evenly over the ticks (`cargo run -p tf2-core --example set_dump -- ClimbSet`).
     fn tuning() -> Tuning {
-        let mut t = Tuning::default();
-        t.climb = ClimbTuning { pull_up_dist: 8.0, edge_limit_dist: 3.0, wall_offset: 0.0, arrival_deceleration: 50.0 };
+        let mut t = Tuning { climb: ClimbTuning { pull_up_dist: 8.0, edge_limit_dist: 3.0, wall_offset: 0.0, arrival_deceleration: 50.0 }, ..Default::default() };
         t.jump.standing.height = 6.0;
         let mut clip = |id: &str, ticks: usize, looping: bool, crossfade: f32, travel: Vec3| {
             let data = ActionClip {
@@ -800,8 +799,7 @@ mod tests {
         for pack in ["bumblebee", "optimus", "ironhide", "ratchet", "megatron", "longhaul", "audir8", "jetfire",
             "firestorm", "starscream", "blackout", "optimusflight", "megatronflight"] {
             let data = crate::character::load(dir, pack).unwrap();
-            let mut t = Tuning::default();
-            t.rule_sets = crate::tuning::RuleSet::all(&data.animations);
+            let mut t = Tuning { rule_sets: crate::tuning::RuleSet::all(&data.animations), ..Default::default() };
             let Some(set) = t.rule_sets.get(&crc32(b"ClimbSet")) else { continue };
             assert!(!set.incoming.is_empty(), "{pack}: ClimbSet has entry rules");
             assert_eq!(catch_clip(&t, true), crc32(b"Wall_Catch"), "{pack}");
@@ -835,8 +833,7 @@ mod tests {
         for pack in ["bumblebee", "optimus", "ironhide", "ratchet", "megatron", "longhaul", "audir8", "jetfire",
             "firestorm", "starscream", "blackout", "optimusflight", "megatronflight"] {
             let data = crate::character::load(dir, pack).unwrap();
-            let mut t = Tuning::default();
-            t.rule_sets = crate::tuning::RuleSet::all(&data.animations);
+            let t = Tuning { rule_sets: crate::tuning::RuleSet::all(&data.animations), ..Default::default() };
             let Some(set) = t.rule_sets.get(&set_id) else { continue };
             for in_air in [true, false] {
                 let get = |variable: u32| match variable {

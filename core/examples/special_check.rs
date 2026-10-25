@@ -11,7 +11,7 @@ use tf2_core::tuning::{self, Actions, Locomotion, RuleSet};
 
 fn main() {
     let dir = tf2_core::install::dir_string();
-    let names: HashMap<u32, String> = std::fs::read_to_string("C:/Bumblebee/export/data/names.tsv")
+    let names: HashMap<u32, String> = std::fs::read_to_string(std::env::var("TF2_NAMES").unwrap_or_else(|_| "export/data/names.tsv".into()))
         .unwrap_or_default()
         .lines()
         .filter_map(|l| {

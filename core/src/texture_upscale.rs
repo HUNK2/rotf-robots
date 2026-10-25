@@ -103,7 +103,7 @@ fn decode(format: PixelFormat, width: u32, height: u32, bytes: &[u8]) -> Result<
             .into_rgba8();
         // image's DXT1 decoder returns RGB. Recover the one-bit alpha the GPU uses.
         if format == PixelFormat::Dxt1 {
-            for (block, bytes) in bytes.chunks_exact(8).enumerate() {
+            for (block, bytes) in bytes.as_chunks::<8>().0.iter().enumerate() {
                 let c0 = u16::from_le_bytes([bytes[0], bytes[1]]);
                 let c1 = u16::from_le_bytes([bytes[2], bytes[3]]);
                 if c0 > c1 {
@@ -123,11 +123,11 @@ fn decode(format: PixelFormat, width: u32, height: u32, bytes: &[u8]) -> Result<
     }
     let rgba: Vec<u8> = match format {
         PixelFormat::Bgra8 => bytes
-            .chunks_exact(4)
+            .as_chunks::<4>().0.iter()
             .flat_map(|p| [p[2], p[1], p[0], p[3]])
             .collect(),
         PixelFormat::Bgr8 => bytes
-            .chunks_exact(3)
+            .as_chunks::<3>().0.iter()
             .flat_map(|p| [p[2], p[1], p[0], 255])
             .collect(),
         PixelFormat::L8 => bytes.iter().flat_map(|&p| [p, p, p, 255]).collect(),
@@ -138,7 +138,7 @@ fn decode(format: PixelFormat, width: u32, height: u32, bytes: &[u8]) -> Result<
 
 fn resized(source: &RgbaImage, width: u32, height: u32, kind: MapKind) -> RgbaImage {
     // [assumed] These enhancement filters are a fidelity/clarity choice, not recovered
-    // game behaviour. Compare close-up captures; see notes/status.md's texture entry.
+    // game behaviour. Compare close-up captures; see the unpublished notes's texture entry.
     let filter = if kind == MapKind::Colour {
         FilterType::Lanczos3
     } else {
@@ -325,8 +325,8 @@ mod tests {
         assert_eq!(&result.pixels[(16 * 16 + 8 * 8) * 4..], &source.pixels);
         assert!(
             result.pixels[..16 * 16 * 4]
-                .chunks_exact(4)
-                .all(|p| p == [30, 20, 10, 136])
+                .as_chunks::<4>().0.iter()
+                .all(|p| *p == [30, 20, 10, 136])
         );
         assert_eq!(
             decode(PixelFormat::Bgra8, 1, 1, &[30, 20, 10, 136])

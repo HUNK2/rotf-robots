@@ -2,7 +2,7 @@
 //! the world, its LOD and source, and per part the material's technique, blend mode, diffuse
 //! colour, texture opacity and texture. Radius 0 prints a whole-zone summary instead.
 //!
-//! cargo run --manifest-path C:/Bumblebee/Cargo.toml -p tf2-core --release --example zone_models_near -- <zone.str> <x> <y> <radius>
+//! cargo run -p tf2-core --release --example zone_models_near -- <zone.str> <x> <y> <radius>
 //!
 //! The distance is measured from (x, y) to the model's bounding box footprint in the ground
 //! plane (0 inside it). Lines are sorted by bounding-box volume, largest first.
@@ -183,12 +183,11 @@ fn summary(placed: &[PlacedModel], library: &Library, measured: &[Option<Measure
     let (mut mat_missing, mut tex_none, mut tex_unresolved, mut parts_total) = (0usize, 0usize, 0usize, 0usize);
     let mut flat_names: BTreeMap<String, (usize, f32)> = BTreeMap::new();
     for (p, m) in placed.iter().zip(measured) {
-        if let Some(m) = m {
-            if smallest(m) < 0.5 {
-                let e = flat_names.entry(p.model.clone()).or_insert((0, 0.0));
-                e.0 += 1;
-                e.1 = e.1.max(size(m)[0].max(size(m)[1]).max(size(m)[2]));
-            }
+        if let Some(m) = m
+            && smallest(m) < 0.5 {
+            let e = flat_names.entry(p.model.clone()).or_insert((0, 0.0));
+            e.0 += 1;
+            e.1 = e.1.max(size(m)[0].max(size(m)[1]).max(size(m)[2]));
         }
         let Some(mesh) = library.meshes.get(&lower33(&p.model)) else { continue };
         let mut seen = BTreeSet::new();
@@ -215,7 +214,7 @@ fn summary(placed: &[PlacedModel], library: &Library, measured: &[Option<Measure
 
     println!("\nmaterial technique: parts (placements)");
     let mut techs: Vec<(u32, (usize, usize))> = tech.into_iter().collect();
-    techs.sort_by(|a, b| b.1 .0.cmp(&a.1 .0));
+    techs.sort_by_key(|b| std::cmp::Reverse(b.1 .0));
     for (t, (parts, places)) in &techs {
         println!("  {t:#010x}  {parts:7} ({places})");
     }

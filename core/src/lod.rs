@@ -1,4 +1,4 @@
-//! Draw-side LOD: 0058a9c0, 00588740 and 0058aab0. See notes/level-lod-runtime.md.
+//! Draw-side LOD: 0058a9c0, 00588740 and 0058aab0. See the unpublished notes.
 use glam::{Mat4, Vec3};
 
 #[derive(Clone, Copy, Debug, PartialEq)]

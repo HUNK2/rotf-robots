@@ -1,6 +1,6 @@
 //! Where an enemy decides to stand: the tactics point (phase 3, enemy AI).
 //!
-//! Read from `notes\ai-tactics.md` (three reads; the later reads correct the earlier ones): the
+//! Read from the unpublished notes (three reads; the later reads correct the earlier ones): the
 //! tactics data block (loader 008340d0), the record and its update rule (00833d70), the driver
 //! (00834520), the candidate pick (00835330), the nav candidates (006f6830), the candidate score
 //! (00835b10), the other-attacker gate (00835f20), the sight endpoints (00833a60), the LOS test
@@ -10,7 +10,7 @@
 //! found; the cover list (0071a4d0) and the fallback 008358f0 are stand-ins.
 //!
 //! Tags as in `navmesh.rs`: `[game]` read in code (the address is given where it matters),
-//! `[data]` from the install, `[assumed]` a guess (each one line in `notes\status.md`, "Phase 3,
+//! `[data]` from the install, `[assumed]` a guess (each one line in the unpublished notes, "Phase 3,
 //! enemy AI: tactics point"), `[stand-in]` a placeholder the game does differently, `[unknown]`
 //! not found. Every unset point is `FLT_MAX` on all three axes, as in the game.
 
@@ -269,16 +269,15 @@ impl Record {
         }
         // Rule 5 [game] for HOME_REGION with a target and the held byte. The three tests are
         // in the read's order; the LOS timer and the first test are [assumed].
-        if self.goal == GOAL_HOME && self.hold {
-            if let Some(t) = target {
-                if t.camera.distance_squared(self.anchor) > data.recalc_pos_target_dist_sq {
-                    return true;
-                }
-                if !self.los && self.clock - self.stamp > data.recalc_pos_time_los {
-                    return true;
-                }
-                return t.camera.distance_squared(self.second) > data.recalc_pos_target_movement_dist_sq;
+        if self.goal == GOAL_HOME && self.hold
+            && let Some(t) = target {
+            if t.camera.distance_squared(self.anchor) > data.recalc_pos_target_dist_sq {
+                return true;
             }
+            if !self.los && self.clock - self.stamp > data.recalc_pos_time_los {
+                return true;
+            }
+            return t.camera.distance_squared(self.second) > data.recalc_pos_target_movement_dist_sq;
         }
         // Rule 6 [game]: not held; the point holds for 30 s from the last pick.
         if !self.hold {
@@ -299,7 +298,7 @@ impl Record {
 
     /// The write of 00833b70. [game] The point is copied as it is; a point equal to the current one
     /// only refreshes the stamp. [assumed] the anchor is the target camera point (see the field).
-    /// VALID is not written here: pass 1 owns it (R5, notes\ai-tactics.md "Fourth read"), so a point
+    /// VALID is not written here: pass 1 owns it (R5, the unpublished notes "Fourth read"), so a point
     /// stored while VALID is 0 is never offered (R2).
     fn set_point(&mut self, point: Vec3, second: Vec3, anchor: Vec3, me: &Me, los: bool) {
         self.displaced = false;
@@ -424,7 +423,7 @@ fn is_set(p: Vec3) -> bool {
 /// A pass-2 search that finds nothing stores `FLT_MAX` on all three axes while VALID is already set
 /// (pass 1 sets VALID by distance alone), so every reader of the record must use this, or a scout
 /// walks toward infinity. [game] 0081e190 falls back to the scout's own camera point for such a
-/// record (notes/ai-tactics.md "Fourth read", section 2).
+/// record (the unpublished notes "Fourth read", section 2).
 pub fn is_real_point(p: Vec3) -> bool {
     p.is_finite() && p.x != FLT_MAX && p.y != FLT_MAX && p.z != FLT_MAX
 }
@@ -443,7 +442,7 @@ fn horizontal(a: Vec3, b: Vec3) -> f32 {
 
 /// The home test: no home region, or the point inside it. [game] 00824650 false OR 00824700(0).
 fn home_test(me: &Me, p: Vec3) -> bool {
-    me.home.as_ref().map_or(true, |h| (h.contains)(p))
+    me.home.as_ref().is_none_or(|h| (h.contains)(p))
 }
 
 /// The normalised band value of a height. [game] 00835b10 (both branches of the sign test):
@@ -802,7 +801,7 @@ fn standoff_stand_in(data: &TacticsData, me: &Me, target: Option<&Foe>) -> Optio
 /// only as a sqrt, its dimension is not read. The camera points are the note's reading (the earlier
 /// code used the root positions).
 fn pass_one_valid(record: &mut Record, data: &TacticsData, me: &Me, target: Option<&Foe>) {
-    let in_range = target.map_or(false, |t| t.camera.distance(me.camera) < data.distance_for_tactics_max);
+    let in_range = target.is_some_and(|t| t.camera.distance(me.camera) < data.distance_for_tactics_max);
     if in_range || record.goal == GOAL_FOE {
         record.valid = true;
     } else if record.valid {

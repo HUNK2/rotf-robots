@@ -1,7 +1,7 @@
 //! The control state machine: what decides when he attacks, dodges, climbs, jumps or changes
 //! form. In the original this is data (`bnxglobal.str`, the `state*`, `connection*` and
 //! `stateMachine*` objects), read here as it stands; the code below is the original's rules
-//! for evaluating it (`notes\state-machine.md`).
+//! for evaluating it (`docs/state-machine.md`).
 //!
 //! Tags as in `sim.rs`: `[game]` read from the original's code, `[data]` straight from its
 //! data, `[assumed]` a reading that has not been checked, `[stand-in]` invented.
@@ -149,12 +149,11 @@ impl Detector {
         let current = self.stages.get(state.stage);
         let held = current.is_none_or(|stage| stage.include.iter().all(|&b| pad.is_down(b)));
         state.held_time = if held { state.held_time + dt } else { 0.0 };
-        if let Some(stage) = current.filter(|stage| stage.passes(pad)) {
-            if stage.charge <= state.held_time && stage.time <= state.stage_time {
-                state.stage_time -= stage.time;
-                state.held_time -= stage.charge;
-                state.stage += 1;
-            }
+        if let Some(stage) = current.filter(|stage| stage.passes(pad))
+            && stage.charge <= state.held_time && stage.time <= state.stage_time {
+            state.stage_time -= stage.time;
+            state.held_time -= stage.charge;
+            state.stage += 1;
         }
         if state.stage >= self.stages.len() {
             *state = DetectorState { active: true, active_left: self.stays_on, ..Default::default() };

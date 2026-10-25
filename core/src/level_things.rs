@@ -72,7 +72,7 @@ fn visit<'f>(node: Node<'f>, acc: Mat, instance: Option<&'f str>, hint: Option<&
         }
         visit(child, acc, instance, node.file().name(hash), depth + 1, walk);
     }
-    if node.len() > 0 {
+    if !node.is_empty() {
         for child in node.items() {
             visit(child, acc, instance, None, depth + 1, walk);
         }
@@ -126,7 +126,7 @@ pub fn spawn_points(packs: &[PathBuf]) -> Result<Vec<SpawnPoint>, String> {
 mod tests {
     use super::*;
 
-    /// Needs the game install. [data] `notes\survey-levels.md`: the test level's free-roam
+    /// Needs the game install. [data] the unpublished notes: the test level's free-roam
     /// pack has one spawn point, `Player_A_Optimus`, at (-137.458, -366.849, 0.897).
     #[test]
     fn the_test_level_has_one_spawn_point() {

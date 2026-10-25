@@ -1,9 +1,9 @@
 //! Flight boundary: the volume a flyer must stay in, the state it sets when it leaves,
 //! and the bounce off the boundary (the steer-back) while it is outside.
-//! Read from the game's code: notes/flight-boundary.md sections 4, 6 and 12 (12.4 B0, B2).
+//! Read from the game's code: docs/flight-boundary.md sections 4, 6 and 12 (12.4 B0, B2).
 //! Pure arithmetic, no engine types. Not wired into flight.rs or the game yet.
 //! The wall stop 00868fb0 (helicopter and robot) is `wall_stop`, below. It feeds the helicopter
-//! step 00867f20, ported as `steer_helicopter` in flight.rs (notes/flight-boundary.md 12.10).
+//! step 00867f20, ported as `steer_helicopter` in flight.rs (docs/flight-boundary.md 12.10).
 //!
 //! Units: metres, seconds; the game steps every 0.032 s. Offsets are written on the
 //! FlyMode object as `mode+0x..` (the fields of `Steerback`) and on the tuning block as
@@ -33,6 +33,8 @@ pub const RAMP_RATE: f32 = 5.0;
 pub const PUSH_SPEED: f32 = 30.0;
 /// The PITCH target while pointing down, -pi/6 (nose 30 degrees down). [game 00868b00,
 /// `00b6b198` = -0.5235988, written to mode+0x1c]
+// The game's own literal, kept as written rather than as `-FRAC_PI_6`.
+#[allow(clippy::approx_constant)]
 pub const PITCH_TARGET_DOWN: f32 = -0.523_598_8;
 /// The PITCH ramp rate, per second, while pointing down, when `2*dt < 1`. [game `00b38838` = 2.0]
 pub const PITCH_RATE_DOWN: f32 = 2.0;
@@ -267,7 +269,7 @@ pub fn uses_bounce(helicopter: bool, robot: bool) -> bool {
 }
 
 /// The wall stop's result: the pair `(out, a)` for the helicopter step 00867f20, and the new
-/// body velocity. [game 00868fb0, notes/flight-boundary.md section 12.7]
+/// body velocity. [game 00868fb0, docs/flight-boundary.md section 12.7]
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct WallStop {
     /// `out`, the first vector argument of 00867f20: (0,1,0) when aligned, else zero. [game 00868fb0]
@@ -296,7 +298,7 @@ pub const WALL_FORWARD_LIMIT: f32 = -0.9;
 ///
 /// `n`: N, `mode+0x68..0x70`, the unit direction toward the boundary's centre. [game]
 /// `v_z`: V.z, `mode+0x64`. Below `CEILING_Z` is the inverted branch (outside through the top).
-/// [game 00868fb0 00868fe6-00869065, notes/flight-boundary.md 12.11]
+/// [game 00868fb0 00868fe6-00869065, docs/flight-boundary.md 12.11]
 /// `row0`: the holder body's first world row, `temp[0..3]` from 006de7e0 (r0x, r0y, r0z). [game]
 /// [game 00868fb0 008690ef-00869131] row 0 is the body's right axis (006de7e0 out[0..2]), and
 /// `w = (-r0y, r0x, 0)` is forward when level.
@@ -361,11 +363,11 @@ pub struct Steerback {
     pub yaw: f32,
     /// `mode+0x20`: ROLL (rotation about the nose), radians. The bounce ramps it toward
     /// `+-tun+0x60` (the yaw-rate sign) while outside, or to 0 when armed. [game 00868b00,
-    /// settled in notes/flight-boundary.md 12.9]
+    /// settled in docs/flight-boundary.md 12.9]
     pub roll: f32,
     /// `mode+0x1c`: PITCH (nose up / down), radians. The bounce decays it to 0 at 5/s when
     /// not pointing down, or ramps it to -pi/6 at 2/s when pointing down (leaving through the
-    /// top). [game 00868b00, settled in notes/flight-boundary.md 12.9]
+    /// top). [game 00868b00, settled in docs/flight-boundary.md 12.9]
     pub pitch: f32,
 }
 
@@ -783,7 +785,7 @@ mod tests {
         assert!(close(r.velocity, Vec3::new(0.95, 0.0, 0.0)));
     }
 
-    /// [game 00868fb0 inverted branch, notes/flight-boundary.md 12.11] Outside through the top:
+    /// [game 00868fb0 inverted branch, docs/flight-boundary.md 12.11] Outside through the top:
     /// out = 0, a = the input's first float (raw), b = +1, and the velocity is not scaled.
     #[test]
     fn the_inverted_branch_takes_the_turn_input_lifts_down_and_keeps_the_velocity() {

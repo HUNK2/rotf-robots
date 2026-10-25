@@ -143,7 +143,7 @@ fn ik_survey(dir: &Path) {
         for (_, child) in node.fields() {
             walk(file, child, depth + 1, seen, found);
         }
-        if node.len() > 0 {
+        if !node.is_empty() {
             for child in node.items() {
                 walk(file, child, depth + 1, seen, found);
             }
@@ -348,7 +348,7 @@ fn turn(data: &tf2_core::character::CharacterData, id: &str) {
             for &i in watch.iter().take(4) {
                 let port = body.transform_point3(pose[i].translation.into());
                 let clip_at = clip_frame.transform_point3(pose[i].translation.into());
-                print!(" {} port ({:.1}, {:.1}) clip ({:.1}, {:.1})", &nodes[i].name, port.x, port.y, clip_at.x, clip_at.y);
+                print!(" {} port ({:.1}, {:.1}) clip ({:.1}, {:.1})", nodes[i].name, port.x, port.y, clip_at.x, clip_at.y);
             }
             println!();
         }

@@ -1,5 +1,5 @@
 //! Every playable robot's mesh and material sets, audited the way Optimus's were
-//! (`notes\optimus-mesh-visibility.md`): for the robot and the vehicle object, the
+//! (`docs/optimus-mesh-visibility.md`): for the robot and the vehicle object, the
 //! RenderSetEnabler groups and how many of each set's links resolve to a drawn mesh, the meshes
 //! drawn by default, and the suspicious ones drawn by default at the same time as their twin
 //! (an `_SFX`, damage or LOD copy of another part outside any group), and meshes whose model is
@@ -86,10 +86,9 @@ fn audit(label: &str, object: &ObjectDef, library: &tf2_core::formats::model::Li
     for m in &drawn {
         let l = local(m).to_ascii_lowercase();
         for suffix in ["_sfx", "_damaged", "_damage", "_dmg", "_broken", "_lod1", "_lod2", "_low", "_glow", "_special"] {
-            if let Some(base) = l.strip_suffix(suffix) {
-                if names.contains_key(base) {
-                    twins.push(format!("{m} with {}", names[base]));
-                }
+            if let Some(base) = l.strip_suffix(suffix)
+                && names.contains_key(base) {
+                twins.push(format!("{m} with {}", names[base]));
             }
         }
     }

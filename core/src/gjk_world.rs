@@ -1,7 +1,7 @@
 //! The collision shapes placed in the world (a shape plus its transform) as `gjk::Support`, so
 //! `gjk::ray_cast` can be run against them.
 //!
-//! Frame rule [game]: read in the swept-sphere wrappers (`notes\collision-support-swept.md`,
+//! Frame rule [game]: read in the swept-sphere wrappers (`docs/collision-support-swept.md`,
 //! `work\kernels\support_swept.py`), which call the same helpers the ray tests call:
 //!   w   = v * Y               (row vector; the same three sums as 005e3570; `direction_to_local`)
 //!   p   = local_support(w)    (the shape's own support helper, in the shape's frame)
@@ -10,7 +10,7 @@
 //! (-0.0) - h_k. This is the order of the swept and pair HELPERS (`world_support`). The RAY
 //! tests inline their own (`ray_world_support`) and are compiled with other loop orders too
 //! (`gjk::INLINE`): `ray_test` runs them, bit-exact on lambda over every ordinary hit of
-//! `work\emu\ref\ray_shape_*.tsv` (2026-10-17, `notes\physics.md` 1.4).
+//! `work\emu\ref\ray_shape_*.tsv` (2026-10-17, `docs/physics.md` 1.4).
 
 use glam::Vec3;
 
@@ -30,8 +30,8 @@ pub trait LocalSupport {
 
     /// The support as the shape's RAY test (table 00b8dd0c) inlines it. [game] The capsule,
     /// cylinder, cone and pencil tests (005c5020, 005c6a50, 005c8480, 005c9eb0) end every row of
-    /// both sums on x: w_k = (Y[3+k] vy + Y[6+k] vz) + Y[k] vx and o_k = ((X[3+k] py + X[6+k] pz)
-    /// + X[k] px) + X[9+k] (disassembly 005c6dc9-005c6e83 and 005c6e91 on for the cylinder; the
+    /// both sums on x: w_k = (Y[3+k] vy + Y[6+k] vz) + Y[k] vx and o_k = ((X[3+k] py + X[6+k] pz) +
+    /// X[k] px) + X[9+k] (disassembly 005c6dc9-005c6e83 and 005c6e91 on for the cylinder; the
     /// decompile drops the direction rows). With `gjk::INLINE` this makes all four ray files
     /// bit-exact on lambda (`ray_test`).
     fn ray_world_support(&self, v: Vec3, x: &[f32; 12], y: &[f32; 9]) -> Vec3 {
@@ -136,7 +136,7 @@ pub struct Placed<S> {
     pub y: [f32; 9],
 }
 
-/// [game] w = v * A, row vector, in the order of 005e3570 / 005e32a0 (`notes\collision-support-swept.md`).
+/// [game] w = v * A, row vector, in the order of 005e3570 / 005e32a0 (`docs/collision-support-swept.md`).
 fn direction_to_local(v: Vec3, a: &[f32; 9]) -> Vec3 {
     let (vx, vy, vz) = (v.x, v.y, v.z);
     let w0 = (a[3] * vy + a[6] * vz) + a[0] * vx;
@@ -392,17 +392,16 @@ mod tests {
                     let y: [f32; 9] = std::array::from_fn(|i| c[18 + k + i]);
                     let o = O { s: shape.as_ref(), x, y, dir, pt };
                     let h = gjk::ray_cast_with(v3(0), v3(3), &o, Vec3::new(x[9], x[10], x[11]), &ord);
-                    if let Some(h) = h {
-                        if !h.contact {
-                            n += 1;
-                            exact += (h.lambda.to_bits() == c[35 + k].to_bits()) as usize;
-                        }
+                    if let Some(h) = h
+                        && !h.contact {
+                        n += 1;
+                        exact += (h.lambda.to_bits() == c[35 + k].to_bits()) as usize;
                     }
                 }
                 best.push((exact, n, oname, dir, pt));
             }
         }
-        best.sort_by(|a, b| b.0.cmp(&a.0));
+        best.sort_by_key(|b| std::cmp::Reverse(b.0));
         for b in &best[..6] {
             println!("{name}: lambda exact {} / {} with {} dir {:?} pt {:?}", b.0, b.1, b.2, b.3, b.4);
         }

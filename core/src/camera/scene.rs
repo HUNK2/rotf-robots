@@ -1,5 +1,5 @@
 //! The level `Camera` component and the picture-in-picture camera that looks through it. [game]
-//! `notes\camera.md` "Camera component and picture-in-picture".
+//! `docs/camera.md` "Camera component and picture-in-picture".
 //!
 //! `Camera` (registrar 00ad9bd0, factory 00780260 -> 007801c0, constructor 00780110, vtable 00b5eb3c) holds
 //! only a field of view and registers itself under the key 0xcbdf8007; it has no update. Its users find it

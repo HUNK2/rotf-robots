@@ -763,18 +763,16 @@ impl ReverbSystem {
     /// [game: 00770b20 / 00770b60 -> 00598bd0] a ReverbTrigger's Trigger sets the ambient to
     /// its preset, its Untrigger to preset 0; a trigger of preset 0 does nothing either way.
     pub fn trigger(&mut self, presets: &[ReverbProperties], preset: u32) {
-        if preset != 0 {
-            if let Some(p) = presets.get(preset as usize) {
-                self.ambient = Some(*p);
-            }
+        if preset != 0
+            && let Some(p) = presets.get(preset as usize) {
+            self.ambient = Some(*p);
         }
     }
 
     pub fn untrigger(&mut self, presets: &[ReverbProperties], preset: u32) {
-        if preset != 0 {
-            if let Some(p) = presets.first() {
-                self.ambient = Some(*p);
-            }
+        if preset != 0
+            && let Some(p) = presets.first() {
+            self.ambient = Some(*p);
         }
     }
 

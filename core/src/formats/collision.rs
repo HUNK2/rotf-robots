@@ -1,6 +1,6 @@
 //! The `Collision` objects of a pack: every primitive's shape packet, placement and masks.
 //!
-//! Where it lives (`notes\collision-data.md`): a data chunk of the pack holds `Object`s
+//! Where it lives (`docs/collision-data.md`): a data chunk of the pack holds `Object`s
 //! (root entries of the chunk included). An Object's
 //! `attachments[i].thing` is a `Collision`; the Collision's `primitives` list holds one
 //! `CollisionBatchPrimitive` per shape, and each has a typed `packet` (`CollisionCuboidPacket`,
@@ -17,7 +17,7 @@
 //! where it sits in the file (`lxb::Node::offset`; added by the manager, 2026-10-11, replacing
 //! the porter's content-key stand-in, which gave 56 and 813).
 //!
-//! Tags: `[data]` seen in the decoded file, `[game]` from `notes\collision-loader.md`,
+//! Tags: `[data]` seen in the decoded file, `[game]` from `docs/collision-loader.md`,
 //! `[assumed]` interpretation with the reason stated.
 
 use std::collections::HashSet;
@@ -48,7 +48,7 @@ pub enum Shape {
     Cylinder { fields: Vec<(String, f32)> },
     /// `CollisionConePacket`: every float field (`radius`, `height14`, `height34`, `angle`) [data].
     Cone { fields: Vec<(String, f32)> },
-    /// `CollisionCapsulePacket`: no level data uses it [game, notes\collision-loader.md]. Floats as stored.
+    /// `CollisionCapsulePacket`: no level data uses it [game, docs/collision-loader.md]. Floats as stored.
     Capsule { fields: Vec<(String, f32)> },
     /// `CollisionMeshPacket` (the soup). `declared_*` are the packet's `nVerts` / `nFaces`.
     /// Face words are stored raw: the low 27 bits are the vertex index, the top 5 bits are flags
@@ -124,19 +124,17 @@ fn walk<'a>(node: Node<'a>, root_name: Option<u32>, path: &mut String, depth: u3
     }
     // A typed node reached a second time has nothing new under it (the first occurrence of
     // a Collision is the one kept); without this deep_six_01's chunk 13 is walked without end.
-    if let (Some(_), Some(at)) = (node.type_name(), node.offset()) {
-        if !visited.insert(at) {
-            return;
-        }
+    if let (Some(_), Some(at)) = (node.type_name(), node.offset())
+        && !visited.insert(at) {
+        return;
     }
     if is_object(node) {
         let label = node.label().or(root_name).unwrap_or(0);
         if let Some(attachments) = node.get("attachments") {
             for attachment in attachments.items() {
-                if let Some(thing) = attachment.get("thing") {
-                    if thing.type_name() == Some("Collision") {
-                        out.push(Hit { object: node, label, collision: thing, path: path.clone() });
-                    }
+                if let Some(thing) = attachment.get("thing")
+                    && thing.type_name() == Some("Collision") {
+                    out.push(Hit { object: node, label, collision: thing, path: path.clone() });
                 }
             }
         }
@@ -153,7 +151,7 @@ fn walk<'a>(node: Node<'a>, root_name: Option<u32>, path: &mut String, depth: u3
         walk(child, is_root_field.then_some(hash), path, depth + 1, visited, out);
         path.truncate(len);
     }
-    if node.len() > 0 {
+    if !node.is_empty() {
         for (i, child) in node.items().enumerate() {
             let len = path.len();
             path.push_str(&format!("[{i}]"));
@@ -303,10 +301,9 @@ pub fn collisions(file: &DataFile) -> Vec<Collision> {
         // Identity = where the Collision is stored (`Node::offset`): one stored object is
         // kept once however many paths reach it.
         let _ = hit.label;
-        if let Some(at) = hit.collision.offset() {
-            if !seen.insert(at) {
-                continue;
-            }
+        if let Some(at) = hit.collision.offset()
+            && !seen.insert(at) {
+            continue;
         }
         let parent_node = parent.and_then(|p| usize::try_from(p).ok());
         out.push(Collision {

@@ -10,7 +10,7 @@ fn main() {
     let pack = std::env::args().nth(1).expect("pack");
     let game = tf2_core::install::dir_string();
     let data = tf2_core::character::load(Path::new(&game), &pack).expect("character");
-    let names: std::collections::HashMap<u32, String> = std::fs::read_to_string(r"C:\Bumblebee\export\data\names.tsv")
+    let names: std::collections::HashMap<u32, String> = std::fs::read_to_string(std::env::var("TF2_NAMES").unwrap_or_else(|_| "export/data/names.tsv".into()))
         .unwrap_or_default()
         .lines()
         .filter_map(|l| {
@@ -65,7 +65,7 @@ fn main() {
                 .collect();
             println!("    node {n} {} parent {:?} keyed by {:?}", node.name, node.parent, keyed);
         }
-        for (n, node) in object.nodes.iter().enumerate() {
+        for node in object.nodes.iter() {
             if node.name.contains("Muzzle") || node.name.contains("FireDummy") {
                 let world = pose[bone] * tf2_core::pose::affine(&node.bind);
                 let (x, y) = (glam::Vec3::from(world.matrix3.x_axis).normalize(), glam::Vec3::from(world.matrix3.y_axis).normalize());

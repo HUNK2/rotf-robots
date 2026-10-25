@@ -1,7 +1,7 @@
 //! A top-down picture of a zone's collision, by casting rays straight down through
 //! `collision_world::StaticWorld`. A check that the level is where it should be.
 //!
-//! cargo run --manifest-path C:/Bumblebee/Cargo.toml -p tf2-core --release --example zone_map -- <zone.str> <out.png> [metres per pixel, default 5]
+//! cargo run -p tf2-core --release --example zone_map -- <zone.str> <out.png> [metres per pixel, default 5]
 //!
 //! Each pixel is the nearest hit of a ray from z = +400 to z = -100, skipping primitives
 //! flagged `released` (destructible pieces) and, [assumed] until the masks are read, hits

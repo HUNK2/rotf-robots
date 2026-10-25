@@ -1,14 +1,14 @@
 //! `AnimatedCamera`: a level's scripted camera. A scene object (the rig) carries an animation; while the
 //! component is triggered the game camera takes the rig's transform every update, and messages from the rig's
-//! animation set the field of view and the depth of field. [game] `notes\camera.md` "AnimatedCamera".
+//! animation set the field of view and the depth of field. [game] `docs/camera.md` "AnimatedCamera".
 //!
 //! The component: registrar 00adb430 (name `AnimatedCamera`, factory 007d0920), constructor 007cfe50, loader
 //! 01186d50, vtable 00b60368 (slot 1 teardown 007d0200, 2 update 007d0290, 4 activation 007d0180, 6 Trigger
 //! 007d03a0, 7 Untrigger 007d05d0). Its camera behaviour: constructor 007cfd30, vtable 00b60328, update
-//! (slot 3) 00913440. Placed in 3 levels (74 objects, `notes\phase1-audit.md`).
+//! (slot 3) 00913440. Placed in 3 levels (74 objects).
 //!
 //! The CinemaTrigger's own cut (`crate::cinematic`) is a different path: it also builds one of these
-//! behaviours (`notes\mission-vo-cinema-energon.md`), keyed 0xa8579652.
+//! behaviours, keyed 0xa8579652.
 use glam::Vec3;
 
 /// The behaviour's field of view until a message sets it, degrees. [game] 007cfd30 stores 0x42700000.
@@ -156,7 +156,7 @@ impl AnimatedCamera {
     }
 
     /// Slot 2 (007d0290): when the player's pad record (`007212f0`, +0x94) has bit 0x1000, the cut is skipped:
-    /// Untrigger and `trigDone`. [game] the bit; [unknown] which button it is (`notes\input.md` has no map
+    /// Untrigger and `trigDone`. [game] the bit; [unknown] which button it is (`docs/input.md` has no map
     /// of the record's +0x94). Only runs once [`Action::WatchSkip`] was asked for.
     pub fn step(&mut self, skip_bit: bool) -> Vec<Action> {
         if !skip_bit {

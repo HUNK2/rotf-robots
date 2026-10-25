@@ -1,16 +1,16 @@
 //! The sphere sweep: a sphere of radius r moved along a segment, against a convex shape.
 //!
-//! [game] The sphere tests (table 00b8dd38, `notes\collision-tests-emulated.md`) run the same GJK
+//! [game] The sphere tests (table 00b8dd38, `docs/collision-tests-emulated.md`) run the same GJK
 //! ray cast as the ray tests, with a support that is the shape's support plus the moving sphere's
-//! support: out_sum = shape + buf1, buf1 = r * v / |v| (005e2dd0, `notes\collision-support-swept.md`,
+//! support: out_sum = shape + buf1, buf1 = r * v / |v| (005e2dd0, `docs/collision-support-swept.md`,
 //! `work\kernels\support_swept.py`). So the GJK search runs against the shape grown by r (a
 //! Minkowski sum), and the centre's hit is the first lambda at which the grown shape is touched.
 //!
 //! What the references show beyond that (`work\emu\ref\sphere_shape_*.tsv`,
-//! `work\emu\gen_refs_sphereshapes.py`, `notes\collision-sphere-sweep.md`):
+//! `work\emu\gen_refs_sphereshapes.py`, `docs/collision-sphere-sweep.md`):
 //! - [game] The hit lambda and the hit/miss verdict are the grown shape's ray cast's.
 //! - [game] The reported POINT is the GJK witness: the target's own support points weighted by
-//!   the final simplex's determinants (`notes\physics.md` 1.3). With the game's Johnson step in
+//!   the final simplex's determinants (`docs/physics.md` 1.3). With the game's Johnson step in
 //!   `gjk.rs` (2026-10-16) it agrees with all five reference files to 0.1 mm, start in contact
 //!   included (it was `centre - r * normal` before, 5 to 30 cm off).
 //! - [game] The normal is the search direction at the last advance, or the start-in-contact rule
@@ -53,7 +53,7 @@ impl<'a, S: Support> Support for Swept<'a, S> {
     }
 
     /// [game] the witness kept per simplex slot is the target's own support point (the pair
-    /// primitive's q, `notes\physics.md` 1.3); the reported point is their weighted sum.
+    /// primitive's q, `docs/physics.md` 1.3); the reported point is their weighted sum.
     fn witness_support(&self, v: Vec3) -> Option<Vec3> {
         Some(self.shape.support(v))
     }

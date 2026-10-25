@@ -1,7 +1,7 @@
 //! The game's HUD (`UI\Flash\hud.gfx`): the part of its ActionScript classes that the
 //! three meters of a single-player character need, played over `formats::gfx`. Read from
 //! the movie's own scripts (`work\gfx_dump.py <file> code <id>`). [game] where the scripts
-//! say it; what the executable sends them is in `notes\hud.md` "The binding".
+//! say it; what the executable sends them is in `docs/hud.md` "The binding".
 //!
 //! - `core.BaseMeter` (health): the value, 1 above 0.9999 and 0 under 0.00001, slides
 //!   `Mask` to `_x = -w + value * w`, w the mask's width. `hud2.common.HealthMeter`: under

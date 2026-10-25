@@ -1,6 +1,6 @@
 //! The deployable turret (Ironhide's and Blackout's special): the thrown body, its landing,
 //! the cap on how many stand at once, the turret's rotator, its fire timer and its target
-//! choice. Read from the game's code (notes/special-weapons.md, "Turret code (second read)").
+//! choice. Read from the game's code (docs/special-weapons.md, "Turret code (second read)").
 //! No engine types; space is the game's (x right, y forward, z up, metres), time in seconds.
 //! Not wired into sim.rs or the game yet.
 //!
@@ -114,7 +114,7 @@ pub enum State {
     /// work/survey/weapons/blackout.txt l.707991-707992]. So the game's gate opens at the END of
     /// the landing clip, not at the landing: Deploying (gate shut) and Active (gate open) both
     /// match the game for Blackout. Merging them would drop the gate, so they stay.
-    /// Ironhide has no FireTurret thing [data, see notes/special-weapons.md], so this gate is
+    /// Ironhide has no FireTurret thing [data, see docs/special-weapons.md], so this gate is
     /// not his. His animOnLand clip (animID -1785250356, work/survey/weapons/ironhide.txt
     /// l.665068) sends the same Trigger (`d5d636c1`) at tick 86 to -833717741, which in his turret
     /// is the TargetLockable's LuxScriptName (l.659641) [data]: so his deploy time is 86 ticks and
@@ -270,7 +270,7 @@ impl Turret {
     /// not read here).
     /// A contact at or under that gate does nothing in the game [game 0078b3b0: no branch for
     /// it] (the contact-flag gate `uVar2 & uVar1 & 1` is not ported [assumed]). Bit 1 is `PUSH`
-    /// (notes\melee.md mask list). blackout_turret's primitives carry maskPreset `DynamicObj` (48ca5531)
+    /// (docs/melee.md mask list). blackout_turret's primitives carry maskPreset `DynamicObj` (48ca5531)
     /// with sendMask 175 (0xaf, PUSH among them) and receiveMask 1 (PUSH) [data, work\survey\weapons\
     /// blackout.txt l.1006-1008]. The presets, decoded (wave 28 P1, global_collision.txt): DynamicObj
     /// (1221219633) sends PUSH|PUNCH|AVATAR_PUSH|CAMERA|WATER|DETECT and receives PUSH; StaticGround
@@ -492,7 +492,7 @@ impl Rotator {
     /// against a recording of the turn back).
     ///
     /// One step toward `target` (a world point), from the turret's position `from`.
-    /// Checked against the disassembly of 00813e30 (2026-10-12; see notes/special-weapons.md
+    /// Checked against the disassembly of 00813e30 (2026-10-12; see docs/special-weapons.md
     /// "TurretRotator update, checked"). The steps, with `dt` the game step:
     /// 1. [game 00813e30 b] Desired angles: `want_yaw = atan2(-dx, dy)`,
     ///    `want_pitch = atan2(-dz, hypot(dx, dy))`, `d = target - from`.
@@ -704,7 +704,7 @@ pub fn band_score(band: &FireBand, owner: Vec3, facing: Vec3, at: Vec3, radius: 
 /// follows the live aim, not the rest facing. settles: the TurretRotator's +0x48 (its loader / blackout.txt).
 /// `ft+0x94` is written by the bind 0079dda0 at 0079e017: set when the scene
 /// has a TurretRotator (007a0d00, class dd043c1b) [game, read 2026-10-20; the third pass missed
-/// it]. `blackout_turret` has one (notes\special-weapons.md), so Blackout's turret is in that mode:
+/// it]. `blackout_turret` has one (docs/special-weapons.md), so Blackout's turret is in that mode:
 /// the tick picks every update while enabled (0079e670 l.3-5), the rotator slews to `ft+0x80`
 /// (00813e30 l.38-48), and each shot needs `in_fire_cone` with a rotator enabled (`+0xcc`, set by
 /// the same Trigger as the FireTurret: 00815150 at vtable 00b618b4) [game 0079f0f0].
@@ -731,7 +731,7 @@ pub fn pick_target(
             continue;
         }
         kept += 1;
-        if best.map_or(true, |(bs, _)| score < bs) {
+        if best.is_none_or(|(bs, _)| score < bs) {
             best = Some((score, id));
         }
     }

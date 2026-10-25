@@ -29,14 +29,12 @@ fn main() {
         techniques.insert(word(at) as u32, String::from_utf8_lossy(&text[..text.iter().position(|&b| b == 0).unwrap_or(64)]).into_owned());
     }
     let mut names = HashMap::new();
-    if params {
-        if let Ok(text) = std::fs::read_to_string("C:/Bumblebee/export/data/names.tsv") {
-            for line in text.lines() {
-                let mut f = line.split('\t');
-                if let (Some(h), Some(n)) = (f.next(), f.next()) {
-                    if let Ok(h) = u32::from_str_radix(h.trim_start_matches("0x"), 16) { names.insert(h, n.to_owned()); }
-                }
-            }
+    if params
+        && let Ok(text) = std::fs::read_to_string(std::env::var("TF2_NAMES").unwrap_or_else(|_| "export/data/names.tsv".into())) {
+        for line in text.lines() {
+            let mut f = line.split('\t');
+            if let (Some(h), Some(n)) = (f.next(), f.next())
+                && let Ok(h) = u32::from_str_radix(h.trim_start_matches("0x"), 16) { names.insert(h, n.to_owned()); }
         }
     }
     let mut totals: BTreeMap<String, (usize, usize)> = BTreeMap::new();

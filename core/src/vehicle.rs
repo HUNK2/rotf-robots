@@ -1,4 +1,4 @@
-//! Four wheel contacts and the original spring rules (`notes/driving.md`).
+//! Four wheel contacts and the original spring rules (`docs/driving.md`).
 //! Arena geometry is authored; the wheel, spring and support-plane rules are [game].
 use glam::{EulerRot, Mat3, Quat, Vec3};
 use crate::{sim::{World, VEHICLE_MASS}, tuning::DriveTuning};
@@ -265,10 +265,10 @@ impl Chassis {
             }
             let a=grounded[0]; let b=grounded[1]; let c=grounded[2];
             let mut n=(b.point-a.point).cross(c.point-b.point).normalize_or_zero();
-            if n.dot(a.normal)<0.0 {n=-n;}
+            if n.dot(a.normal) < 0.0 { n = -n; }
             (if n==Vec3::ZERO {a.normal} else {n}, 2.0)
-        } else if let Some(w)=grounded.first() { (w.normal,10.0) }
-        else {return None;};
+        } else {
+            let w = grounded.first()?; (w.normal,10.0) };
         Some((target,grounded[0].point,rate))
     }
 
@@ -393,7 +393,7 @@ impl Chassis {
         let next=integrate_rotation(turn,self.angular,dt);
         // [game] a world with physics (a level) runs the rest of the world step on the chassis: the pass, its
         // kept contacts' refresh, the solver with the cube's arms and the pose pass (`World::step_chassis`,
-        // `notes\physics.md` 1.11).
+        // `docs/physics.md` 1.11).
         let world_inverse=[Vec3::X,Vec3::Y,Vec3::Z].map(|e|angular_acceleration(turn,e,inv_inertia));
         let rows=[Vec3::new(world_inverse[0].x,world_inverse[1].x,world_inverse[2].x),
             Vec3::new(world_inverse[0].y,world_inverse[1].y,world_inverse[2].y),
@@ -413,7 +413,7 @@ impl Chassis {
             return contacts;
         }
         // [game] a world with only the contact pass moves the chassis through it (`World::move_chassis`,
-        // `notes\physics.md` 1.5); the arena keeps its sweep-and-slide below.
+        // `docs/physics.md` 1.5); the arena keeps its sweep-and-slide below.
         if let Some((end,found))=world.move_chassis(centre,turn,next,t.body_half,velocity,self.angular,dt) {
             // [game 006e2c10 line 242; lines 139-152, 203, 211; disasm 006e3172-006e34f9] each contact's velocity is the
             // chassis point's velocity at THAT hit, v + w x r, with r the record's point (rec+0xc0) minus A's world

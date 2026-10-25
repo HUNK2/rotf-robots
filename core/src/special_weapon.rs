@@ -9,7 +9,7 @@
 //!   - the clip's `WeaponFireSpecialEvent` (handler `007ba870`, which calls `FUN_007b3d80(mgr, 1)`
 //!     and so skips the from-animation gate), or
 //!   - the special's start (`FUN_007b3d80(mgr, 0)`), only when the form's weapon is NOT from the
-//!     animation (`notes\special-weapons.md` S2, `notes\special-jetfire-mines.md` 0).
+//!     animation (`docs/special-weapons.md` S2, `docs/special-jetfire-mines.md` 0).
 //!
 //! The weapon itself is the existing one: its def and numbers come from `weapons::read_defs`
 //! and `weapons::load`, and this file only adds the few fields those readers do not keep
@@ -18,13 +18,13 @@
 //!
 //! Tags as in `weapons.rs`: [game <address>] read in code, [data] read from the character's or
 //! the global data (`export\data\global_states.txt`), [assumed] our reading (why and what would
-//! settle it are in `notes\status.md`, "Phase 2, wave 3"), [stand-in] invented.
+//! settle it are in the unpublished notes, "Phase 2, wave 3"), [stand-in] invented.
 
 use crate::formats::lxb::Node;
 use crate::weapons::{Kind, WeaponDef, WeaponTuning};
 
 /// One form's special weapon, by the character's data. [data] (`characterAttributes<Name>`,
-/// `notes\character-specials.md`).
+/// `docs/character-specials.md`).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct SpecialForm {
     /// `specialAbilityWeaponFireName` (on foot) or `specialAbilityVehicleWeaponFireName` (car):
@@ -52,7 +52,7 @@ pub fn read_forms(attributes: Node) -> [SpecialForm; 2] {
 pub struct Shot {
     pub kind: Kind,
     /// `rateOfFire`: seconds from one press to the next one that is allowed. [data] (the
-    /// ready interval, `FUN_007ad080`; `notes\special-jetfire-mines.md` A1).
+    /// ready interval, `FUN_007ad080`; `docs/special-jetfire-mines.md` A1).
     pub rate_of_fire: f32,
     /// `automaticFiring`. [data]
     pub automatic: bool,
@@ -310,7 +310,7 @@ impl SpecialFire {
     /// some other walk, and its place against 0071dc20 is unknown. The port's order (bursts, then
     /// the press) is therefore [assumed] for the tick.
     /// [game 007ae010, 007a7a40] Round `i` of a burst takes `fireDummyXYAngle[i]` and
-    /// `fireDummyZAngle[i]`, as given, not interpolated nor repeated (notes\special-jetfire-mines.md
+    /// `fireDummyZAngle[i]`, as given, not interpolated nor repeated (docs/special-jetfire-mines.md
     /// "fireDummy angles (read)" step 6: the per-barrel index is read; the launch direction is
     /// PARTLY settled there (its steps 5 and 7: the holder read and the Rodrigues sign are open),
     /// so the direction is not claimed here.
@@ -346,7 +346,7 @@ impl SpecialFire {
 mod tests {
     use super::*;
 
-    /// Jetfire's missile dump, from `notes\special-jetfire-mines.md` A (values as the note
+    /// Jetfire's missile dump, from `docs/special-jetfire-mines.md` A (values as the note
     /// records them; not read from the data here).
     fn jetfire_missile_dump() -> Shot {
         Shot {
@@ -379,7 +379,7 @@ mod tests {
         }
     }
 
-    /// Carpet bomb, `notes\special-jetfire-mines.md` B: 8 bursts of one round, 0.5 s apart.
+    /// Carpet bomb, `docs/special-jetfire-mines.md` B: 8 bursts of one round, 0.5 s apart.
     fn carpet_bomb() -> Shot {
         Shot {
             rate_of_fire: 4.0,
@@ -402,7 +402,7 @@ mod tests {
         }
     }
 
-    /// Audi's ground mine, `notes\special-jetfire-mines.md` C: one round, a proximity sticky.
+    /// Audi's ground mine, `docs/special-jetfire-mines.md` C: one round, a proximity sticky.
     fn audi_mine() -> Shot {
         Shot {
             rate_of_fire: 0.01,
@@ -425,7 +425,7 @@ mod tests {
         }
     }
 
-    /// Megatron's special gun, `notes\special-weapons.md` Megatron: rate 1, automatic, one round
+    /// Megatron's special gun, `docs/special-weapons.md` Megatron: rate 1, automatic, one round
     /// a burst. [data] The gun's damage is not read by the note: 0 here.
     fn megatron_gun() -> Shot {
         Shot {

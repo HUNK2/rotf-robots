@@ -86,7 +86,7 @@ impl Score {
 fn main() {
     let path = std::env::args()
         .nth(1)
-        .unwrap_or_else(|| "C:/Bumblebee/work/traces/run1_camera_full.csv".into());
+        .expect("usage: camera_run <camera recording .csv> (made by the recorder, which this repository does not include)");
     let dir = tf2_core::install::dir_string();
     let number = |name: &str| std::env::var(name).ok().and_then(|v| v.parse::<f32>().ok());
     let resync = number("RESYNC").unwrap_or(2.0);

@@ -1,7 +1,7 @@
 //! The missile launcher's lock-on: which targets are in the box in the middle of the
 //! picture, and how holding the trigger turns one into the lock.
 //!
-//! Two pieces of the original, both read from disassembly (`notes\weapon-mode.md` "The
+//! Two pieces of the original, both read from disassembly (`docs/weapon-mode.md` "The
 //! lock-on and the missile"):
 //!
 //! - The character's aim-assist object (owner `+0x23c`; update `FUN_0070a0d0` ->
@@ -202,9 +202,9 @@ impl LockOn {
     /// `targets` are the living ones. The field of view is `scene_camera_fov` 00557aa0: the
     /// active camera's float +0x94 (camera at global +0x454, when +0x464 bit 0 is set and +0x468
     /// > 0), else 60 degrees (00b34630) [game, wave 28 P2; `FUN_0070a220` is the assist box, not
-    /// this]. [assumed: +0x94 is the camera's top-to-bottom field, as for the scatter] settles:
-    /// the meaning of the camera's +0x94 (notes\camera.md). Not in: `breakLockOnAfterFire` (his is false; where it
-    /// is used is not read). Whether it is armed in the car is `armed_in`.
+    /// > this]. [assumed: +0x94 is the camera's top-to-bottom field, as for the scatter] settles:
+    /// > the meaning of the camera's +0x94 (docs/camera.md). Not in: `breakLockOnAfterFire` (his is false; where it
+    /// > is used is not read). Whether it is armed in the car is `armed_in`.
     #[allow(clippy::too_many_arguments)]
     pub fn update(&mut self, t: &WeaponTuning, armed: bool, pulling: bool, seen: &[Option<u32>; 3], targets: &[Target], view: &View, dt: f32) {
         let alive = |id: u32| targets.iter().find(|target| target.id == id);
@@ -264,7 +264,7 @@ pub fn armed_in(weapon_mode: bool, car_weapon_may_fire: bool, launcher: bool, gu
 
 /// The team hashes a character's `+0x244` holds (not in `names.tsv`): the Autobot side (the
 /// protoforms, Bumblebee), the Decepticon side (the DCom group), and the NPC team KillBox counts
-/// apart (`notes\ai-spawn-characters.md`, `damage_objects.rs`). [data]
+/// apart (`damage_objects.rs`). [data]
 pub const TEAM_AUTOBOT: u32 = 0x951a_f706;
 pub const TEAM_DECEPTICON: u32 = 0xa54d_c247;
 pub const TEAM_NPC: u32 = 0xea29_1c1d;
@@ -297,7 +297,7 @@ pub struct Lockable {
 /// Reads a `TargetLockable` node. [game 007badf0]
 pub fn read_lockable(node: crate::formats::lxb::Node) -> Lockable {
     let num = |name| node.get(name).and_then(crate::formats::lxb::Node::float).unwrap_or(0.0);
-    let flag = |name| node.get(name).map_or(true, crate::formats::lxb::Node::is_true);
+    let flag = |name| node.get(name).is_none_or(crate::formats::lxb::Node::is_true);
     Lockable {
         radius: num("radius"),
         height: num("height"),

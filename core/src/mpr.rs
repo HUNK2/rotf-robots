@@ -1,4 +1,4 @@
-//! The discrete pair test of the physics step (`notes\physics.md` 1.13): the CollisionBatch kernel
+//! The discrete pair test of the physics step (`docs/physics.md` 1.13): the CollisionBatch kernel
 //! 005b4aa0 over 005b3c50, a Minkowski portal refinement (XenoCollide) on the difference B - A, with the
 //! shapes' world supports of table 00b8dd94.
 //!

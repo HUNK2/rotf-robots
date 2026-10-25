@@ -1,6 +1,6 @@
 //! Sniping: the Audi's PlasmaLongRifle and Breakaway's LongBeamRifle (`snipeCameraEnabled`),
 //! with the character's `sniperCamera` (`audir8SniperCamera`, `firestormSniperCamera`).
-//! `notes\weapon-mode.md` "Sniping" has the reading.
+//! `docs/weapon-mode.md` "Sniping" has the reading.
 //!
 //! - In and out (`character_update` 0071dc20, `FUN_00721ce0`): a human player in weapon mode
 //!   (control mode 2) whose weapon in hand has `snipeCameraEnabled`, with a sniper camera,

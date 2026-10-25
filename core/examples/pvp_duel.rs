@@ -165,7 +165,7 @@ impl<'a> Fighter<'a> {
         s.difficulty = Difficulty::default();
         let mut f = Fighter {
             r, s, weapon: Weapon::default(), camera: Camera::default(), view: None, nodes: Vec::new(), parts: Vec::new(),
-            missiles: Vec::new(), grenades: Vec::new(), blasts: Vec::new(), rand: Rand(0x9e37_79b9 ^ id * 0x85eb_ca6b),
+            missiles: Vec::new(), grenades: Vec::new(), blasts: Vec::new(), rand: Rand(0x9e37_79b9 ^ (id * 0x85eb_ca6b)),
             sniping: false, tally: Tally::default(),
         };
         f.pose();
@@ -441,14 +441,14 @@ fn duel(a: &Robot, b: &Robot, kind: Duel, o: Options) -> Report {
             let arena = Arena { targets: vec![f[j].target()], ..Default::default() };
             let input = match kind {
                 Duel::Gun => {
-                    let side = if (time / STRAFE_TURN) as u32 % 2 == 0 { 1.0 } else { -1.0 };
+                    let side = if ((time / STRAFE_TURN) as u32).is_multiple_of(2) { 1.0 } else { -1.0 };
                     // A sniper holds fire until the steady is full. [assumed] bot
                     let steady = !f[i].sniping || f[i].r.gun.as_ref().is_some_and(|g| f[i].weapon.snipe_steady(&g.w) >= 1.0);
                     // A weapon that is not automatic fires once a pull, a `holdToLockOn` one (Long Haul's
                     // grenades) on the let-go and a charged one on a tap's let-go: the bot taps, down
                     // one update and up the next. An automatic one is held. [assumed] bot
                     let taps = f[i].r.gun.as_ref().is_some_and(|g| !g.w.automatic_firing || g.w.hold_to_lock_on || g.w.charge.has);
-                    let fire = step >= SETTLE && steady && (!taps || step % 2 == 0);
+                    let fire = step >= SETTLE && steady && (!taps || step.is_multiple_of(2));
                     Input {
                         aim: Some(dir),
                         stick: if o.strafe { Vec2::new(dir.y, -dir.x) * side } else { Vec2::ZERO },
@@ -459,7 +459,7 @@ fn duel(a: &Robot, b: &Robot, kind: Duel, o: Options) -> Report {
                 Duel::Melee => {
                     let reach = f[i].r.t.robot_radius + f[j].r.t.robot_radius + 1.0;
                     // Tap the fast attack every 8 updates (0.26 s) once in reach. [assumed] bot
-                    let tap = distance <= reach && (step + i as u32 * 4) % 8 == 0;
+                    let tap = distance <= reach && (step + i as u32 * 4).is_multiple_of(8);
                     let bit = 1u64 << button::ATTACK_FAST;
                     Input {
                         stick: if distance > reach { dir } else { Vec2::ZERO },
@@ -470,7 +470,7 @@ fn duel(a: &Robot, b: &Robot, kind: Duel, o: Options) -> Report {
                 }
             };
             sim::step(&mut f[i].s, &input, &f[i].r.t, &arena, DT);
-            if std::env::var("PVP_DBG").is_ok_and(|v| v == "2") && step % 8 == 0 {
+            if std::env::var("PVP_DBG").is_ok_and(|v| v == "2") && step.is_multiple_of(8) {
                 eprintln!("{:5.2} {} state {:?} firing {} hp {:.0}", time, f[i].r.name, f[i].s.control_state(&f[i].r.t), f[i].s.firing, f[i].s.health);
             }
             f[i].pose();

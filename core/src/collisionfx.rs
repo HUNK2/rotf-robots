@@ -100,7 +100,7 @@ fn impact_of(c:&Contact)->f32 {(-c.normal.dot(c.velocity)).max(0.0)}
 /// approach <= .2 (00b34768), 2 (scrape) when not. The game takes it from every refresh, so a
 /// repeated contact can be 3 again (a hard approach) and a first contact can be 1, 2 or 5.
 /// [assumed] the port's `normal` points out of the surface, toward the car (as `impact_of` takes
-/// it): the game's slot normal runs B toward A (notes/physics.md 1.6), and with the wrong sign every
+/// it): the game's slot normal runs B toward A (docs/physics.md 1.6), and with the wrong sign every
 /// approach would read negative. settles: the contact code's normal sign in vehicle.rs against a
 /// head-on recording (the sparks' side), or a recording of the CollisionTrigger state for a hard hit.
 pub fn physics_type(normal:Vec3,velocity:Vec3)->u32 {

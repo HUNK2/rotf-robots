@@ -1,4 +1,4 @@
-//! The pad's rumble, as read from the original (`notes\melee.md`, "Rumble"). The pad has
+//! The pad's rumble, as read from the original (`docs/melee.md`, "Rumble"). The pad has
 //! one effect at a time: a strength, a hold and a fade for each of its two motors, set from
 //! a type, a duration and a strength (`FUN_005aada0`) and played in sixtieths of a second
 //! (`FUN_005aae80`). Who starts one: a `ControllerRumble` object (the ground punch's

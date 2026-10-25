@@ -1,4 +1,4 @@
-//! A physics body's pose step (`notes\physics.md` 1.8): the prediction the contact pass sweeps to
+//! A physics body's pose step (`docs/physics.md` 1.8): the prediction the contact pass sweeps to
 //! (006ddad0, through the holder's 006db1f0) and the advance of the pose pass (006ddf30).
 //!
 //! [game] The body keeps a row quaternion (+0x90 x, y, z, +0x9c w), its axis scales (+0x84..+0x8c),
@@ -149,9 +149,9 @@ pub struct BodyForces {
 /// [game] 006e96c0: force += gravity; v and w damped; a speed whose square is under 2.5e-5 (w: 1e-8)
 /// or over 100000 is zeroed.
 pub fn gravity_and_damping(b: &mut BodyState, f: &mut BodyForces) {
-    f.force[1] = f.gravity[1] + f.force[1];
-    f.force[2] = f.gravity[2] + f.force[2];
-    f.force[0] = f.force[0] + f.gravity[0];
+    f.force[1] += f.gravity[1];
+    f.force[2] += f.gravity[2];
+    f.force[0] += f.gravity[0];
     let d = f.damping[0];
     b.v = [b.v[0] * d, d * b.v[1], d * b.v[2]];
     let d = f.damping[1];

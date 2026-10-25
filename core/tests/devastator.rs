@@ -2,7 +2,6 @@
 //! walks, turns on the spot, pounds (whose shockwaves hurt what they pass) and starts the vortex,
 //! and each of those ends back where it started. Skipped when the install is not found (`tf2_core::install`).
 
-use std::path::Path;
 
 use glam::{Vec2, Vec3};
 use tf2_core::character::{self, CharacterData};
@@ -662,7 +661,7 @@ fn bug_bombs_erupt_and_rain_round_him() {
         let axis = Vec3::new(0.4, -0.5, 0.77).normalize();
         let mut lob = Lob::erupt(launcher, axis, root, &mut random);
         let reach = (lob.landing - root).truncate().length();
-        assert!(reach >= ERUPTION_RING[0] - 0.01 && reach <= ERUPTION_RING[1] + 0.01, "lands {reach} m out");
+        assert!((ERUPTION_RING[0] - 0.01..=ERUPTION_RING[1] + 0.01).contains(&reach), "lands {reach} m out");
         assert!(lob.velocity.normalize().dot(axis) > 0.999, "leaves along the launcher: {:?}", lob.velocity);
         let mut top = f32::MIN;
         let bearing = (lob.landing - root).truncate();

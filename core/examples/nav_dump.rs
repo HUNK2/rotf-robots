@@ -1,6 +1,6 @@
 //! The navigation mesh of a pack's NavSilhouette objects, built the way the game builds it at
 //! mission load (`core\src\navmesh.rs`). Prints the counts and the build time.
-//! `cargo run --manifest-path C:/Bumblebee/Cargo.toml -p tf2-core --release --example nav_dump -- [pack] [x,y,z x,y,z]`
+//! `cargo run -p tf2-core --release --example nav_dump -- [pack] [x,y,z x,y,z]`
 //! `pack` is a path, or relative to the install; default `levels/us_test/zone.str`.
 //! Two points `x,y,z` (arguments with a comma) plan a path on the one-placement-per-object mesh
 //! (agent radius 1.0, height 4.0) with `navpath::plan`, and print the records and the length.

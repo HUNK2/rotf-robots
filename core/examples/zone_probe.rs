@@ -1,6 +1,6 @@
 //! Everything a vertical line meets in a zone's collision, top to bottom: what is at a spot.
 //!
-//! cargo run --manifest-path C:/Bumblebee/Cargo.toml -p tf2-core --release --example zone_probe -- <zone under the install> <x> <y>
+//! cargo run -p tf2-core --release --example zone_probe -- <zone under the install> <x> <y>
 use glam::Vec3;
 use tf2_core::collision_world::WorldShape;
 use tf2_core::level_world::LevelWorld;

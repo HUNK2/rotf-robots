@@ -264,7 +264,7 @@ fn main() {
     for (i, input) in strafe.iter().enumerate() {
         sim::step(&mut s, input, &t, &arena, DT);
         let v = Vec2::new(s.vel.x, s.vel.y);
-        let way = if v.length() > 0.05 { (v.angle_to(aim_at(0.0)) * -1.0).to_degrees() } else { 0.0 };
+        let way = if v.length() > 0.05 { (-v.angle_to(aim_at(0.0))).to_degrees() } else { 0.0 };
         println!(
             "  {:5.2}s {:5.2} {:7.1}  {:<22} facing {:6.1}, twist {:5.1}, F_STRAFE_ANG {:6.1}",
             i as f32 * DT,

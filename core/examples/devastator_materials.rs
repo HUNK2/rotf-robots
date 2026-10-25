@@ -4,12 +4,11 @@
 //!   cargo run -p tf2-core --example devastator_materials
 
 use std::collections::BTreeMap;
-use std::path::Path;
 
 fn main() {
     let dir = tf2_core::install::dir();
     let data = tf2_core::character::load(dir, "devastator").expect("Devastator's pack");
-    let names: std::collections::HashMap<u32, String> = std::fs::read_to_string("C:/Bumblebee/export/data/names.tsv")
+    let names: std::collections::HashMap<u32, String> = std::fs::read_to_string(std::env::var("TF2_NAMES").unwrap_or_else(|_| "export/data/names.tsv".into()))
         .unwrap_or_default()
         .lines()
         .filter_map(|l| {

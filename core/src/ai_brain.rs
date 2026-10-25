@@ -1,13 +1,13 @@
 //! The enemy AI brain spine (phase 3): the brain tick, think, select, the goal and behaviour
 //! switches and the persistent behaviour pass, as engine-free Rust. Read from the game's code;
-//! where the notes disagree, notes/ai-brain.md wins: "The tick, settled" and "Manager rulings:
+//! where the notes disagree, the unpublished notes wins: "The tick, settled" and "Manager rulings:
 //! goals, behaviour entries, invert, one-shot" (R1 to R3) win over the earlier sections. Not wired
 //! into sim.rs or the game yet. The concrete perceptions and behaviours are written by other
 //! tickets; this file holds only the traits they implement, the data they fill, and the logic.
 //!
 //!   [game addr]  read in the game's code at that address
 //!   [data]       a value from the game's data
-//!   [assumed]    our reading; logged in notes/status.md under Phase 3
+//!   [assumed]    our reading; logged in the unpublished notes under Phase 3
 //!   [stand-in]   a placeholder, to be replaced
 //!   [unread]     a call the game makes that is not read yet: a tagged no-op here
 //!   [unknown]    not found
@@ -28,7 +28,7 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use crate::ai_move::{TARGET_FOE, TARGET_FRIEND, TARGET_TURRET};
 
 /// TARGET_GROUP, the target type of a group lookup (the targetGroupID names the group) [data: the
-/// hash #fdae89ce, notes/ai-perceptions.md; the type's name is [assumed] from the hash alone].
+/// hash #fdae89ce, the unpublished notes; the type's name is [assumed] from the hash alone].
 /// Its distance is `Senses::group_target_distance`.
 pub const TARGET_GROUP: u32 = 0xfdae_89ce;
 
@@ -152,8 +152,8 @@ impl Latches {
 }
 
 /// A button or weapon request a behaviour makes for the character. The caller reads them after
-/// the step. The button ids are the state-machine enum [game] (notes/state-machine.md line 35;
-/// notes/ai-behaviours-attack.md section 0).
+/// the step. The button ids are the state-machine enum [game] (docs/state-machine.md line 35;
+/// the unpublished notes section 0).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Request {
     /// Press a button (`ai_button_request` 00822360): the button id.
@@ -412,7 +412,7 @@ impl Senses {
 
 /// The AI attribute block (`character+0x140`), read from the plain `characterAttributes<X>` block
 /// (`ai_bind::attributes`). The offsets are the notes'; names from the loader 008289d0 (third
-/// read, A and D of notes/ai-perceptions.md).
+/// read, A and D of the unpublished notes).
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct AiAttr {
     /// +0x3d: Idle aims at the target [game 0081e570]. [stand-in] not filled: name unknown.
@@ -627,7 +627,7 @@ pub trait Behaviour: Send + Sync {
 }
 
 /// The perception aggregate of an entry or a root (vtable +0x10 = `0082e7e0`). 1 with no
-/// perceptions, 0 when rejected [game 0082e7e0, as noted in notes/ai-brain.md].
+/// perceptions, 0 when rejected [game 0082e7e0, as noted in the unpublished notes].
 pub type Scorer = Box<dyn Fn(&Ctx) -> f32 + Send + Sync>;
 
 /// The scorer for an entry with no perceptions: always 1 [game 0082e7e0].
@@ -763,7 +763,7 @@ impl Goal {
     /// 4. Otherwise the score is A, and the selected entry is returned.
     pub fn evaluate(&self, ctx: &Ctx, goal_index: usize, done: &Done) -> (f32, Option<usize>) {
         let usable = |bi: usize| self.behaviours[bi].usable(ctx, done.contains(&(goal_index, bi)));
-        if !(0..self.behaviours.len()).any(|bi| usable(bi)) {
+        if !(0..self.behaviours.len()).any(&usable) {
             return (0.0, None);
         }
         let a = (self.scorer)(ctx);
@@ -830,12 +830,10 @@ impl Brain {
     ///    above 0; on a tie the earlier goal keeps the win. [assumed] the best score starts at 0,
     ///    and a static priority is an upper bound of the score (the early stop relies on it).
     pub fn select(&self, current: Option<(usize, usize)>, ctx: &Ctx, done: &Done) -> Pick {
-        if let Some((g, b)) = current {
-            if let Some(entry) = self.goals.get(g).and_then(|goal| goal.behaviours.get(b)) {
-                if !entry.behaviour.interruptible(ctx) {
-                    return Pick::Keep;
-                }
-            }
+        if let Some((g, b)) = current
+            && let Some(entry) = self.goals.get(g).and_then(|goal| goal.behaviours.get(b))
+                && !entry.behaviour.interruptible(ctx) {
+            return Pick::Keep;
         }
         let mut best: Option<(usize, usize)> = None;
         let mut best_score = 0.0_f32;
@@ -844,11 +842,10 @@ impl Brain {
                 break;
             }
             let (score, bi) = goal.evaluate(ctx, gi, done);
-            if score > best_score {
-                if let Some(bi) = bi {
-                    best_score = score;
-                    best = Some((gi, bi));
-                }
+            if score > best_score
+                && let Some(bi) = bi {
+                best_score = score;
+                best = Some((gi, bi));
             }
         }
         Pick::Best(best)
@@ -969,19 +966,15 @@ impl Current {
             return;
         }
         self.set_behaviour(root, ctx, None);
-        if let Some(old) = self.goal {
-            if let Some(g) = goal_ref(root, old) {
-                if let Some(m) = g.leave_msg {
-                    ctx.send(m, g.arg);
-                }
-            }
+        if let Some(old) = self.goal
+            && let Some(g) = goal_ref(root, old)
+                && let Some(m) = g.leave_msg {
+            ctx.send(m, g.arg);
         }
-        if let Some(n) = new {
-            if let Some(g) = goal_ref(root, n) {
-                if let Some(m) = g.enter_msg {
-                    ctx.send(m, g.arg);
-                }
-            }
+        if let Some(n) = new
+            && let Some(g) = goal_ref(root, n)
+                && let Some(m) = g.enter_msg {
+            ctx.send(m, g.arg);
         }
         self.goal = new;
     }
@@ -993,18 +986,15 @@ impl Current {
         if new == self.behaviour {
             return;
         }
-        if let Some(old) = self.behaviour.take() {
-            if let Some(g) = self.goal {
-                if let Some(entry) = entry_mut(root, g, old) {
-                    entry.stop(ctx);
-                }
-            }
+        if let Some(old) = self.behaviour.take()
+            && let Some(g) = self.goal
+                && let Some(entry) = entry_mut(root, g, old) {
+            entry.stop(ctx);
         }
-        if let (Some(g), Some(n)) = (self.goal, new) {
-            if let Some(entry) = entry_mut(root, g, n) {
-                entry.start(ctx);
-                self.behaviour = Some(n);
-            }
+        if let (Some(g), Some(n)) = (self.goal, new)
+            && let Some(entry) = entry_mut(root, g, n) {
+            entry.start(ctx);
+            self.behaviour = Some(n);
         }
         self.clock = 0.0;
     }
@@ -1051,19 +1041,19 @@ impl Current {
     ///    run it if its behaviour scores above 0 (return true), else return false and nothing runs
     ///    this step;
     /// 4. otherwise THINK.
+    ///
     /// The clock is not advanced here; `Controller::tick` advances it.
     fn tick_root(&mut self, root: &mut Root, ctx: &mut Ctx, dt: f32, done: &mut Done) -> bool {
         persistent_pass(&mut root.persistent, ctx, dt);
         if root.brain.is_none() {
             return false;
         }
-        if let (Some(g), Some(b)) = (self.goal, self.behaviour) {
-            if let Some(entry) = entry_ref(root, g, b) {
-                let held = self.clock <= hold_time(entry.hold_hash) && entry.usable(ctx, done.contains(&(g, b)));
-                if held {
-                    let scores = entry.behaviour.score(ctx) != 0.0;
-                    return scores && self.run_current(root, ctx, dt, done);
-                }
+        if let (Some(g), Some(b)) = (self.goal, self.behaviour)
+            && let Some(entry) = entry_ref(root, g, b) {
+            let held = self.clock <= hold_time(entry.hold_hash) && entry.usable(ctx, done.contains(&(g, b)));
+            if held {
+                let scores = entry.behaviour.score(ctx) != 0.0;
+                return scores && self.run_current(root, ctx, dt, done);
             }
         }
         self.think(root, ctx, dt, done)
@@ -1149,10 +1139,9 @@ impl Controller {
         if new == self.brain {
             return;
         }
-        if let Some(old) = self.brain {
-            if let Some(root) = self.brains.get_mut(old) {
-                self.cur.set_goal(root, ctx, None);
-            }
+        if let Some(old) = self.brain
+            && let Some(root) = self.brains.get_mut(old) {
+            self.cur.set_goal(root, ctx, None);
         }
         self.brain = new;
         self.done.clear();
@@ -1180,7 +1169,7 @@ impl Controller {
         lock_latches(&self.latches).tick(dt);
         self.new_frame();
         // [assumed] the re-pick runs every step with its gate open: the gate 008225f0 is unread
-        // (notes/ai-brain.md "Brain choice"), and the notes give no rate for the re-pick.
+        // (the unpublished notes "Brain choice"), and the notes give no rate for the re-pick.
         self.repick(ctx, true);
         let ran = match self.brain {
             Some(bi) if bi < self.brains.len() => {

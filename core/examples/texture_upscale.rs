@@ -8,7 +8,7 @@ use tf2_core::texture_upscale::{map_kind, save_png, upscale};
 fn main() -> Result<(), String> {
     let args: Vec<_> = std::env::args().skip(1).collect();
     let output = args.first().map_or_else(
-        || PathBuf::from("C:/Bumblebee/work/textures/bumblebee-4x"),
+        || PathBuf::from("work/textures/bumblebee-4x"),
         PathBuf::from,
     );
     let factor = args

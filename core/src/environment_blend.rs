@@ -1,6 +1,6 @@
 //! The game's list of ACTIVE environments and how each one's weight moves, ported for the
 //! EnvironmentTrigger (and the state environments: FlashBang, SpeedBlur, Overdrive, LowHeath).
-//! `notes\render-144.md` section 2.
+//! the unpublished notes section 2.
 //!
 //! [game 00565c00] `environment_blend_in`: if the environment is already in the list (matched by its
 //! name hash, the Environment's first dword), only its rate is reset to `1 / max(blendDuration, 1e-5)`
@@ -13,7 +13,7 @@
 //! leaves the list. The blend factor of a node is `scale * weight` (scale is 1 from 00565c00).
 //!
 //!
-//! What the blend does to the values, for bloom and the colour filter ([`blend_look`]; `notes\render-144.md`
+//! What the blend does to the values, for bloom and the colour filter ([`blend_look`]; the unpublished notes
 //! section 3):
 //! [game 00565da0] the working block starts as the base environment (00d16fc0, the level's DEFAULT one);
 //! then, list by list (00d16fc4 then 00d16fd0) and node by node, `light_group_copy` 005645d0 folds the node's

@@ -1,4 +1,4 @@
-//! The PC port's own data archive, `Beenox\bxdata.dat`, and the BXML trees in it (`notes\input.md`).
+//! The PC port's own data archive, `Beenox\bxdata.dat`, and the BXML trees in it (`docs/input.md`).
 //!
 //! [game] archive directory (004f2de0): a u32 entry count, then per entry a u32 UTF-16 character count, the
 //! UTF-16LE path, u32 size and u32 absolute offset. BXML (004f5010 / 004f4f70): the string `BXML`, then tokens:
@@ -124,7 +124,7 @@ impl Archive {
         let mut entries = HashMap::new();
         for _ in 0..r.u32()? {
             let n = r.u32()? as usize;
-            let units: Vec<u16> = r.take(n * 2)?.chunks_exact(2).map(|c| u16::from_le_bytes([c[0], c[1]])).collect();
+            let units: Vec<u16> = r.take(n * 2)?.as_chunks::<2>().0.iter().map(|c| u16::from_le_bytes([c[0], c[1]])).collect();
             let name = String::from_utf16_lossy(&units).to_lowercase();
             let (size, offset) = (r.u32()? as usize, r.u32()? as usize);
             if offset + size > data.len() {

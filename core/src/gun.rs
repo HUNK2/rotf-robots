@@ -1,4 +1,4 @@
-//! The gun in his hand (`notes\weapon-mode.md`, "The weapon layer and the gun's clips"):
+//! The gun in his hand (`docs/weapon-mode.md`, "The weapon layer and the gun's clips"):
 //! the clips of his weapon layer (`WeaponPartialSet`: the arm pulling the gun out, the
 //! recoil, the change of weapon, the overheat, putting it away) and the clips the weapon's
 //! own object plays, which the arm clips' events and the weapon's code start.
@@ -614,8 +614,8 @@ impl Gun {
                     // fades out over it, anything else is off at once. [game]
                     let leaves = arm.out.is_none()
                         && r.exits.iter().any(|exit| {
-                            (finished || !exit.finish) && exit.rules.iter().all(|rule| animrules::holds(rule, self.value(rule.variable)))
-                        });
+                        (finished || !exit.finish) && exit.rules.iter().all(|rule| animrules::holds(rule, self.value(rule.variable)))
+                    });
                     let fades = r.looping && r.exit_crossfade > 0.0;
                     if leaves && fades {
                         (arm.out, arm.elapsed) = (Some(r.exit_crossfade), 0.0);
@@ -628,10 +628,9 @@ impl Gun {
                 self.sound_commands.push(SoundCommand::Changed { layer: 0 });
             }
         }
-        if let Some(object) = self.object {
-            if let Some(r) = clips.object.iter().find(|r| id_of(r) == object.id) {
-                self.object_sound.advance(1, r, object.tick, if object.finished { 0.0 } else { dt }, &mut self.sound_commands);
-            }
+        if let Some(object) = self.object
+            && let Some(r) = clips.object.iter().find(|r| id_of(r) == object.id) {
+            self.object_sound.advance(1, r, object.tick, if object.finished { 0.0 } else { dt }, &mut self.sound_commands);
         }
         let object_before = self.object;
         let before = self.object.map(|o| o.id);
@@ -878,10 +877,10 @@ mod tests {
         assert_eq!(pull_out(shell, vec![by_slot(1, "Trans_R2W_WeaponA")]), (true, Some(id("Trans_R2W_WeaponA"))));
         assert_eq!(pull_out(rifle, vec![by_slot(1, "Trans_R2W_WeaponA")]), (false, None));
         // The left hand's slot 2 is the rifle's child: its event counts with the rifle in hand.
-        assert_eq!(pull_out(rifle, vec![by_slot(2, "Trans_R2W_WeaponA")]).0, true);
-        assert_eq!(pull_out(shell, vec![by_slot(2, "Trans_R2W_WeaponA")]).0, false);
+        assert!(pull_out(rifle, vec![by_slot(2, "Trans_R2W_WeaponA")]).0);
+        assert!(!pull_out(shell, vec![by_slot(2, "Trans_R2W_WeaponA")]).0);
         // A weapon known only by name takes no event by slot.
-        assert_eq!(pull_out(Hand::from(CANNON), vec![by_slot(0, "Trans_R2W_WeaponA")]).0, false);
+        assert!(!pull_out(Hand::from(CANNON), vec![by_slot(0, "Trans_R2W_WeaponA")]).0);
     }
 
     #[test]

@@ -10,7 +10,7 @@ fn main() {
             for attachment in object.get("attachments").into_iter().flat_map(|n| n.items()) {
                 let Some(thing) = attachment.get("thing").filter(|n| n.type_name() == Some("RenderThing")) else { continue };
                 let names: Vec<_> = thing.get("names").into_iter().flat_map(|n| n.items())
-                    .map(|n| n.text().unwrap_or_else(|| n.int().map(|h| format!("{:08x}:{}",h as u32,file.name(h as u32).unwrap_or("?"))).unwrap_or_else(|| format!("{}",n.type_name().unwrap_or("untyped")))))
+                    .map(|n| n.text().unwrap_or_else(|| n.int().map(|h| format!("{:08x}:{}",h as u32,file.name(h as u32).unwrap_or("?"))).unwrap_or_else(|| n.type_name().unwrap_or("untyped").to_string())))
                     .collect();
                 let models: Vec<_> = thing.get("meshes").into_iter().flat_map(|n| n.items()).filter_map(|n| n.get("model").and_then(|n| n.text())).collect();
                 if models.iter().any(|m| m == "Optimus.Base_SFX") {

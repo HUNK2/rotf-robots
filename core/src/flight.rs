@@ -4,11 +4,11 @@
 //! The data: the `modeFly` and `modeHover` blocks of a character's
 //! `characterAttributes<X>` object, read by their own field names [data]. The game's loader
 //! for the first is 0085aea0 (the block sits at attributes +0x2e0), for the second 0085bf90
-//! (+0x560); the offset of every field is in `notes\flight-attributes.md`, so a formula read
+//! (+0x560); the offset of every field is in `docs/flight-attributes.md`, so a formula read
 //! off the FlyMode code (`tun+0x58`) can be tied to a name (`max_pitch`).
 //!
 //! The step: FlyMode's update 00864320, as far as it is ported (see `Fly`). What is read of
-//! it is in `notes\flight-update.md`, `flight-forces.md`, `flight-helpers.md`,
+//! it is in `docs/flight-update.md`, `flight-forces.md`, `flight-helpers.md`,
 //! `flight-steering.md`.
 
 use std::path::Path;
@@ -202,7 +202,7 @@ impl HoverTuning {
 
 /// What a character's attributes say of its forms. [data] `canFly` and `canDrive` are the
 /// attributes' own flags: a character with `canFly` has the FlyMode and no DriveMode
-/// (`notes\bumblebee-mechanics.md`, the mode table).
+/// (`docs/bumblebee-mechanics.md`, the mode table).
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Forms {
     pub can_fly: bool,
@@ -220,11 +220,10 @@ impl Forms {
         // e[-0x10] is the LAST row's width and e[-0xc] its length. Every flying character has
         // two rows, so that is the vehicle avatar (`avatarDescArray[1]`); a one-row character
         // takes row 0. [data] the rows are `avatarDescArray` in `export\data\global_states.txt`.
-        if let Some(avatars) = attributes.get("avatarDescArray") {
-            if let Some(last) = avatars.len().checked_sub(1).and_then(|i| avatars.at(i)) {
-                fly.extent_roll = num(last, "width");
-                fly.extent_pitch = num(last, "length");
-            }
+        if let Some(avatars) = attributes.get("avatarDescArray")
+            && let Some(last) = avatars.len().checked_sub(1).and_then(|i| avatars.at(i)) {
+            fly.extent_roll = num(last, "width");
+            fly.extent_pitch = num(last, "length");
         }
         Self {
             can_fly: flag(attributes, "canFly"),
@@ -266,7 +265,7 @@ pub struct FlyInput {
     pub invert_pitch: bool,
     /// Button 0x1f is down: the tight turn (008676c0 steers in 00866ef0's place). [data]
     /// the binding list calls it `FlyingStuntMode` and puts it on the weapon-mode trigger.
-    /// [data] the number 0x1f is the list's order (`notes\state-machine.md` "The data": the
+    /// [data] the number 0x1f is the list's order (`docs/state-machine.md` "The data": the
     /// enum is the binding list with the `Flying*` entries after WeaponSwitchUp). That order
     /// is checked on the numbers the state data uses (0x15, 0x17, 0x18, 0x21-0x24, global_states.txt).
     /// 0x1f itself appears in no state, so the number rests on the order alone.
@@ -286,7 +285,7 @@ pub struct FlyInput {
     /// playable flyers. Not settled: hash d73818a4 is not in names.tsv, and the CRC-32 of FlyingStunt (a6bf9b9d,
     /// names.tsv), FlyStunt, FlightStunt, StuntMove, StuntMoveButton, FlyingStuntButton, FlyingStuntAction and
     /// others do not give it (2026-10-20 re-check here, and batch C3's 40 data identifiers).
-    /// OPEN, settles: the control-state name for d73818a4 (008013e0's view element, `notes\flight-stunts.md` 1.2).
+    /// OPEN, settles: the control-state name for d73818a4 (008013e0's view element, `docs/flight-stunts.md` 1.2).
     /// 2026-10-20 tried: CRC-32 and the h*33+c hash of 175 stunt / fly identifiers from export\data and
     /// export\strings.tsv: no match. Not in names.tsv, and -684189532 / 3610777764 appear in no decoded data
     /// file. `tools\tf2_bxdata.py actions` lists only the pad's button names, not controlstates. Next: the
@@ -359,7 +358,7 @@ pub struct Surroundings {
 /// [game] 0086b230: the length of the rays along the nose.
 pub const WALL_RAY: f32 = 35.0;
 /// Where the second and third rays start, in the body's frame (x right, y nose, z up): the
-/// local points mode+0x52c..0x534 and +0x538..0x540 (`notes\flight-contact.md` 1, rays 2 and
+/// local points mode+0x52c..0x534 and +0x538..0x540 (`docs/flight-contact.md` 1, rays 2 and
 /// 3). [game] Their writer is FlyMode's constructor 00863970, read 2026-10-18:
 /// `param_2[0x14b..0x150]` = -5.0, 0, -1.5 and 5.0, 0, -1.5 (0xc0a00000, 0, 0xbfc00000,
 /// 0x40a00000, 0, 0xbfc00000): five metres to each side and a metre and a half below.
@@ -367,13 +366,13 @@ const SIDE_RAYS: [glam::Vec3; 2] = [glam::Vec3::new(-5.0, 0.0, -1.5), glam::Vec3
 
 /// The flying form in normal flight under the player: FlyMode's update 00864320 with its
 /// steering 00866ef0, the tight turn 008676c0 while its button is held, and its speed layer
-/// 00869df0, as read in `notes\flight-update.md`, `flight-steering.md`, `flight-forces.md`
+/// 00869df0, as read in `docs/flight-update.md`, `flight-steering.md`, `flight-forces.md`
 /// and `flight-common-step.md`.
 ///
 /// Also here (2026-10-12 to 16): the stunts' trigger (0086a590), the helicopter variant
 /// (00867f20), the AI's steering (008693f0, `steer_ai`), the boundary's bounce and the wall
 /// stop (00868b00, 00868fb0), the walls ahead (0086e020).
-/// NOT here (each is read in part and listed in `notes\status.md`): the impact states (the
+/// NOT here (each is read in part and listed in the unpublished notes): the impact states (the
 /// control vector mode+0xc..0x14, 00866a70), the probes as the game casts them (0086b230,
 /// 0086c970), the control surfaces' animation (0086cbf0), the brake.
 /// FlyMode's two timed abilities as the character keeps them: the turbo (mode+0x34) and the
@@ -425,8 +424,8 @@ pub struct Fly {
     /// them from 00570250 (+0x1c = asin of the forward column's z, +0x20 = atan2(-col0.z,
     /// col2.z), +0x24 = atan2(-col1.x, col1.y)) and 00866a70 rebuilds the body with 00570470,
     /// Rz(+0x24) Rx(+0x1c) Ry(+0x20) with positive (right-handed) factors (read in narrow
-    /// disassembly, `notes\surface-damage.md`). So pitch above zero is nose up, roll is about
-    /// the nose, and forward is (-sin h, cos h) as `sim`'s yaw (`notes\flight-boundary.md` 12.9).
+    /// disassembly, `docs/surface-damage.md`). So pitch above zero is nose up, roll is about
+    /// the nose, and forward is (-sin h, cos h) as `sim`'s yaw (`docs/flight-boundary.md` 12.9).
     pub pitch: f32,
     pub roll: f32,
     pub heading: f32,
@@ -448,7 +447,7 @@ pub struct Fly {
     pub turbo_ended: bool,
     /// [game] mode+0x4a8: the speed after a turbo is being brought down (`speed_latch`).
     /// [game 00864d60] the enter writes neither +0x4a8 nor +0x4ac (its writes are listed in
-    /// `notes\standin-pass\flight.md`), so like the timers they are kept on the character
+    /// the unpublished notes), so like the timers they are kept on the character
     /// (`FlyTimers`, set by `set_timers`). A turbo that ended in the last flight with its
     /// slowdown unfinished starts the next one at the turbo cap (00869df0 with the turbo's +0x24
     /// still set).
@@ -504,7 +503,7 @@ pub struct Fly {
     /// bounce's own fields. Only written by `step_in_bounded` with a boundary. [game] 0086ab90
     pub steer: Steerback,
     /// [game] EnvInsideFlightBoundary is `mode+0x55 == 0`: the release and punch connections
-    /// require it. True when no boundary is passed. [game] (see notes/flight-boundary.md 8)
+    /// require it. True when no boundary is passed. [game] (see docs/flight-boundary.md 8)
     pub inside_boundary: bool,
     /// The point the boundary test and its N use, when the caller sets it (`flycam::flyer_point`):
     /// the game's P is the character's camera target point (007e7830 l.7 writes it from 0071a2e0).
@@ -528,8 +527,8 @@ pub struct Fly {
     /// any other object gives 0, so the latch stays off there. [assumed] that the hit object is a level
     /// primitive and that its +0x9e is that receive mask (the same tag as `level_world.rs` move_pencil's note).
     /// OPEN, settles: what the probe's record names as its object (the producer of the physics record, 006e22f0
-    /// results and the discrete / swept tests of `notes\physics.md` 1.13, not read here), so whether the hit is a
-    /// level primitive or a body. The bit 0x80 is WATER in the mask list of `notes\melee.md`, so the bit's meaning
+    /// results and the discrete / swept tests of `docs/physics.md` 1.13, not read here), so whether the hit is a
+    /// level primitive or a body. The bit 0x80 is WATER in the mask list of `docs/melee.md`, so the bit's meaning
     /// on a level primitive is also unconfirmed. Reached by the playable flyers on a level.
     pub three_metre_latch: bool,
     /// [game] mode+0x354: the z of the drop probe's hit normal (probe block +0x44, written by
@@ -659,7 +658,7 @@ impl Fly {
     }
 
     /// A `ChangeTractionEvent` while in FlyMode (`motion_control_set` 00854960 -> 00866900, read
-    /// in disassembly, `notes\clip-events-traction-modes.md` 2.1). A vector that is not all zero
+    /// in disassembly, `docs/clip-events-traction-modes.md` 2.1). A vector that is not all zero
     /// is only stored. All zero ends the stunt, whatever its kind: the heading is taken again
     /// from where the nose points (00570610: atan2(-x, y) of the nose, kept when it points
     /// straight up or down); a loop (Down, Up) has its pitch and roll cleared, a roll keeps its
@@ -674,7 +673,7 @@ impl Fly {
     /// before the mode's own update (00852220); the turn vector is always zero, and the control is
     /// FlyMode's stored traction (`control`; the owner's impulse and override vectors that replace it have
     /// z 0). So a clip that drives z (a stunt's [1,1,1]) blocks the bounce and the ground push. [game
-    /// 00556b40, 006e8da0, 00852220; notes\bumblebee-mechanics.md "How a mode's request reaches the body"]
+    /// 00556b40, 006e8da0, 00852220; docs/bumblebee-mechanics.md "How a mode's request reaches the body"]
     /// (The PhysicsOverride loader 0077eb30 writes the same fields; no robot pack has one: a decode of the
     /// 13 packs' chunk 0, 2026-10-20.)
     pub fn body_takes_velocity(&self) -> bool {
@@ -821,7 +820,7 @@ impl Fly {
     }
 
     /// The boundary's part of an update, as the game runs it before FlyMode's update
-    /// (007e7830 then 0086ab90, notes/flight-boundary.md 12.3 A1-A5): the position is tested
+    /// (007e7830 then 0086ab90, docs/flight-boundary.md 12.3 A1-A5): the position is tested
     /// against the boundary and the contact state is set. Returns true when outside.
     /// P is `boundary_point` when the caller sets it (`flycam::flyer_point`, which is 0071a460:
     /// root x, y and min(root z, holder z - half * upZ)), else `pos`. The game's P is that point
@@ -847,7 +846,7 @@ impl Fly {
         // 0086ad78, third pass] its lateral dot is V . (body row 1 rotated by Rz(-pi/2)) = V . right,
         // which is what `push.dot(lateral)` gives. The earlier pairing guess is settled.
         let lateral = self.rotation() * glam::Vec3::X;
-        // [game 0086ab90 step 4, notes/flight-boundary.md 12.3 A4] X = *(mode+0x18)+0x30, which is
+        // [game 0086ab90 step 4, docs/flight-boundary.md 12.3 A4] X = *(mode+0x18)+0x30, which is
         // quickTurnSpeed (tun+0x30, flight-attributes.md), not turnSpeed (tun+0x28).
         self.steer.set_contact(push, normal, outside, tun.quick_turn_speed, push.dot(lateral));
         self.inside_boundary = !outside;
@@ -929,7 +928,7 @@ impl Fly {
                 self.heading = wrap(self.heading - self.yaw_rate * dt);
             } else {
                 // [game 00864320 l.157-162] a helicopter or a robot outside: the wall stop
-                // 00868fb0 (notes/flight-boundary.md 12.7), then the helicopter steering 00867f20
+                // 00868fb0 (docs/flight-boundary.md 12.7), then the helicopter steering 00867f20
                 // with its output as the pair. The body's first world row is R*X (006de7e0 out[0..2],
                 // the right axis: [game] 00868fb0 w = (-r1, r0, 0)). The holder's inverse is the
                 // stored copy 005e3820 returns (+0x138..+0x164); the port uses R^T of the same
@@ -942,7 +941,7 @@ impl Fly {
                 // 0x4000), which is not read; OPEN, settles: that bit's setter for a flying holder, and
                 // 006e2c10's write of +0x138 for the same holder.
                 // The boost is off outside: 00867f20 takes it as the turbo being active AND
-                // mode+0x55 == 0 (00867f77-00867fb0, `notes\flight-helicopter.md` B), so turbo =
+                // mode+0x55 == 0 (00867f77-00867fb0, `docs/flight-helicopter.md` B), so turbo =
                 // false in the steering; the cap in `finish` still uses this update's turbo
                 // (00869df0 is passed the plain `timed_ability_active`, 00864576). [game]
                 let rot = self.rotation();
@@ -1117,7 +1116,7 @@ impl Fly {
 
     /// [game] 00867f20, the steering of a form whose data says `helicopter` (the
     /// helicopter, and the two robots that fly as themselves), as numbered in
-    /// `notes\flight-helicopter.md`: one stick pushes it along and across its nose and
+    /// `docs/flight-helicopter.md`: one stick pushes it along and across its nose and
     /// leans it, the other turns it and lifts it; nothing pushes it when the sticks rest.
     /// `q0` and `q1` are the squared stick, across and along (the game's `Vc`, slots 0 and 1).
     /// `turn` and `lift` are the linear pair (the game's EAX stick, `L` and `P`), dead-zoned by
@@ -1178,7 +1177,7 @@ impl Fly {
             self.vel += along * push;
             // [game 00867f20, N4 at 0086869b-008686b8: `Vb2 += -lift * P * dt`] P positive pushes
             // the helicopter DOWN (vel.z falls); look.y = -1 (stick up) is P < 0 and climbs.
-            // The wall stop's inverted branch passes P = +1 so it descends (notes/flight-boundary.md 12.11).
+            // The wall stop's inverted branch passes P = +1 so it descends (docs/flight-boundary.md 12.11).
             self.vel.z -= tun.lift * lift * dt;
         }
         // R: the lean to the side.
@@ -1248,6 +1247,7 @@ impl Fly {
     ///   is not below it (0086a471 `jb`) it is the normal cap and the flag and latch end. The
     ///   speed is SET to the latch, not only cut;
     /// - otherwise (0086a4ff-0086a563): the speed is cut to maxSpeed x s (0086a840).
+    ///
     /// s is `FlyInput::cap_scale`. Not here: the AI's approach drags (mode+0x4c1 / 0x4c2,
     /// switched on only by 0086dc00 for an AI target).
     fn cap_speed(&mut self, tun: &FlyTuning, turbo: bool, dt: f32) {
@@ -1302,7 +1302,7 @@ impl Fly {
         // [stand-in] the world: here only the floor stops it; `sim.rs` step_fly then pushes the flyer's
         // cylinder out of what it is in (its own stand-in, the same as the one in `step_fly`). OPEN:
         // settles: the game's body contact with level geometry for a flyer (the physics solver,
-        // `notes\physics.md`, not ported here).
+        // `docs/physics.md`, not ported here).
         self.pos += self.vel * dt;
         if let Some(g) = ground.filter(|&g| self.pos.z < g) {
             self.pos.z = g;
@@ -1422,7 +1422,7 @@ mod step_tests {
         assert_eq!(f.rotor_lift, None);
     }
 
-    /// [game 00868fb0, notes/flight-boundary.md 12.7] A helicopter outside the box (not aligned
+    /// [game 00868fb0, docs/flight-boundary.md 12.7] A helicopter outside the box (not aligned
     /// with the centre) is not reflected: its velocity is multiplied by 0.95 by the wall stop and
     /// by 0.95 again by the helicopter's own damping of the sideways velocity (nothing pushes it),
     /// it turns its nose toward the centre by `a`, and once the nose is within 37 degrees of the
@@ -1477,7 +1477,7 @@ mod step_tests {
         assert!(bounded.inside_boundary);
     }
 
-    /// Evidence: notes/checks-2026-10-12-specials.md "Third check", item 5. US_Test_FreeRoam_A,
+    /// Evidence: the unpublished notes "Third check", item 5. US_Test_FreeRoam_A,
     /// Starscream as a jet, the us_test zone's boundary block `[500,0,0 | 0,500,0 | 0,0,70 | 0,0,0]`
     /// on an owner placed at (156.043, -143.19, 68.2943). Stick -1 (climb) for 4 s, then none.
     /// The game: "flight boundary: left" by 10 s, no re-entry to 45 s, height 998 m, pitch +37.
@@ -1500,7 +1500,7 @@ mod step_tests {
         let steps = (45.0 / DT) as usize;
         for i in 1..=steps {
             let t = i as f32 * DT;
-            let input = if t <= 4.0 { climb.clone() } else { FlyInput::default() };
+            let input = if t <= 4.0 { climb } else { FlyInput::default() };
             f.step_in_bounded(&input, &tun, &ground, Some(&b), DT);
             max_z = max_z.max(f.pos.z);
             if left_at.is_none() && !f.inside_boundary {
@@ -1535,7 +1535,7 @@ mod step_tests {
         Boundary::read(&block, invert_placement(&owner), false)
     }
 
-    /// [game 00868fb0 inverted branch, notes/flight-boundary.md 12.11] A helicopter climbs out
+    /// [game 00868fb0 inverted branch, docs/flight-boundary.md 12.11] A helicopter climbs out
     /// through the top with the stick up (look.y = -1, P < 0) for 7 s, then is released. Outside,
     /// the wall stop passes P = +1 (lift DOWN) and ignores the stick, so it is pushed down and comes
     /// back inside. The lift value 15 is the test value of `heli_tuning`, not the game's (not located).
@@ -1552,7 +1552,7 @@ mod step_tests {
         let mut max_z = f32::MIN;
         for i in 1..=(45.0 / DT) as usize {
             let t = i as f32 * DT;
-            let input = if t <= 7.0 { climb.clone() } else { FlyInput::default() };
+            let input = if t <= 7.0 { climb } else { FlyInput::default() };
             f.step_in_bounded(&input, &tun, &ground, Some(&b), DT);
             max_z = max_z.max(f.pos.z);
             if left_at.is_none() && !f.inside_boundary {

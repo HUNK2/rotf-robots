@@ -1,5 +1,5 @@
 //! The persistent contact object of a body pair and the avatar's control step over its contacts
-//! (`notes\physics.md` 1.6).
+//! (`docs/physics.md` 1.6).
 //!
 //! [game] A contact object (500 bytes, allocated by 006d7280, set up by 006d7130) belongs to one
 //! pair of holders and one feature (a soup triangle's index, or -1). It holds up to four SLOTS of
@@ -202,7 +202,7 @@ impl Contact {
                 let s = self.slots[i];
                 let avg = &mut self.slots[c];
                 for w in [WORLD_A, WORLD_A + 1, WORLD_A + 2, WORLD_B, WORLD_B + 1, WORLD_B + 2, NORMAL, NORMAL + 1, NORMAL + 2] {
-                    avg[w] = s[w] + avg[w];
+                    avg[w] += s[w];
                 }
             }
             let avg = &mut self.slots[c];
@@ -313,9 +313,9 @@ impl Contact {
                 Some((ka, kb, kn)) => {
                     let avg = &mut self.slots[self.count];
                     for (at, v) in [(WORLD_A, ka), (WORLD_B, kb), (NORMAL, kn)] {
-                        avg[at] = v.x + avg[at];
-                        avg[at + 1] = v.y + avg[at + 1];
-                        avg[at + 2] = v.z + avg[at + 2];
+                        avg[at] += v.x;
+                        avg[at + 1] += v.y;
+                        avg[at + 2] += v.z;
                     }
                 }
                 None => {

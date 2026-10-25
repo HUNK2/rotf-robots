@@ -2,7 +2,7 @@
 //! game's contact pass (`World::move_pencil`): where he ends, how high, and how fast he still went.
 //! A check that the pass neither lets him through walls nor holds him in the open.
 //!
-//! cargo run --manifest-path C:/Bumblebee/Cargo.toml -p tf2-core --release --example pencil_walk -- [x y] [zone]
+//! cargo run -p tf2-core --release --example pencil_walk -- [x y] [zone]
 use glam::{Vec2, Vec3};
 use tf2_core::level_world::{LevelWorld, NO_FLOOR};
 use tf2_core::sim::{self, Input, State, World};

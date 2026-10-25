@@ -1,5 +1,5 @@
 //! Surface damage volumes (`lux::SSD`), from the executable and SSDInfo data.
-//! See notes/surface-damage.md for the function addresses and qualifications.
+//! See docs/surface-damage.md for the function addresses and qualifications.
 use crate::formats::{lxb::Node, scene::Shape};
 use crate::melee::Body;
 use glam::{Affine3A, Mat3, Vec2, Vec3, Vec4};
@@ -230,7 +230,7 @@ pub struct Hit {
 
 /// [stand-in] Arena boxes/ground, using the existing primitive contact solver.
 /// Ground has id 0; boxes 1.. . No character contact is included here. The game's surface contacts
-/// come from the level's collision mesh (notes\surface-damage.md "Port scope"); the arena has none.
+/// come from the level's collision mesh (docs/surface-damage.md "Port scope"); the arena has none.
 /// settles: the level's collision mesh for the DETECT-capable surfaces of a stage (not read here).
 pub fn contacts(body: &Body, boxes: &[crate::sim::Box3]) -> Vec<Contact> {
     let mut out = Vec::new();
@@ -403,7 +403,7 @@ mod tests {
     fn bumblebees_presets_are_read_from_his_pack() {
         if crate::install::missing() { return; }
         let dir = crate::install::dir();
-        let data = crate::character::load(&dir, "bumblebee").unwrap();
+        let data = crate::character::load(dir, "bumblebee").unwrap();
         assert_eq!(data.melee_impact.ssd.len(), 1);
         assert_eq!(
             (

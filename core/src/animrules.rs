@@ -407,7 +407,7 @@ mod tests {
             name: set,
             set_name: "S".into(),
             clips: vec![
-                clip(walk, "Walk", 60.0, true, 0.25, vec![ExitRule { to_set: set, to_id: run, rules: vec![fast.clone()], ..Default::default() }]),
+                clip(walk, "Walk", 60.0, true, 0.25, vec![ExitRule { to_set: set, to_id: run, rules: vec![fast], ..Default::default() }]),
                 clip(run, "Run", 40.0, true, 0.25, vec![ExitRule { to_set: set, to_id: walk, rules: vec![slow], ..Default::default() }]),
                 clip(land, "Land", 30.0, false, 0.1, vec![ExitRule { to_set: set, to_id: 0, finish: true, ..Default::default() }]),
             ],

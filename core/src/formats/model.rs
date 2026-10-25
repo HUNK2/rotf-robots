@@ -263,7 +263,7 @@ fn read_part(blob: &Blob, at: usize) -> Result<Part, String> {
     let vertices = blob.bulk.get(vertices..vertices + vertex_count * stride).ok_or("vertex buffer runs past the end")?;
     let indices = blob.bulk_pointer(at + 0x4c)?;
     let indices = blob.bulk.get(indices..indices + index_count * 2).ok_or("index buffer runs past the end")?;
-    part.indices = indices.chunks_exact(2).map(|b| u16::from_le_bytes([b[0], b[1]])).collect();
+    part.indices = indices.as_chunks::<2>().0.iter().map(|b| u16::from_le_bytes([b[0], b[1]])).collect();
     if part.indices.iter().any(|&i| i as usize >= vertex_count) {
         return Err("an index points past the vertex buffer".into());
     }
@@ -292,7 +292,7 @@ fn read_part(blob: &Blob, at: usize) -> Result<Part, String> {
         // Texture coordinate sets 1 and 2 are read too (LS-24), but only when their element
         // is one this reader handles: a set it cannot read is skipped, not an error, so no
         // other mesh's load changes.
-        let extra_uv = usage == USAGE_TEXCOORD && matches!(usage_index, 1 | 2 | 3);
+        let extra_uv = usage == USAGE_TEXCOORD && matches!(usage_index, 1..=3);
         let wanted = (usage_index == 0 || extra_uv)
             && matches!(
                 usage,
@@ -327,26 +327,26 @@ fn read_part(blob: &Blob, at: usize) -> Result<Part, String> {
             }
             out
         };
-        let three = || vertices.chunks_exact(stride).map(|v| read(v)).map(|v| [v[0], v[1], v[2]]).collect();
-        let four = || vertices.chunks_exact(stride).map(|v| read(v)).collect();
+        let three = || vertices.chunks_exact(stride).map(&read).map(|v| [v[0], v[1], v[2]]).collect();
+        let four = || vertices.chunks_exact(stride).map(&read).collect();
         match (usage, usage_index) {
             (USAGE_POSITION, 0) => part.positions = three(),
             (USAGE_NORMAL, 0) => part.normals = three(),
             (USAGE_TANGENT, 0) => part.tangents = three(),
             (USAGE_BINORMAL, 0) => part.binormals = three(),
             (USAGE_TEXCOORD, 0) => {
-                part.uvs = vertices.chunks_exact(stride).map(|v| read(v)).map(|v| [v[0], v[1]]).collect();
+                part.uvs = vertices.chunks_exact(stride).map(&read).map(|v| [v[0], v[1]]).collect();
             }
             (USAGE_TEXCOORD, 1) => {
-                part.uvs1 = vertices.chunks_exact(stride).map(|v| read(v)).map(|v| [v[0], v[1]]).collect();
+                part.uvs1 = vertices.chunks_exact(stride).map(&read).map(|v| [v[0], v[1]]).collect();
                 if width >= 3 { part.uv1_xyz = three(); }
             }
             (USAGE_TEXCOORD, 2) => {
-                part.uvs2 = vertices.chunks_exact(stride).map(|v| read(v)).map(|v| [v[0], v[1]]).collect();
+                part.uvs2 = vertices.chunks_exact(stride).map(&read).map(|v| [v[0], v[1]]).collect();
                 if width >= 3 { part.uv2_xyz = three(); }
             }
             (USAGE_TEXCOORD, 3) => {
-                part.uvs3 = vertices.chunks_exact(stride).map(|v| read(v)).map(|v| [v[0], v[1]]).collect();
+                part.uvs3 = vertices.chunks_exact(stride).map(read).map(|v| [v[0], v[1]]).collect();
             }
             (USAGE_BLEND_INDICES, 0) => part.blend_indices = four(),
             (USAGE_BLEND_WEIGHT, 0) => part.blend_weights = four(),
@@ -500,7 +500,7 @@ mod tests {
     }
 
     /// Needs the game install ; skipped without it.
-    /// `roads.groundpatchd_01` in Shanghai's zone has blend2 parts (`notes\level-shaders-bgnd-blend2.md`):
+    /// `roads.groundpatchd_01` in Shanghai's zone has blend2 parts:
     /// each reads its texture coordinate sets 0, 1 and 2, all of the vertex count.
     #[test]
     fn blend2_parts_read_three_uv_sets_of_the_vertex_count() {

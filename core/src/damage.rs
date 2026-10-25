@@ -1,4 +1,4 @@
-//! The single-player receiving side of every hit. [game] See notes/damage.md.
+//! The single-player receiving side of every hit. [game] See docs/damage.md.
 use crate::formats::{hash::crc32, lxb::Node};
 use crate::melee;
 use glam::Vec3;
@@ -9,7 +9,7 @@ pub mod flags {
     pub const OVERHEAT_ALL: u32 = 1 << 5;
     pub const FLASH_BANG: u32 = 1 << 6;
     pub const PROJECTILE: u32 = 1 << 9;
-    /// Bit 24 (`notes\melee.md` flag list). [game]
+    /// Bit 24 (`docs/melee.md` flag list). [game]
     pub const HIT_THE_VEHICLE: u32 = 1 << 24;
     pub const DISABLE_VEHICLE: u32 = 1 << 12;
     pub const STUN: u32 = 1 << 13;
@@ -560,7 +560,7 @@ impl Runtime {
 
 /// The receiver's motion form as the reaction flags test it (the mode's class hash, vtable +0xc).
 /// [game] DriveMode e2b22eb4, FlyMode fb9f3262, HoverMode 70776cef, the fall form d7068c31
-/// (`notes/bumblebee-mechanics.md` 113, `notes/character-ground-test.md` 37).
+/// (`docs/bumblebee-mechanics.md` 113, `docs/character-ground-test.md` 37).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Form {
     Drive,
