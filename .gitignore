@@ -9,3 +9,6 @@
 *.exe
 *.dll
 *.pdb
+/exported/
+*.glb
+*.gltf

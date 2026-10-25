@@ -502,6 +502,16 @@ impl<T: Blend> Track<T> {
         !self.times.is_empty()
     }
 
+    /// The keys' times in ticks, rising (for writing the clip out).
+    pub fn times(&self) -> &[f32] {
+        &self.times
+    }
+
+    /// The keys' values, one per time.
+    pub fn values(&self) -> &[T] {
+        &self.values
+    }
+
     fn push(&mut self, time: f32, value: T) {
         // Keys arrive in the order the stream needs them, which is by time within one track.
         let at = self.times.partition_point(|&t| t <= time);
