@@ -26,7 +26,7 @@ pub mod texture;
 
 use std::path::Path;
 
-use tf2_core::character::CharacterData;
+use tf2_core::character::{turret_gun_key, CharacterData};
 use tf2_core::formats::anim::{AnimRef, AnimSet};
 use tf2_core::formats::characterlist::{CharacterList, Spec};
 use tf2_core::formats::scene::ObjectDef;
@@ -218,6 +218,11 @@ pub fn pieces<'a>(data: &'a CharacterData, pack: &str, names: &Names) -> Vec<Pie
         }
         if let Some(object) = &data.turret_objects[i] {
             add(&mut out, PieceKind::Turret, def.name, object, clips_of(None, &data.turret_clips[i]), vec![def.name]);
+        }
+        // A deployed turret's own launcher's missile (Ironhide's). That launcher has no name in the
+        // data, so the file is named by the turret launcher and found under its `turret_gun_key`.
+        if let Some(object) = &data.turret_parts[i].missile {
+            add(&mut out, PieceKind::Missile, def.name, object, Vec::new(), vec![turret_gun_key(def.name)]);
         }
     }
     for melee in &data.melee_weapons {

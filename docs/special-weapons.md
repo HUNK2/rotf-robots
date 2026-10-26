@@ -423,3 +423,23 @@ So for Ironhide the TargetLockable is a lock-on target, not a trigger relay.
   [assumed] no indirect call the decompiler missed. What would settle it: a recording of
   Ironhide's special, or the user's play test.
 - Open, and not robot work: enemy AI taking the decoy as a target (the lock list 00799a50).
+
+## Correction: Ironhide's turret HAS a FireTurret (2026-10-27, found by the SDK's exporter)
+
+- [data] Walking `characters\ironhide.str` for `FireTurret` things (the SDK's `mechanics.special.
+  turret`) finds one, in the deployed turret's thing list itself. The list, in order:
+  `DestructInWater`, `TargetLockable` (LuxScriptName `Turret`), `MissileLauncher`,
+  `AnimRefBundle`, `Destructable` (`TurretDamage`), `TurretRotator` (`Turret`), `FireTurret`
+  (`Turret`: `fireRate` 25, `maxFireRange` 300, `weaponNameImResponsibleFor` 0),
+  `Networked`, `DeployableTurret`, then the collisions and render things. Blackout's has the same
+  parts, with a `GunWeapon` where Ironhide's has the `MissileLauncher`. The 2026-10-12 grep of
+  `ironhide.txt` lines 659214-680000 stopped before them (items 25 and 14 above, and the sixth
+  read, are wrong on this point).
+- So the landing clip's Trigger at tick 86 to `Turret` reaches a `FireTurret` and a
+  `TurretRotator` as Blackout's does, and FireTurret `0079f0f0` is the held-trigger caller the
+  sixth read lists for Grindor's turret: by the same path it fires the `MissileLauncher`
+  (`automaticFiring` false is no obstacle: the FireTurret presses it).
+- SETTLED 2026-10-27: the turret was seen firing in the game, much like Grindor's. The reference
+  fires its MissileLauncher through the turret's own FireTurret and TurretRotator numbers, read
+  from the data (`turret::read_aiming`, `weapons::read_turret_parts`), on foot and in the car form.
+  Still [assumed]: which target the missile locks on (taken as the FireTurret's).

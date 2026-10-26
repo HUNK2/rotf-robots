@@ -88,6 +88,44 @@ pub fn read_launcher(node: Node) -> LauncherTuning {
     }
 }
 
+/// A deployed turret's aiming parts as the data gives them: its `FireTurret` (loader 0079e250:
+/// the band, `coneAngleToAllowFire`, `fireRate`) and its `TurretRotator` (008139b0: the rates and
+/// accelerations, and the yaw and pitch limits), all in degrees there. [game] [data] Blackout's:
+/// fireRate 100, band 0..300 m and 360 / 360 degrees, cone 15, rotator 70 / 50 deg/s; Ironhide's:
+/// fireRate 25, band 0..300 m and 180 / 180, cone 30, rotator 360 / 180 deg/s with 1080 accelerations
+/// and pitch -90..90 [data work/survey/weapons/ironhide.txt l.683917-683950].
+#[derive(Clone, Debug, PartialEq)]
+pub struct Aiming {
+    pub band: FireBand,
+    pub cone_deg: f32,
+    pub fire_rate: f32,
+    pub rotator: Rotator,
+}
+
+/// The `FireTurret` and `TurretRotator` among a deployed turret object's attachments (the
+/// `deployableTurretObj`'s `obj`); None when it lacks either.
+pub fn read_aiming(object: Node) -> Option<Aiming> {
+    let things: Vec<Node> = object.get("attachments").into_iter().flat_map(|a| a.items()).filter_map(|a| a.get("thing")).collect();
+    let of = |class: &str| things.iter().find(|t| t.type_name() == Some(class)).copied();
+    let (fire, turn) = (of("FireTurret")?, of("TurretRotator")?);
+    let num = |node: Node, name: &str, default: f32| node.get(name).and_then(Node::float).unwrap_or(default);
+    let band = FireBand {
+        min_range: num(fire, "minFireRange", 0.0),
+        max_range: num(fire, "maxFireRange", 0.0),
+        max_yaw: num(fire, "maxFireAngle", 0.0) * DEG,
+        max_pitch: num(fire, "maxFireElevation", 0.0) * DEG,
+    };
+    let mut rotator = Rotator::from_data_degrees(
+        [num(turn, "maxTurnRateLeftRight", 0.0), num(turn, "maxTurnRateUpDown", 0.0)],
+        [num(turn, "turnAccelerationLeftRight", 0.0), num(turn, "turnAccelerationUpDown", 0.0)],
+    );
+    rotator.min_yaw = num(turn, "minYawAngle", -180.0) * DEG;
+    rotator.max_yaw = num(turn, "maxYawAngle", 180.0) * DEG;
+    rotator.min_pitch = num(turn, "minPitchAngle", -180.0) * DEG;
+    rotator.max_pitch = num(turn, "maxPitchAngle", 180.0) * DEG;
+    Some(Aiming { band, cone_deg: num(fire, "coneAngleToAllowFire", 0.0), fire_rate: num(fire, "fireRate", 0.0), rotator })
+}
+
 /// The gravity scale of the thrown body. [game 0078c2e0 l.59-71] The game stores `zGravity` times
 /// `body+0x24` in the body's gravity (`body+0x18`) when `body+0x28` is set. [game 006e8e20] says
 /// `+0x24` is the body's mass and `+0x28` its inverse mass; the force then integrates with the
@@ -114,13 +152,13 @@ pub enum State {
     /// work/survey/weapons/blackout.txt l.707991-707992]. So the game's gate opens at the END of
     /// the landing clip, not at the landing: Deploying (gate shut) and Active (gate open) both
     /// match the game for Blackout. Merging them would drop the gate, so they stay.
-    /// Ironhide has no FireTurret thing [data, see docs/special-weapons.md], so this gate is
-    /// not his. His animOnLand clip (animID -1785250356, work/survey/weapons/ironhide.txt
-    /// l.665068) sends the same Trigger (`d5d636c1`) at tick 86 to -833717741, which in his turret
-    /// is the TargetLockable's LuxScriptName (l.659641) [data]: so his deploy time is 86 ticks and
-    /// the Trigger enables his lock-on target (TargetLockable vslot 6 = 007bb230
-    /// `targetlockable_enable`: into the lock list, +0x53 set; vtable 00b5fd68) [game]. Its
-    /// `startEnabled` is true, so that enable repeats what the start did.
+    /// Ironhide's turret has the same gate: its thing list carries a FireTurret and a TurretRotator
+    /// named `Turret` (-833717741) after its TargetLockable [data work/survey/weapons/ironhide.txt
+    /// l.683917-683950; an earlier read stopped short of them]. His animOnLand clip (animID
+    /// -1785250356, l.665068) sends the same Trigger (`d5d636c1`) at tick 86 to that name, so his
+    /// gate opens at tick 86 and his FireTurret fires his turret's MissileLauncher. [data; seen
+    /// firing in the game, as Grindor's, 2026-10-27] The Trigger also reaches the TargetLockable
+    /// (vslot 6 = 007bb230 `targetlockable_enable`) [game], whose `startEnabled` is already true.
     Deploying,
     /// Deployed and the fire gate open: `ft+0x4c` set by the clip's Trigger [game 00815130,
     /// 0079e4d0; data, blackout.txt l.707991-707992] (Blackout). [stand-in] The game's removals are the cap [game 0078b0a0] and the

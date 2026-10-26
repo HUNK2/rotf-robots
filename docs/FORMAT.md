@@ -235,6 +235,7 @@ event's `index` counts.
 | `missile_file` | string or null | The missile's model. |
 | `grenade_file` | string or null | The grenade's model. |
 | `turret_file` | string or null | The thrown turret's model. |
+| `turret_missile_file` | string or null | The missile the deployed turret fires, when its own weapon is a launcher (Ironhide's homing missile). null for Blackout's, whose turret has a gun. |
 | `always_appear` | boolean | The weapon stays visible when it is put away. |
 | `object_clips` | object | The weapon model's own clips by role: any of `idle`, `exit`, `exit_overheat`, `overheat`, `charging`, `charged`. Missing roles are left out. |
 | `robot_exit_clip` | string or null | The robot's clip for putting the weapon away. |

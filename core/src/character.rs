@@ -44,6 +44,9 @@ pub struct CharacterData {
     /// (`weapons::read_turret_objects`, `read_turret_clips`, `read_missile_objects`), in the same order.
     pub turret_objects: Vec<Option<ObjectDef>>,
     pub turret_clips: Vec<Vec<anim::AnimRef>>,
+    /// Each weapon's deployed turret's own weapons, aiming parts and missile model
+    /// (`weapons::read_turret_parts`), in the same order.
+    pub turret_parts: Vec<weapons::TurretParts>,
     pub missile_objects: Vec<Option<ObjectDef>>,
     /// Each weapon object's own clips, in the same order.
     pub weapon_animations: Vec<Vec<AnimRef>>,
@@ -415,10 +418,15 @@ pub fn object_weapon_effects<'a>(object: Option<Node<'a>>, name_of: &dyn Fn(u32)
             // A turret launcher's row above is its own muzzle flash (the throw). The deployed
             // turret carries a gun of its own in `deployableTurretObj`, laid out as any gun:
             // muzzle flash, fire sound, and its bullet's impacts. [data: blackout_turret's
-            // GunWeapon, `w_muzzle_flash_blackout_gatling`; Ironhide's turret has a
-            // MissileLauncher, which nothing fires (`docs/special-weapons.md`), so is not read]
+            // GunWeapon, `w_muzzle_flash_blackout_gatling`] Ironhide's turret carries a
+            // MissileLauncher instead, which its FireTurret fires: its row is read whole, as any
+            // launcher's, for its homing missile's trail and blast. [data: ironhide_turret,
+            // `w_muzzle_flash_homing_missiles`, `flyingvehicle_homingmissiles`]
             let turret = things(thing.path(&["deployableTurretObj", "obj"]));
-            if let Some(gun) = turret.iter().find(|t| t.type_name() == Some("GunWeapon")) {
+            if let Some(launcher) = turret.iter().find(|t| t.type_name() == Some("MissileLauncher")) {
+                let missile = launcher.path(&["missileProjectileObj", "obj"]);
+                out.push(row(turret_gun_key(name), *launcher, missile, missile));
+            } else if let Some(gun) = turret.iter().find(|t| t.type_name() == Some("GunWeapon")) {
                 // Its round's lights, rumble and smoke are not read for it (the turret's own side).
                 out.push(WeaponEffects { emitters: Vec::new(), flight_lights: Vec::new(), blast_light: None, blast_rumble: None,
                     after_blast: Vec::new(), wave: None, debris: Vec::new(), ..row(turret_gun_key(name), *gun, gun.path(&["bulletProjectileObj", "obj"]), None) });
@@ -489,6 +497,7 @@ pub fn load(game_dir: &Path, pack_name: &str) -> Result<CharacterData, String> {
     let mut weapon_objects = Vec::new();
     let mut grenade_objects = Vec::new();
     let (mut turret_objects, mut turret_clips, mut missile_objects) = (Vec::new(), Vec::new(), Vec::new());
+    let mut turret_parts = Vec::new();
     let mut weapon_animations = Vec::new();
     let mut melee_weapons = Vec::new();
     let mut weapon_effects = Vec::new();
@@ -520,6 +529,7 @@ pub fn load(game_dir: &Path, pack_name: &str) -> Result<CharacterData, String> {
                     grenade_objects = weapons::read_grenade_objects(thing, name_of);
                     turret_objects = weapons::read_turret_objects(thing, name_of);
                     turret_clips = weapons::read_turret_clips(file, thing);
+                    turret_parts = weapons::read_turret_parts(thing, name_of);
                     missile_objects = weapons::read_missile_objects(thing, name_of);
                     weapon_animations = weapons::read_object_clips(file, thing);
                     melee_weapons = weapons::read_melees(file, thing, name_of);
@@ -582,6 +592,7 @@ pub fn load(game_dir: &Path, pack_name: &str) -> Result<CharacterData, String> {
         grenade_objects,
         turret_objects,
         turret_clips,
+        turret_parts,
         missile_objects,
         weapon_animations,
         melee_weapons,
@@ -590,6 +601,30 @@ pub fn load(game_dir: &Path, pack_name: &str) -> Result<CharacterData, String> {
         extra_sounds: Vec::new(),
         energon: None,
     })
+}
+
+impl CharacterData {
+    /// The missile model of the launcher with this name: one of his weapons', or a deployed turret's
+    /// launcher's under its row key (`turret_gun_key` of the turret launcher's name, as Ironhide's
+    /// turret's MissileLauncher is named). [data]
+    pub fn missile_object(&self, name: u32) -> Option<&ObjectDef> {
+        if let Some(index) = self.weapons.iter().position(|w| w.name == name) {
+            return self.missile_objects.get(index)?.as_ref();
+        }
+        let index = self.weapons.iter().position(|w| turret_gun_key(w.name) == name)?;
+        self.turret_parts.get(index)?.missile.as_ref()
+    }
+
+    /// The model of the projectile a weapon's round flies as: its grenade's, or its missile's
+    /// (`missile_object`).
+    pub fn projectile_object(&self, name: u32, grenade: bool) -> Option<&ObjectDef> {
+        if grenade {
+            let index = self.weapons.iter().position(|w| w.name == name)?;
+            self.grenade_objects.get(index)?.as_ref()
+        } else {
+            self.missile_object(name)
+        }
+    }
 }
 
 /// Each clip's compensated scales evened out against `object`'s hierarchy; how many spans changed.
@@ -792,6 +827,39 @@ mod tests {
             assert!(!gun.impact.infos.is_empty(), "its bullet's impactFX");
             assert!(data.weapon_effects.iter().any(|w| w.name == launcher && w.muzzle_flash.is_some()), "the launcher's own flash");
         }
+    }
+
+    /// Ironhide's turret fires its MissileLauncher through a FireTurret, as Blackout's fires his
+    /// gun (seen firing in the game, 2026-10-27). [data work/survey/weapons/ironhide.txt l.659653,
+    /// l.683917-683950]
+    #[test]
+    fn ironhides_turret_carries_a_launcher_and_aims_from_its_data() {
+        if crate::install::missing() { return; }
+        let data = load(crate::install::dir(), "ironhide").unwrap();
+        for (def, parts) in data.weapons.iter().zip(&data.turret_parts) {
+            let (weapons, aiming) = (&parts.weapons, &parts.aiming);
+            if def.kind != crate::weapons::Kind::Turret {
+                assert!(weapons.is_empty() && aiming.is_none());
+                continue;
+            }
+            let launcher = weapons.iter().find(|w| w.kind == crate::weapons::Kind::Launcher).expect("its MissileLauncher");
+            assert_eq!(launcher.attribute, -1_792_689_951i32 as u32, "Ironhide_TurretMissileAttribute");
+            assert!(launcher.explosion.is_some(), "its homing missile's explosion");
+            let aiming = aiming.as_ref().expect("its FireTurret and TurretRotator");
+            assert_eq!((aiming.fire_rate, aiming.cone_deg, aiming.band.max_range), (25.0, 30.0, 300.0));
+            assert!(close(aiming.band.max_yaw, std::f32::consts::PI) && close(aiming.rotator.max_pitch, std::f32::consts::FRAC_PI_2));
+            assert!(close(aiming.rotator.max_rate_yaw, 360f32.to_radians()));
+            let row = data.weapon_effects.iter().find(|w| w.name == turret_gun_key(def.name)).expect("a row for the turret's launcher");
+            let model = data.missile_object(turret_gun_key(def.name)).expect("flyingvehicle_homingmissiles, its missile model");
+            assert!(!model.nodes.is_empty());
+            assert!(!row.emitters.is_empty() && !row.flight_lights.is_empty(), "the missile's own trail emitter and light");
+            assert_eq!(row.fire_sound, -278_946_228i32 as u32);
+            assert!(row.muzzle_flash.is_some() && row.blast.is_some(), "w_muzzle_flash_homing_missiles and the blast");
+        }
+        let blackout = load(crate::install::dir(), "blackout").unwrap();
+        let aiming = blackout.turret_parts.iter().find_map(|p| p.aiming.as_ref()).expect("blackout_turret's aiming");
+        assert_eq!((aiming.fire_rate, aiming.cone_deg), (100.0, 15.0));
+        assert!(close(aiming.rotator.max_rate_yaw, 70f32.to_radians()));
     }
 
     fn close(a: f32, b: f32) -> bool {

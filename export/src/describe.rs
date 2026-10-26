@@ -100,6 +100,7 @@ pub fn character(install: &Path, spec: &Spec, data: &CharacterData, pieces: &[Pi
                 "missile_file": file_of(PieceKind::Missile, def.name),
                 "grenade_file": file_of(PieceKind::Grenade, def.name),
                 "turret_file": file_of(PieceKind::Turret, def.name),
+                "turret_missile_file": file_of(PieceKind::Missile, tf2_core::character::turret_gun_key(def.name)),
                 "always_appear": def.always_appear,
                 "object_clips": named(&[
                     ("idle", def.idle_clip),

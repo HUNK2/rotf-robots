@@ -1074,10 +1074,11 @@ and its gun opens fire at the clip's Trigger, at the clip's end (Blackout's at 9
 clip sends its Trigger at 86 ticks. His deployed turret has the same parts as Blackout's, all
 answering to that Trigger's name: a lock-on target, a `TurretRotator`, a `FireTurret` (`fireRate`
 25, `maxFireRange` 300) and a `DeployableTurret`, beside its missile launcher where Blackout's has a
-gun. [data] The reference does not fire Ironhide's turret: the notes it follows missed these parts
-and took it for a decoy. That his `FireTurret` fires the missile launcher as Blackout's fires its gun
-is [assumed]; a recording of his special would settle it. More than `maxTurretsAtOnce` standing: the
-oldest goes.
+gun. [data] His `FireTurret` fires that launcher as Blackout's fires its gun: the turret was seen
+firing in the game (2026-10-27), and the reference fires it from its own data (`turret::read_aiming`,
+`weapons::read_turret_parts`; the missile's model is `turret_missile_file`). Which target its
+missile locks on (the `FireTurret`'s) is [assumed]; a recording of his special would settle it.
+More than `maxTurretsAtOnce` standing: the oldest goes.
 
 `special.turret` is every `FireTurret` and `TurretRotator` of the pack, as the game stores them
 (Megatron's pack also has a rotator: his tank's cannon). The rotator, each update, with `d` the

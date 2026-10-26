@@ -536,6 +536,31 @@ pub fn read_turret_objects<'a>(character: Node<'a>, name_of: impl Fn(u32) -> Opt
     each_weapon(character, |thing| thing.path(&["deployableTurretObj", "obj"]).and_then(|object| crate::formats::scene::read_object(object, name_of)))
 }
 
+/// What a deployed turret carries besides its body: its own weapons (those on its
+/// `deployableTurretObj`: Blackout's `GunWeapon`, Ironhide's `MissileLauncher`), its aiming parts
+/// (`turret::read_aiming`), and its launcher's missile model (Ironhide's
+/// `flyingvehicle_homingmissiles`). [data]
+#[derive(Default)]
+pub struct TurretParts {
+    pub weapons: Vec<WeaponDef>,
+    pub aiming: Option<crate::turret::Aiming>,
+    pub missile: Option<crate::formats::scene::ObjectDef>,
+}
+
+/// Each weapon's deployed turret's parts (`TurretParts`), in the order of `read_defs`; empty for
+/// every other weapon. [data]
+pub fn read_turret_parts<'a>(character: Node<'a>, name_of: impl Fn(u32) -> Option<&'a str> + Copy) -> Vec<TurretParts> {
+    each_weapon(character, |thing| {
+        let object = thing.path(&["deployableTurretObj", "obj"]);
+        let things = object.and_then(|o| o.get("attachments")).into_iter().flat_map(|a| a.items()).filter_map(|a| a.get("thing"));
+        let missile = things
+            .filter(|t| t.type_name() == Some("MissileLauncher"))
+            .find_map(|t| t.path(&["missileProjectileObj", "obj"]))
+            .and_then(|o| crate::formats::scene::read_object(o, name_of));
+        TurretParts { weapons: object_weapons(0, object), aiming: object.and_then(crate::turret::read_aiming), missile }
+    })
+}
+
 /// Each weapon's missile model (a launcher's `missileProjectileObj`: Bumblebee's
 /// `micromissilescluster`), in the order of `read_defs`. [data]
 pub fn read_missile_objects<'a>(character: Node<'a>, name_of: impl Fn(u32) -> Option<&'a str> + Copy) -> Vec<Option<crate::formats::scene::ObjectDef>> {
