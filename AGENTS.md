@@ -75,6 +75,9 @@ the document's "Changes". Points that trip importers:
 - A mesh node with `extras.render_set_hidden` starts hidden in the game (it also carries
   `KHR_node_visibility`, which not every importer reads). `render_sets` in the JSON lists the
   groups.
+- Collision bodies are empty glTF nodes `<node>.collision.<n>` on the node they ride (not its
+  `.frame`), the shape in their `rotf_collision` extras; the JSON's `collision` lists them. Their
+  `scaled` sizes are the port's reading of the stored scale, not read in the game.
 - A vehicle clip lists `unkeyed_nodes`: nodes it has no channel for. The game holds them where
   the previous clip left them; glTF puts them back to rest.
 - A clip's sound events name events in the JSON's `sounds` section, which lists each event's

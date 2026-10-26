@@ -7,8 +7,8 @@ Unity, Godot, Blender, or a host game. Nothing here uses Bevy or any other engin
 - **`rotf-export`**: writes a robot from your own install as standard files, ready for modding
   tools: glTF models with their skeletons and animations, PNG and DDS textures, WAV sounds, and a
   JSON file with everything a model cannot hold (animation events, the change of form, weapons
-  and where they mount, meshes that start hidden, sound events, the robot's attributes). The JSON's
-  format is written down and versioned in [`docs/FORMAT.md`](docs/FORMAT.md).
+  and where they mount, meshes that start hidden, hit boxes, sound events, the robot's
+  attributes). The JSON's format is written down and versioned in [`docs/FORMAT.md`](docs/FORMAT.md).
 - **`tf2-core`**: the game's file-format readers and the robots' mechanics (movement, the change
   of form, the car, flight, climbing, fighting, weapons, damage, cameras), as a Rust library
   with no engine types.

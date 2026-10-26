@@ -141,6 +141,33 @@ fn bumblebee_json_names_only_what_exists() {
         println!("{file}: {} render-set meshes, {hidden_nodes} mesh nodes start hidden", listed.len());
     }
 
+    // Collision bodies: every body of every object, once, each a node of its file by its
+    // `gltf_node`, the child of the node it rides, placed as the JSON says.
+    let files = json["collision"]["files"].as_array().unwrap();
+    for piece in export.pieces() {
+        let file = format!("{}.glb", piece.file);
+        let entry = files.iter().find(|f| f["file"] == file.as_str());
+        let bodies = entry.map_or(&[][..], |e| e["bodies"].as_array().unwrap());
+        assert_eq!(bodies.len(), piece.object.collisions.len(), "{file}: collision bodies");
+        if bodies.is_empty() {
+            continue;
+        }
+        let glb = export.read(&file);
+        for (body, source) in bodies.iter().zip(&piece.object.collisions) {
+            let name = body["gltf_node"].as_str().unwrap();
+            let node = glb.document.nodes().find(|n| n.name() == Some(name)).unwrap_or_else(|| panic!("{file}: no node {name}"));
+            let parent = glb.document.nodes().find(|n| n.children().any(|c| c.index() == node.index())).and_then(|n| n.name().map(str::to_owned));
+            assert_eq!(parent.as_deref(), Some(piece.object.nodes[source.node].name.as_str()), "{file}: {name} rides the wrong node");
+            assert_eq!(body["node"].as_str(), parent.as_deref(), "{file}: {name}");
+            let (t, r, s) = node.transform().decomposed();
+            let at = glam::Mat4::from_scale_rotation_translation(s.into(), glam::Quat::from_array(r), t.into());
+            let want = rotf_export::model::matrix(&source.matrix);
+            assert!(at.abs_diff_eq(want, 1e-4), "{file}: {name} is placed at {at:?}, the data has {want:?}");
+            let extras: Value = serde_json::from_str(node.extras().as_ref().unwrap().get()).unwrap();
+            assert_eq!(extras["rotf_collision"]["shape"], body["shape"], "{file}: {name}");
+        }
+    }
+
     // Every event of every clip is written once: counted against the source, kind by kind.
     // By file and name: an object's own clips (a weapon's `Idle`) repeat names across files.
     let entries: HashMap<(&str, &str), &Value> =

@@ -78,6 +78,7 @@ Never branch on it: branch on `format_version`.
 | `weapons` | array | The ranged weapons (below). |
 | `melee_weapons` | array | The melee weapons (below). |
 | `render_sets` | array | Groups of meshes the game switches on and off (below). |
+| `collision` | object | The collision bodies on each file's nodes: hit boxes, attack bodies (below). |
 | `vehicle` | object or null | The vehicle form's wheels and steering; null for a robot without a vehicle form. |
 | `materials` | array | Every material with the game's technique and parameters (below). |
 | `summary` | object | The numbers a mod needs most (below). |
@@ -267,6 +268,57 @@ parts. The meshes outside an exclusive group's default set start hidden. Their n
 with `KHR_node_visibility`, and with the custom property (glTF extras) `render_set_hidden: true`.
 Blender reads only the second.
 
+### `collision`
+
+The game's collision bodies: simple shapes that ride the nodes of an object and move with its
+animation. On a robot they are its hit boxes (where a shot or a blow lands, and on which part)
+and its attack bodies (the hands, feet or blade that do the hitting). The vehicle, the melee
+weapons and the projectiles have their own.
+
+| Key | Type | What it is |
+| --- | --- | --- |
+| `files` | array | One entry per file that has bodies: `file` (the `.glb`) and `bodies`. |
+| `note` | string | Prose: the rules below. |
+
+A **body**:
+
+| Key | Type | What it is |
+| --- | --- | --- |
+| `node` | string | The node it rides. |
+| `gltf_node` | string | Its own node in the `.glb`: `<node>.collision.<n>`, where `<n>` is its place in the file's `bodies`. |
+| `shape` | string | `sphere`, `box` or `cylinder`. |
+| `radius` | number | A sphere's or a cylinder's radius, as stored. *Sphere and cylinder only.* |
+| `half_height` | number | Half a cylinder's height, as stored. The cylinder stands along its own z, from -`half_height` to +`half_height`. *Cylinder only.* |
+| `half_extents` | [x, y, z] | Half a box's size along each of its axes, as stored. *Box only.* |
+| `translation` | [x, y, z] | Where it sits in its node's space, in metres, game axes. |
+| `rotation` | [x, y, z, w] | Its turn in its node's space, a quaternion. |
+| `scale` | [x, y, z] | The scale its data gives it (Bumblebee's hand spheres: 1.97). |
+| `scaled` | object | Its sizes with `scale` in them: `radius`, `half_height` or `half_extents`, as above. |
+| `mask_preset` | string or null | What it hits and what hits it: `Character` (a hit box), `Attack` (a body that hits), `VehicleHittablePart`, `Missile`... The presets are in the game's `bnxglobal.str`. |
+| `material` | string or null | On a character, the part a hit on this body strikes: `Head`, `UpperBody`, `LowerBody`, `VehicleBody`. The game weighs damage by it. |
+
+Rules:
+
+- **A body rides its node, not the node's `.frame`.** The game places it with the node's matrix
+  without the node's own scale. Its glTF node is a child of that node, with `translation`,
+  `rotation` and `scale` as its transform. So in any importer it stands where the game puts it,
+  and it follows the animation.
+- **Its glTF node is an empty node.** The body is in the node's custom properties (glTF extras)
+  as `rotf_collision`, an object with the same keys as the body above, without `node` and
+  `gltf_node`. A host makes its own collider from it: a sphere, box or capsule of that size, on
+  that node.
+- **`scaled` is the port's reading, not the game's.** The data stores the shape raw and the scale
+  apart. The port sizes a sphere's and a cylinder's radius by the x scale and a half height by
+  the z scale. How the game's collision test uses the scale has not been read. `radius`,
+  `half_height`, `half_extents` and `scale` are as stored, for a reader that wants to decide
+  for itself. In all the packs, every sphere and cylinder has the same scale on all three axes
+  (only boxes have uneven ones), so the reading only decides that the scale applies at all.
+- **A scale can be negative**: a mirrored box (Grindor's blade). The box is the same box; its
+  size is the absolute value, as `scaled` gives it.
+- **An attack body counts only while a clip's `attack_hit` event on its node is on.** A melee
+  weapon's bodies move with the weapon's own clips; the port poses them unblended, and that too
+  is the port's reading.
+
 ### `vehicle`
 
 | Key | Type | What it is |
@@ -420,8 +472,9 @@ The game has these, and the export does not. `not_exported` lists them too.
 - The particle effects, ribbons and lights: only their names at their events.
 - The animation state machine: which clip follows which, and its rules.
 - What the game moves in code: flight's surfaces, the wheels' spin, the suspension.
-- The collision bodies.
 
 ## Changes
 
 - **1** (2026-10-26): the first version. It describes what rotf-export 0.1.0 writes.
+- **1**, added (2026-10-26): `collision`, and a `<node>.collision.<n>` node in the `.glb` for
+  each body. Only new keys, so the version stays 1.

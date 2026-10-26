@@ -7,13 +7,15 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use glam::{Mat4, Quat, Vec3};
-use serde_json::{Value, json};
+use serde_json::{Map, Value, json};
 use tf2_core::formats::anim::{AttackRef, Blend, Clip, ROOT_CHANNEL, Track};
 use tf2_core::formats::hash::{crc32, lower33};
 use tf2_core::formats::model::{Library, Material, Part};
-use tf2_core::formats::scene::ObjectDef;
+use tf2_core::formats::scene::{CollisionDef, ObjectDef, Shape};
 
+use crate::describe::num;
 use crate::glb::{ARRAY_BUFFER, ELEMENT_ARRAY_BUFFER, Glb};
+use crate::names::Names;
 use crate::texture;
 
 /// What one written file holds, for the report.
@@ -116,6 +118,48 @@ pub fn matrix(rows: &[[f32; 3]; 4]) -> Mat4 {
         Vec3::from(rows[2]).extend(0.0),
         Vec3::from(rows[3]).extend(1.0),
     )
+}
+
+/// The glTF node of collision body `index` of an object, riding node `node`.
+pub fn collision_node(node: &str, index: usize) -> String {
+    format!("{node}.collision.{index}")
+}
+
+/// A collision body as the JSON and its glTF node give it: its shape as stored (`sphere`, `box`,
+/// `cylinder` along its z), its place in its node's space as a move, turn and scale, the sizes
+/// with that scale in them as the port reads them (`tf2_core::melee::Body::new`), its mask preset
+/// and its material. The loader squares the matrix's axes up and keeps their lengths, so the move,
+/// turn and scale are the whole matrix.
+pub fn collision(c: &CollisionDef, names: &Names) -> Value {
+    let (scale, rotation, translation) = matrix(&c.matrix).to_scale_rotation_translation();
+    let size = scale.abs();
+    let mut body = Map::new();
+    let scaled = match c.shape {
+        Shape::Sphere { radius } => {
+            body.insert("shape".into(), json!("sphere"));
+            body.insert("radius".into(), num(radius));
+            json!({ "radius": num(radius * size.x) })
+        }
+        Shape::Cuboid { half } => {
+            body.insert("shape".into(), json!("box"));
+            body.insert("half_extents".into(), json!(half.map(num)));
+            json!({ "half_extents": (Vec3::from(half) * size).to_array().map(num) })
+        }
+        Shape::Cylinder { radius, half_height } => {
+            body.insert("shape".into(), json!("cylinder"));
+            body.insert("radius".into(), num(radius));
+            body.insert("half_height".into(), num(half_height));
+            json!({ "radius": num(radius * size.x), "half_height": num(half_height * size.z) })
+        }
+    };
+    let name = |h: u32| if h == 0 { Value::Null } else { json!(names.name(h)) };
+    body.insert("translation".into(), json!(translation.to_array().map(num)));
+    body.insert("rotation".into(), json!(rotation.normalize().to_array().map(num)));
+    body.insert("scale".into(), json!(scale.to_array().map(num)));
+    body.insert("scaled".into(), scaled);
+    body.insert("mask_preset".into(), name(c.mask_preset));
+    body.insert("material".into(), name(c.material));
+    Value::Object(body)
 }
 
 // A material's blend word (`game/src/assets.rs` `blend_of`, where the values are tagged): Normal and
@@ -231,7 +275,7 @@ struct Writer<'s, 'a> {
 }
 
 /// Writes `object` and `clips` as `<out>/<file>.glb`, its textures under `<out>/textures/`.
-pub fn write(object: &ObjectDef, shared: &mut Shared, clips: &[ClipOut], file: &str) -> Result<Summary, String> {
+pub fn write(object: &ObjectDef, shared: &mut Shared, clips: &[ClipOut], file: &str, names: &Names) -> Result<Summary, String> {
     let library = shared.library;
     let out = shared.out;
     let mut w = Writer { shared, glb: Glb::default(), materials: HashMap::new(), textures: HashMap::new(), summary: Summary::default() };
@@ -275,6 +319,20 @@ pub fn write(object: &ObjectDef, shared: &mut Shared, clips: &[ClipOut], file: &
     for (i, node) in object.nodes.iter().enumerate() {
         children[node.parent.map_or(root, node_index)].push(node_index(i));
         children[node_index(i)].push(frame_index(i));
+    }
+    // Each collision body as an empty node on the node it rides, not on its frame: the game poses
+    // the bodies by the node without its own scale (`tf2_core::melee`). Its shape is in `extras`.
+    for (k, c) in object.collisions.iter().enumerate() {
+        let body = collision(c, names);
+        let at = w.glb.node(json!({
+            "name": collision_node(&object.nodes[c.node].name, k),
+            "translation": body["translation"],
+            "rotation": body["rotation"],
+            "scale": body["scale"],
+            "extras": { "rotf_collision": body },
+        }));
+        children.push(Vec::new());
+        children[node_index(c.node)].push(at);
     }
 
     for render in &object.renders {

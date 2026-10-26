@@ -5,8 +5,8 @@
 //!
 //! What is written so far: the robot form, the vehicle form, every weapon, projectile and melee
 //! weapon object, each with its clips as animations, and `<pack>.json` (clip events, attacks, root
-//! travel, weapon mounts, render sets, materials, the character's attributes), and the sounds: every
-//! sample its events play as WAV, and the events themselves in the JSON.
+//! travel, weapon mounts, render sets, collision bodies, materials, the character's attributes), and
+//! the sounds: every sample its events play as WAV, and the events themselves in the JSON.
 
 pub mod describe;
 pub mod glb;
@@ -140,7 +140,7 @@ pub fn export(install: &Path, spec: &Spec, out: &Path) -> Result<Written, String
     let mut shared = model::Shared::new(&data.library, out)?;
     let mut written = Vec::new();
     for piece in &pieces {
-        let summary = model::write(piece.object, &mut shared, &piece.clips, &piece.file)?;
+        let summary = model::write(piece.object, &mut shared, &piece.clips, &piece.file, &names)?;
         written.push((format!("{}.glb", piece.file), summary));
     }
     let mut json = describe::character(install, spec, &data, &pieces, &written, &mut shared, &names);
@@ -267,8 +267,9 @@ fn readme(spec: &Spec) -> String {
          \x20                    the projectile and thrown models; _melee_ the melee weapons\n\
          {pack}.json           what glTF cannot hold: every clip's events (sounds, effects, the\n\
          \x20                    change of form, weapon moves, attack windows), its attack and its\n\
-         \x20                    root travel; where each weapon hangs; render sets; every material\n\
-         \x20                    parameter; the character's attributes as the game stores them.\n\
+         \x20                    root travel; where each weapon hangs; render sets; the collision\n\
+         \x20                    bodies; every material parameter; the character's attributes as\n\
+         \x20                    the game stores them.\n\
          \x20                    Its format: docs/FORMAT.md in github.com/HUNK2/rotf-robots-sdk\n\
          textures/            the textures as PNG; textures/dds/ the same as the game stores them\n\
          sounds/              every sample the character's sound events play, as WAV, by bank;\n\
@@ -292,6 +293,9 @@ fn readme(spec: &Spec) -> String {
          Render sets (Optimus's special-attack meshes): a mesh outside its group's first set starts\n\
          hidden. Its node says so with KHR_node_visibility and the custom property render_set_hidden;\n\
          Blender does not read the first, so hide the objects that carry the second.\n\
+         Collision bodies (hit boxes, attack bodies) are empty nodes named <node>.collision.<n> on\n\
+         the node they ride; the shape is their custom property rotf_collision (the JSON's\n\
+         \"collision\" gives the same).\n\
          Names the game's files do not spell out are written as #xxxxxxxx (the CRC-32 of the name).\n\
          An event whose node its file lacks (a clip shared between two weapons) says \"node_in_file\":\n\
          false. A few weapon and wing parts have sheared rest matrices, which glTF cannot hold: they\n\

@@ -15,7 +15,7 @@ use tf2_core::formats::model::ParamValue;
 use tf2_core::tuning::{Actions, Locomotion};
 use tf2_core::weapons::{self, FIRE_DUMMIES, Mount};
 
-use crate::model::{ClipOut, Shared, Summary, blend_of};
+use crate::model::{self, ClipOut, Shared, Summary, blend_of};
 use crate::names::Names;
 use crate::{Piece, PieceKind};
 
@@ -198,6 +198,7 @@ pub fn character(install: &Path, spec: &Spec, data: &CharacterData, pieces: &[Pi
                 "note": "the game moves these in code every frame, on top of the vehicle's clip: each tyre spins by its wheel's travel and is lowered by its wheel's suspension to the ground, and the steering nodes turn with the steering (rotf-robots' game/src/animation.rs). The clips alone leave the tyres where the change of form puts them, off the ground.",
             })
         }),
+        "collision": collision(pieces, names),
         "materials": materials(shared, names),
         "summary": summary(install, spec, data),
         "character_sounds": character_sounds(data, names),
@@ -207,8 +208,36 @@ pub fn character(install: &Path, spec: &Spec, data: &CharacterData, pieces: &[Pi
             "particle effects, ribbons and lights: named at their events only",
             "the animation state machine (which clip follows which, and its rules)",
             "flight's moving surfaces (flaps, rotors), the wheels' spin and the suspension: the game moves them in code",
-            "collision bodies",
         ],
+    })
+}
+
+/// Every file's collision bodies (`scene::ObjectDef::collisions`), each with the node it rides
+/// and the glTF node that stands for it.
+fn collision(pieces: &[Piece], names: &Names) -> Value {
+    let files: Vec<Value> = pieces
+        .iter()
+        .filter(|p| !p.object.collisions.is_empty())
+        .map(|p| {
+            let bodies: Vec<Value> = p
+                .object
+                .collisions
+                .iter()
+                .enumerate()
+                .map(|(k, c)| {
+                    let node = &p.object.nodes[c.node].name;
+                    let mut body = model::collision(c, names);
+                    body["node"] = json!(node);
+                    body["gltf_node"] = json!(model::collision_node(node, k));
+                    body
+                })
+                .collect();
+            json!({ "file": format!("{}.glb", p.file), "bodies": bodies })
+        })
+        .collect();
+    json!({
+        "note": "each body rides its node (not the node's .frame) and moves with it. translation, rotation (x, y, z, w) and scale place it in the node's space, game axes; a cylinder stands along its own z. radius, half_height and half_extents are as stored; scaled gives them with the scale in, as the port reads them (a sphere and a cylinder's radius take the x scale, a half height the z): that reading is assumed, not read in the game. mask_preset says what the body hits and what hits it; material, on a character, the part struck.",
+        "files": files,
     })
 }
 
