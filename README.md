@@ -43,15 +43,16 @@ describing its files.
 The exported files are made from the game and belong to its owners. Keep them on your own
 machine. A mod you share should tell its users to run `rotf-export` themselves.
 
-## Using the core from Rust
+## The core: the reference a port is built from
 
 ```toml
 [dependencies]
 tf2-core = { git = "https://github.com/HUNK2/rotf-robots-sdk", rev = "<commit>" }
 ```
 
-Pin a commit: there are no releases yet and the API still changes. `docs/MODDING.md` describes how
-to load a robot and step it in a host game.
+The core is not meant to ship inside a mod: a native port rebuilds the robot from the host game's
+own parts, and the core is what it is built from and checked against (`docs/MODDING.md`). Pin a
+commit if you use it: there are no releases yet and the code still changes.
 
 ```
 cargo test --workspace

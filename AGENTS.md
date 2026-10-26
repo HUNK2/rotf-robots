@@ -110,9 +110,12 @@ the document's "Changes". Points that trip importers:
 level code (`level_*`, `collision_world`, `collision_soup`, `mission_script`). They exist so the
 robots have something to fight and somewhere to stand in the Bevy game, and may change or go.
 
-## How the core is driven today
+## Running the reference
 
-There is no small public API yet. Until then, the way in is:
+The core is the reference that native ports are built from and checked against
+(`docs/MODDING.md`), not a library to ship inside a mod: this repository makes porting tools, not
+a runtime that drives the robot inside another game. To run it, for example to print what a
+system does for a scripted input:
 
 1. `tuning::load(install, "Bumblebee")` reads the character's attributes and rules.
 2. `character::load(install, "bumblebee")` reads its pack: models, animations, weapons.
@@ -122,10 +125,10 @@ There is no small public API yet. Until then, the way in is:
 4. `sim::State::new(&tuning)`, then every frame `sim::step(&mut state, &input, &tuning, &world, dt)`.
    `Input` is the pad, already mapped (stick in world space, triggers 0 to 1, buttons).
    `world` is anything that implements `sim::World`: it answers floor heights, wall pushes and
-   ray hits from the host game's own collision. `sim::Arena` is a flat test world.
+   ray hits. `sim::Arena` is a flat test world.
 5. The rest of a frame (the camera, the weapons, animation, effects and sound reading the state)
    is in rotf-robots' `game/src/player.rs` (`tick`), `animation.rs`, `camera.rs`, `weapons.rs`,
-   `effects.rs` and `sound.rs`. Copy the order they run in, not just the calls.
+   `effects.rs` and `sound.rs`. The order they run in is part of the rules a port rebuilds.
 
 The game steps at 0.032 s; animation clips tick at 1/60 s. Space is right-handed, x right,
 y forward, z up, metres. Quaternions in clips are for row-vector matrices: conjugate them for

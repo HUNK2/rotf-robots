@@ -25,66 +25,76 @@ add-on in [`blender/`](../blender/README.md) imports a robot with all of that ap
 uses are in `core/src/formats/` (`pack`, `model`, `texture`, `anim`, `scene`, `fsb`, `fev`) if you
 would rather read the install yourself. Simplest, least faithful.
 
-**2. The robot as it plays in the original.** The movement, the change of form, the car, flight,
-fighting and weapons, run by this repository's code inside the host game. This is what the code is
-for. The rest of this guide is about it.
+**2. A native port: the robot as he plays in the original, rebuilt in the host game.** His
+movement, change of form, car, flight, fighting and weapons, made from the host's own parts: its
+character controller, animation graph, vehicle system, damage and scripting. He then works with
+the host's physics, AI, saves and multiplayer like anything else in that game. This repository's
+code does not go into the mod: it is the reference the port is built from and checked against.
+The rest of this guide is about this kind.
 
 **3. A change to the robots here.** New behaviour, a fix, another character: work in this
 repository, check with its tests and with the Bevy game
 ([rotf-robots](https://github.com/HUNK2/rotf-robots)), then send a pull request.
 
-## The parts of a port
+## What a native port is built from
 
-Whatever the engine, a port of kind 2 has the same five pieces.
+**The assets.** `rotf-export` and, in Blender, the add-on: the model, every clip at its own timing,
+the change of form, the weapons and where they hang, the hit boxes, the sounds, and the events
+that say when a footstep, a hit window or an effect happens.
 
-**The core.** `core/` (crate `tf2-core`) has no engine types. A Rust host links it directly. A host
-in another language needs a thin wrapper around it (a C-compatible library is planned).
+**The robot's numbers.** `<pack>_attributes.json` from the exporter: speeds, jumps, turning,
+health, the car's numbers. Take them from the file, never by eye.
 
-**Loading a robot.** The tuning (`tuning::load`) and the pack (`character::load`) are read from the
-install, then the tuning is completed from the animations. `core/examples/control_check.rs` shows
-the short form; rotf-robots' `game/src/charmenu.rs` (`load`) the full one, with the specials and Devastator.
+**The rules, written down.** Each system's notes in `docs/`, read from the game's code and data,
+say what it does, in what order, with which numbers, and tag what is fitted or guessed:
 
-**The world.** Implement `sim::World` over the host's collision. Only two methods are required:
+| System | Notes | Reference code (`core/src/`) |
+|---|---|---|
+| The control states and what moves between them | `state-machine.md`, `animation-rules.md` | `control.rs`, `animrules.rs`, `animblend.rs` |
+| On foot: walking, running, jumps, the dodge | `bumblebee-mechanics.md` | `sim.rs` |
+| The car | `driving.md`, `physics.md` | `driving.rs`, `vehicle.rs` |
+| Flight and hover | `flight-*.md` | `flight.rs`, `flybound.rs` |
+| Climbing | `climbing.md` | `climb.rs` |
+| Melee | `melee.md` | `melee.rs`, `combat.rs` |
+| Weapon mode and the weapons | `weapon-mode.md`, `weapon-kinds.md`, `weapon-*.md` | `weapons.rs`, `gun.rs` |
+| Specials | `character-specials.md`, `special-*.md` | `special_weapon.rs`, `repair.rs` |
+| Damage and health | `damage.md` | `damage.rs` |
+| Cameras | `camera*.md` | `camera.rs`, `camera/` |
+| Feet on the ground | `foot-ik.md` | `footik.rs` |
+| Sound and effects | `sound.md`, `particles.md` | `sound.rs`, `particles.rs` |
+| The controls | `input.md` | |
 
-- `floor(x, y, z)`: the height to stand on at a spot, for feet at height `z`.
-- `push_out(pos, radius, height)`: move an upright cylinder out of what it cannot step onto.
-
-Everything else has a default that falls back to these. Add `wheel_ray` and `vehicle_sweep` for the
-car, and the rest as the port gets more faithful. Each method says what it is for in `core/src/sim.rs`.
-
-**The frame.** Every frame: turn the player's controls into `sim::Input`, call `sim::step`, then run
-the camera, the weapons, the animation, the effects and the sound from the new state. The Bevy game
-([rotf-robots](https://github.com/HUNK2/rotf-robots)) does this in `game/src/player.rs` (`tick`) and the files it hands over to (`animation.rs`,
-`camera.rs`, `weapons.rs`, `effects.rs`, `sound.rs`). The order matters: copy it.
-
-**Drawing and playing.** The host draws the robot's pose and plays its sounds and effects. The Bevy game
-shows how the pose is built from the clips (`game/src/animation.rs`, over `core/src/animblend.rs`,
-`pose.rs` and `footik.rs`) and how sound events become sound (`game/src/sound.rs`, over
-`core/src/sound.rs` and `audio_mix.rs`).
+**The reference code.** `core/` (crate `tf2-core`) is the same rules as running, tested Rust with
+no engine in it. Read it where a note leaves a question; the code is the exact answer. Do not link
+it into the mod.
 
 ## A port, step by step
 
-1. **Build and play the Bevy game first** ([rotf-robots](https://github.com/HUNK2/rotf-robots),
-   `cargo run --release -p bumblebee`). Know what the robot should feel like before moving it.
-2. **Load the robot headless in your host.** Print its states and clips, as `control_check` does.
-3. **Stand it on a flat world.** Implement `floor` and `push_out` as a flat plane and step the state
-   with no input. It should stand still, on the ground.
-4. **Drive it.** Map the host's controls into `sim::Input` and walk, jump and dodge. Compare with
-   the Bevy game side by side.
-5. **Show it.** Pose the model from the state and play the clip events.
-6. **Add the rest a system at a time:** the car, the change of form, the camera, weapons, effects,
-   sound. After each, check against the Bevy game.
-7. **Report what is uncertain.** Systems built on `[assumed]` or `[stand-in]` code (see
-   rotf-robots' `game/README.md`, "What is real") behave as this port guesses, not as proven.
+1. **Play the Bevy game first** ([rotf-robots](https://github.com/HUNK2/rotf-robots),
+   `cargo run --release -p bumblebee`). Know what the robot should feel like before rebuilding him.
+2. **Bring in the assets.** Export the robot and import him into the host's tools, through Blender
+   if that is the host's way in. He should stand, play his clips and change form there first.
+3. **Map each system onto the host's.** The control states become the host's animation graph or
+   state machine; on foot becomes its character controller; the car its vehicle setup; weapons and
+   damage its own. Write the map down before building: which of the host's parts carries which
+   rule, and what the host cannot do the same way.
+4. **Convert at the edge.** Axes, units, the game's 0.032 s update and the clips' 1/60 s tick (see
+   below). A host that updates at another rate has to give the same result per second, not per
+   update.
+5. **Build one system at a time and check each** against the reference (next section) before the
+   next: on foot, then the change of form, the car, the camera, fighting, weapons, effects, sound.
+6. **Say what differs.** Where the host's physics or animation cannot do what the original does,
+   write down how the port differs. Systems built on `[assumed]` or `[stand-in]` code (see
+   rotf-robots' `game/README.md`, "What is real") are the reference's guesses, not proven.
 
 ## Checking a port
 
-- The Bevy game is the reference. Run the same input in both and compare.
-- In rotf-robots, `cargo run --release -p bumblebee -- --shot out.png --after 2` captures one frame
-  without playing. Other capture flags are in its `game/README.md`, "Checking it without playing".
+- The Bevy game is the reference you can play. Run the same input in both and compare.
 - The windowless examples in `core/examples/` print what a system does for a scripted input
   (`control_check`, `vehicle_check`, `fly_check`, `combat_check`, `melee_check`...). Run the same
-  script through your port and compare the output.
+  script in your port and compare the numbers.
+- In rotf-robots, `cargo run --release -p bumblebee -- --shot out.png --after 2` captures one frame
+  without playing. Other capture flags are in its `game/README.md`, "Checking it without playing".
 - Recorded physics from the running game are in `core/fixtures/`. The car's tests replay them.
 
 ## Facts every port needs
@@ -106,9 +116,14 @@ list_roster` prints them with the names `--character` takes. Bumblebee is the mo
 only one compared with recordings; the others play on their own data and are checked only by tests
 and captures.
 
-## Coming
+## Coming: porting tools
 
-- A small robot API: load a robot, step it, read back its pose, state and events, instead of
-  copying the game's per-frame code.
-- A C-compatible library over it, for hosts not written in Rust, with a worked example.
-- Conformance checks: recorded input replayed through a port and compared with the expected output.
+- **The rules as data.** The control states (each state, what input or condition leaves it, the
+  clip it plays, blend and cancel windows) and each mechanic's numbers with the formula they go
+  into, written beside the robot's export as JSON and documented in `FORMAT.md`, so a port maps
+  them onto a host's animation graph and controller instead of reading Rust.
+- **Reference runs.** A command that runs a scripted or recorded input through the reference and
+  writes, every update, the position, speed, state, clip and events, so a native port's output can
+  be compared with it number by number.
+- **Guides per host engine.** How each part of a robot maps onto one engine's own systems, written
+  against that engine's real tools and checked there.
