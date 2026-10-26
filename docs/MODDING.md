@@ -45,6 +45,11 @@ that say when a footstep, a hit window or an effect happens.
 **The robot's numbers.** `<pack>_attributes.json` from the exporter: speeds, jumps, turning,
 health, the car's numbers. Take them from the file, never by eye.
 
+**The control states.** `control` in `<pack>.json`: every state the robot can be in, the clip it
+plays and its motion mode, and every way out of it with the button, stick or condition that takes
+it and its priority, with the rules for running them ([FORMAT.md](FORMAT.md), `control`). This is
+the skeleton of the host's animation graph or state machine.
+
 **The rules, written down.** Each system's notes in `docs/`, read from the game's code and data,
 say what it does, in what order, with which numbers, and tag what is fitted or guessed:
 
@@ -74,8 +79,8 @@ it into the mod.
    `cargo run --release -p bumblebee`). Know what the robot should feel like before rebuilding him.
 2. **Bring in the assets.** Export the robot and import him into the host's tools, through Blender
    if that is the host's way in. He should stand, play his clips and change form there first.
-3. **Map each system onto the host's.** The control states become the host's animation graph or
-   state machine; on foot becomes its character controller; the car its vehicle setup; weapons and
+3. **Map each system onto the host's.** The control states (`control`) become the host's
+   animation graph or state machine; on foot becomes its character controller; the car its vehicle setup; weapons and
    damage its own. Write the map down before building: which of the host's parts carries which
    rule, and what the host cannot do the same way.
 4. **Convert at the edge.** Axes, units, the game's 0.032 s update and the clips' 1/60 s tick (see
@@ -118,10 +123,10 @@ and captures.
 
 ## Coming: porting tools
 
-- **The rules as data.** The control states (each state, what input or condition leaves it, the
-  clip it plays, blend and cancel windows) and each mechanic's numbers with the formula they go
-  into, written beside the robot's export as JSON and documented in `FORMAT.md`, so a port maps
-  them onto a host's animation graph and controller instead of reading Rust.
+- **The rest of the rules as data.** The control states are exported (`control`). Still to come:
+  the animation sets' clip-selection rules (which clip of a set plays, which follows it, and the
+  blends), and each mechanic's numbers with the formula they go into, documented in `FORMAT.md`
+  so a port maps them onto a host's animation graph and controller instead of reading Rust.
 - **Reference runs.** A command that runs a scripted or recorded input through the reference and
   writes, every update, the position, speed, state, clip and events, so a native port's output can
   be compared with it number by number.

@@ -84,6 +84,7 @@ Never branch on it: branch on `format_version`.
 | `summary` | object | The numbers a mod needs most (below). |
 | `character_sounds` | object | Sound events named outside the clips: engine, steps by surface... (below). |
 | `sounds` | object | Every sound event the robot can play, and every sample written as WAV (below). |
+| `control` | object | The control state machine: what decides when he moves, jumps, attacks, dodges, climbs, aims or changes form (below). |
 | `attributes_file` | string | The file name of `<pack>_attributes.json`. |
 | `not_exported` | array of strings | Prose: what the game has that is not in the export. |
 
@@ -449,6 +450,148 @@ A **sample**:
 | `rate`, `channels`, `frames`, `seconds` | The WAV's format and length. |
 | `loop` | `[start, end]` in frames (end exclusive), or null when the sample does not loop. |
 
+### `control`
+
+What decides when the robot moves, jumps, attacks, dodges, climbs, aims or changes form is not
+code in the original: it is a graph of states and connections in the game's data. Each state
+plays a clip and puts the body in a motion mode; each transition out of it names a connection,
+which tests the pad, the body and the world, and a priority. This is that graph, as the game
+joins it: a state that several of the character's machines list has every machine's transitions.
+It maps onto an animation graph or a state machine in another engine. `docs/state-machine.md` has
+the research behind it; `core/src/control.rs` runs it.
+
+If the attribute block cannot be read, `control` is `{ "error": "..." }` instead.
+
+| Key | Type | What it is |
+| --- | --- | --- |
+| `update_seconds` | number | 0.032: the machine runs once per game update. |
+| `start_state` | string or null | `stateIdle`: where the machine starts, and where a finished state with nowhere to go returns. |
+| `buttons` | array | The pad's buttons as connections name them: each has `number` (the game's) and `name` (`Jump`, `AttackFast`, `VehicleMode`...). |
+| `states` | array | Every state (below). Names are unique. |
+| `connections` | array | Every connection a transition names (below). Names are unique. |
+
+The button names are the game's binding names; `docs/MODDING.md` and `docs/input.md` say which
+pad and keyboard button each is. Several share one button (`AttackFast`, `Dodge` and
+`AttackTransformSlam` are all the left face button): the state decides which one is meant.
+
+#### `control.states`
+
+| Key | Type | What it is |
+| --- | --- | --- |
+| `name` | string | The state (`stateIdle`, `stateAttack1`, `stateDriveEnterA`...). |
+| `class` | string | What kind of state it is: what its code does beyond this data (below). |
+| `overlay` | boolean | It runs on top of another state instead of replacing it (the special, the firing). |
+| `clip` | string or null | The clip it plays, by its name in `clips`. null when it names none, or names one this robot does not have (then `clip_id` says which). |
+| `clip_id` | string or null | The clip's id as the state names it, whether or not the robot has it. |
+| `anim_set` | string or null | The animation set it names. With no clip, the set's own rules pick one (they are not exported yet). |
+| `robot_form` | string or number | The control mode it puts the character in as it is entered: `robot`, `weapon`, `vehicle`, or `unchanged`. The mode decides the camera and the weapon. The drive states set `vehicle` and the weapon states `weapon` in their own code whatever this says. |
+| `motion_mode` | string or null | How the body moves while in it: `MoveMode`, `JumpMode`, `AttackMode`, `StrafeMode`, `DriveMode`, `DriveCompanionMode` (the slowing roll while unfolding out of the car), `ClimbMode`, `DashMode`, `FlyMode`, `HoverMode`, `FirstMode` (standing: the clip moves him), and the rest of `docs/bumblebee-mechanics.md` "Modes". A hash names one the executable's list does not have. |
+| `finish_anim` | boolean | It may not be left until its clip has finished. |
+| `play_anim_once` | boolean | It is done when its clip has finished. |
+| `finish_on_set_exit` | boolean | It may be left, and is done, only once the animation has left its set. |
+| `finish_on_special_set_exit` | boolean | The same for the special's set. |
+| `allow_fall` | boolean | Gravity acts while in it, though its motion mode is `FirstMode`. |
+| `ranged` | boolean | An attack state that works the weapon instead of playing a clip. |
+| `fire_button` | string or null | With `ranged`: the button it watches. |
+| `can_go_to` | array of strings | What damage may force on it: `STATE_CAN_GO_TO_DEATH`, `..._HIT_REACT`, `..._HIT_REACT_OVERLAY`, `..._STUN`, `..._GRABBED`. A hit or death that the list lacks does not interrupt the state. |
+| `transitions` | array | The ways out, in the game's order: each has `connection` (a name in `connections`), `to` (a state, or null for "back to the state under this overlay") and `priority`. |
+
+#### `control.connections`
+
+| Key | Type | What it is |
+| --- | --- | --- |
+| `name` | string | The connection (`connectionJump`, `connectionListDrive`...). |
+| `test` | string | `detector`, `ground_distance`, `time_in_state`, `environment`, `message`, `all` or `none` (below). |
+| `checks` | object | *Not on `all`.* What every connection also checks (below). |
+
+What each test adds:
+
+| `test` | Keys | Passes when |
+| --- | --- | --- |
+| `detector` | `stages`, `stays_on_seconds`, `hold_with_last_stage` | Its detector is on: the pad has done what the stages ask, in order (below). |
+| `ground_distance` | `limit`, `above` | His height over the ground (0 standing) is over `limit` with `above`, under it without. |
+| `time_in_state` | `seconds` | He has been in the state at least that long. |
+| `environment` | `environment` | The world test of that name passes: `Climbable` (a climbable wall ahead, `docs/climbing.md`), `CanSwitchAvatar`, `InsideFlightBoundary`, `NotHoldVIP`. The others are hashes; the connection's name says what they test (`connectionEnvFlippable`). |
+| `message` | `message` | The character got that message this update: from a mission (`PlayCustomAnim1`), from the climb (its exits) or from the game's code. A hash names a message the data gives no name; the connection's name says what it is (`#c51a4425` is `connectionMessageHoverForced`'s). |
+| `all` | `connections` | Every connection listed passes. |
+| `none` | | Only the checks. |
+
+`checks`, all of which must hold:
+
+| Key | Holds when |
+| --- | --- |
+| `in_air`, `on_ground` | When true: he is off the ground, or on it. |
+| `holding`, `not_holding` | When true: he carries something (a human), or does not. |
+| `min_z_velocity`, `max_z_velocity` | His vertical speed is strictly between them. null is no limit. |
+| `branch_begin`, `branch_end` | The playing clip's branch count is at least both. The count is 1 when a clip starts, goes up by one at each `branch_point` event, and is 100 once the clip has finished: so 100 means "the clip has finished". |
+| `attack_can_branch` | When true: the attack button was pressed while an `attack_button_window` was open, and the window has closed. This is the melee chain. |
+| `can_adv_transform` | When true: 0.25 s have passed since the change into the car (`advTransformDelay`): the attacks out of the car. |
+
+`stages` of a detector, each with:
+
+| Key | What it is |
+| --- | --- |
+| `after_seconds` | Seconds since the stage before (or since the detector started) before this stage may pass. |
+| `held_seconds` | Seconds the `held` buttons must have been down together. |
+| `held`, `not_held` | Buttons that must be down, and must not be. |
+| `pressed` | A button that must have gone down this update, or null. |
+| `stick` | null for any stick. Else the left stick's length must be within `min` and `max` (a full push is 1) and its angle within `angle_min_degrees` and `angle_max_degrees`, measured `against` the `camera` or the `character`'s facing: 0 straight ahead, positive to the left. The angle is taken between -180 and 180; when `angle_max_degrees` is not negative and `angle_min_degrees` is positive, a negative angle has 360 added; when `angle_max_degrees` is negative, a positive angle has 360 taken off. |
+
+#### Running the graph
+
+Every update (`update_seconds`), in this order:
+
+1. **Detectors.** Every connection on the current state's transitions steps its detector by the
+   update's time. A connection that two transitions share is stepped once for each. A detector:
+   the time since its stage started goes up; the time the stage's `held` buttons have been down
+   together goes up while they are, and goes back to 0 when they are not. When the stage passes,
+   `held_seconds` have been held and `after_seconds` have gone by, both times are cut by those
+   amounts and the next stage starts. After the last stage the detector is on, for
+   `stays_on_seconds` (100000 is for good) and back to its first stage; with
+   `hold_with_last_stage` it is on instead for as long as the last stage still passes. A detector
+   with no stages is on at once.
+2. **The transition.** Of the current state's transitions whose connection passes and whose
+   target may be entered now, the one with the HIGHEST `priority` wins, the first listed on a
+   tie. Only transitions to a state that is not an overlay count here, and one with `to` null
+   counts only when the current state is itself an overlay. "May be entered" is the target's
+   class: a dodge while its cooldown runs, or the car while it is disabled by a hit, may not.
+3. **Changing state.** The old state is left: every detector on its transitions goes back to its
+   start, and its overlay ends. The new one is entered (its clip, its motion mode, its
+   `robot_form`, its time in state 0) and its update runs in the same update.
+4. **Overlays.** When no transition won and no overlay is running, the best transition into an
+   overlay state is found the same way. That overlay starts at the start of the NEXT update and
+   runs on top. An overlay runs its own transitions: one that wins with `to` null, or back to the
+   state under it, ends it; with none winning it may start an overlay of its own (the special on
+   top of the firing), or ends when it is done. Leaving an overlay resets the connection that
+   started it, so a press that stays on for good has to be made again.
+5. **Done.** A state that is not an overlay, with no transition winning, that is done (a
+   `StateBasic` with `play_anim_once` whose clip has finished, a hit reaction that has played
+   out) goes to `start_state`.
+
+The motion mode then moves the body, in the same update. A state may not be left while it says
+so (`finish_anim`, `finish_on_set_exit`, a jump for its first 0.1 s): its transitions wait.
+
+#### State classes
+
+What each `class` does beyond its data, as read from the game (`docs/state-machine.md`):
+
+| Class | On entering, and while in it |
+| --- | --- |
+| `StateIdle` | Standing: `IdleStandSet`, `FirstMode`. His vertical speed is zeroed. |
+| `StateMove` | Walking and running: `WalkSet`, `MoveMode`. His vertical speed is zeroed. |
+| `StateJump` | `JumpMode`, then `JumpSet`. May not be left for 0.1 s. After a climb's jump-up it catches a ledge. |
+| `StateFall` | `FallSet`, then `JumpMode`, with no launch. |
+| `StateDash` | The dodge: `DashSet`, whose rules pick the clip by the stick against his aim (within 45 degrees `DodgeFront`, 45 to 135 left `DodgeLeft`, right `DodgeRight`, else `DodgeBack`); `DashMode` keeps his facing. Not entered for `groundDashCooldown` (0.5 s) after one. Puts the gun away on leaving unless the next state is a `StateWeapon`. |
+| `StateAttack` | Melee: its clip from `CombatSet` (with no clip, `CombatSet`'s rules pick one) and its motion mode (`AttackMode`, which slides him toward and turns him to a target by the clip's `attack` numbers and `attack_face_and_slide` events; `docs/melee.md`). With `ranged`, it fires the weapon on `fire_button` instead. |
+| `StateAttackSpecial` | The special (`docs/character-specials.md`). With no clip, `SpecialAnimSet`'s rules pick one. As an overlay it is done after one update. |
+| `StateWeapon` | Weapon mode: its motion mode first (`StrafeMode`), then `WeaponSet`; the control mode becomes `weapon` and the gun comes out, unless he comes from a `StateDash` or another `StateWeapon` (`docs/weapon-mode.md`). |
+| `StateDrive` | The car: a `DriveSet` clip and `DriveMode` (`docs/driving.md`). During the first part of the change, on the ground with the stick well off his motion, `MoveMode` until it lines up. Not entered while a hit has disabled the vehicle. |
+| `StateBasic` | Plays its clip (or its set's pick), then its motion mode. The ways out of the car, the climb's pull-up, the hover's start, the scripted clips. |
+| `StateClimb` | `ClimbMode` (`docs/climbing.md`). |
+| `StateFly`, `StateFlyExit` | Flight: `FlySet` whatever the data names (`docs/flight-states.md`). |
+| `StateHitReact`, `StateStun`, `StateDeath` | Forced by damage when the current state's `can_go_to` allows it (`docs/damage.md`). |
+| `StateInteract` | Picking up a human and flipping a car: mission interactions, not ported. |
+
 ## `<pack>_attributes.json`
 
 | Key | Type | What it is |
@@ -473,7 +616,11 @@ The game has these, and the export does not. `not_exported` lists them too.
 
 - The voice lines (the game picks them in code).
 - The particle effects, ribbons and lights: only their names at their events.
-- The animation state machine: which clip follows which, and its rules.
+- The animation sets' clip-selection rules: which clip of a set plays, and which follows it.
+  The control states are exported (`control`); a state that names a set but no clip, and the
+  classes that pick by their set's rules, rely on these.
+- What each state class does in code beyond its data. `control`'s "State classes" sums it up;
+  `docs/state-machine.md` and `core/src/sim.rs` have the detail.
 - What the game moves in code: flight's surfaces, the wheels' spin, the suspension.
 
 ## Changes
@@ -482,3 +629,5 @@ The game has these, and the export does not. `not_exported` lists them too.
 - **1**, added (2026-10-26): `collision`, and a `<node>.collision.<n>` node in the `.glb` for
   each body. Only new keys, so the version stays 1.
 - **1**, added (2026-10-26): `unkeyed_node_names` on vehicle clips.
+- **1**, added (2026-10-26): `control`, the control state machine: states, transitions,
+  connections and the button names, with the rules for running it.

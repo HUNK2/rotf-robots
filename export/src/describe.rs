@@ -215,7 +215,8 @@ pub fn character(install: &Path, spec: &Spec, data: &CharacterData, pieces: &[Pi
         "not_exported": [
             "the voice lines (chatter): the game picks them from audio\\eng\\CHATTER.fsb in code",
             "particle effects, ribbons and lights: named at their events only",
-            "the animation state machine (which clip follows which, and its rules)",
+            "the animation sets' clip-selection rules (which clip of a set plays, and which follows it); the control states are in control",
+            "what each control state class does in code beyond its data (the dodge's direction, the drive and fly states' own steps): docs/state-machine.md and core/src/sim.rs",
             "flight's moving surfaces (flaps, rotors), the wheels' spin and the suspension: the game moves them in code",
         ],
     })

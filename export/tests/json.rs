@@ -106,6 +106,28 @@ fn bumblebee_json_names_only_what_exists() {
             }
         }
     }
+    // The control states: each clip is one of `clips`, each transition names a connection and a
+    // state that are there, each connection list's members are there, and the start state is.
+    let control = &json["control"];
+    let names_of = |key: &str| -> HashSet<&str> { control[key].as_array().unwrap().iter().map(|x| x["name"].as_str().unwrap()).collect() };
+    let (states, connections) = (names_of("states"), names_of("connections"));
+    let clip_names: HashSet<&str> = json["clips"].as_array().unwrap().iter().map(|c| c["name"].as_str().unwrap()).collect();
+    assert!(states.contains(control["start_state"].as_str().unwrap()), "no start state");
+    for state in control["states"].as_array().unwrap() {
+        if let Some(clip) = state["clip"].as_str().filter(|c| !clip_names.contains(c)) {
+            problems.push(format!("{}: no clip {clip}", state["name"]));
+        }
+        for t in state["transitions"].as_array().unwrap() {
+            if !connections.contains(t["connection"].as_str().unwrap()) || t["to"].as_str().is_some_and(|s| !states.contains(s)) {
+                problems.push(format!("{}: transition {t}", state["name"]));
+            }
+        }
+    }
+    for c in control["connections"].as_array().unwrap().iter().filter(|c| c["test"] == "all") {
+        if c["connections"].as_array().unwrap().iter().any(|m| !connections.contains(m.as_str().unwrap())) {
+            problems.push(format!("{}: a member is missing", c["name"]));
+        }
+    }
     assert!(problems.is_empty(), "{} problems:\n{}", problems.len(), problems.join("\n"));
 
     // Render sets: each mesh they list is a node of its file by that name (or `<name>.<part>`),

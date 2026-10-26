@@ -5,9 +5,11 @@
 //!
 //! What is written so far: the robot form, the vehicle form, every weapon, projectile and melee
 //! weapon object, each with its clips as animations, and `<pack>.json` (clip events, attacks, root
-//! travel, weapon mounts, render sets, collision bodies, materials, the character's attributes), and
-//! the sounds: every sample its events play as WAV, and the events themselves in the JSON.
+//! travel, weapon mounts, render sets, collision bodies, materials, the control state machine, the
+//! character's attributes), and the sounds: every sample its events play as WAV, and the events
+//! themselves in the JSON.
 
+pub mod control;
 pub mod describe;
 pub mod glb;
 pub mod model;
@@ -144,6 +146,10 @@ pub fn export(install: &Path, spec: &Spec, out: &Path) -> Result<Written, String
         written.push((format!("{}.glb", piece.file), summary));
     }
     let mut json = describe::character(install, spec, &data, &pieces, &written, &mut shared, &names);
+    json["control"] = match tf2_core::tuning::load(install, &spec.attributes) {
+        Ok(tuning) => control::control(&tuning, &data, &names),
+        Err(e) => serde_json::json!({ "error": e }),
+    };
     let json_file = format!("{}.json", spec.pack);
     let attributes = describe::attributes(spec, &names);
     let sounds = sounds::write(install, &sound_events[0], &sound_events[1..], &json, &attributes, out);
@@ -268,8 +274,9 @@ fn readme(spec: &Spec) -> String {
          {pack}.json           what glTF cannot hold: every clip's events (sounds, effects, the\n\
          \x20                    change of form, weapon moves, attack windows), its attack and its\n\
          \x20                    root travel; where each weapon hangs; render sets; the collision\n\
-         \x20                    bodies; every material parameter; the character's attributes as\n\
-         \x20                    the game stores them.\n\
+         \x20                    bodies; every material parameter; the control state machine (each\n\
+         \x20                    state, its clip, and what button or condition leaves it for which);\n\
+         \x20                    the character's attributes as the game stores them.\n\
          \x20                    Its format: docs/FORMAT.md in github.com/HUNK2/rotf-robots-sdk\n\
          textures/            the textures as PNG; textures/dds/ the same as the game stores them\n\
          sounds/              every sample the character's sound events play, as WAV, by bank;\n\

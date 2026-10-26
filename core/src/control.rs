@@ -41,6 +41,22 @@ pub mod button {
     pub const TRANSFORM_SLAM: u32 = 0x24;
     /// One past the highest button a detector may name.
     pub const COUNT: u32 = 0x29;
+
+    /// The buttons' names by number: the binding list of `global_tuning` (`Controller`) in its
+    /// order, with the seven `Flying*` entries moved after `WeaponSwitchUp`. [data] the order is
+    /// checked on the numbers the states use (0, 1, 2, 0xb, 0xc, 0xe, 0x15, 0x17, 0x18, 0x1c,
+    /// 0x21 to 0x24); the camera entries (4 to 0xa) rest on the order alone. 0x25 to 0x28 are
+    /// not named.
+    pub const NAMES: [&str; 0x25] = [
+        "Action", "AttackFast", "AttackSpecial", "AttackVehicle", "CameraDebugFollowCloser",
+        "CameraDebugFollowFarther", "CameraFirstPerson", "CameraReset", "CameraSwitch",
+        "CameraSwitchBack", "CameraSkipAnimation", "Climb", "Dodge", "Drop", "Jump", "Pickup",
+        "StrafeMode", "Throw", "VehicleAcclerate", "VehicleBrake", "VehicleDrift", "VehicleMode",
+        "VehicleTurbo", "WeaponFire", "WeaponMode", "WeaponSwitchUp", "FlyingAfterburn",
+        "FlyingBrake", "FlyingMode", "FlyingQuickLeft", "FlyingQuickRight", "FlyingStuntMode",
+        "FlyingStunt", "AttackTransformHover", "AttackTransformJump", "AttackTransformPunch",
+        "AttackTransformSlam",
+    ];
 }
 
 /// Environment tests a connection may ask for, by the hash the data stores. What each one
@@ -808,6 +824,25 @@ mod tests {
             ground_distance: 0.0,
             env: &|_| true,
             messages: &[],
+        }
+    }
+
+    #[test]
+    fn the_button_names_match_the_numbers() {
+        for (number, name) in [
+            (button::ACTION, "Action"),
+            (button::ATTACK_SPECIAL, "AttackSpecial"),
+            (button::CLIMB, "Climb"),
+            (button::DODGE, "Dodge"),
+            (button::JUMP, "Jump"),
+            (button::VEHICLE_MODE, "VehicleMode"),
+            (button::WEAPON_FIRE, "WeaponFire"),
+            (button::WEAPON_MODE, "WeaponMode"),
+            (button::FLYING_MODE, "FlyingMode"),
+            (button::TRANSFORM_HOVER, "AttackTransformHover"),
+            (button::TRANSFORM_SLAM, "AttackTransformSlam"),
+        ] {
+            assert_eq!(button::NAMES[number as usize], name);
         }
     }
 
