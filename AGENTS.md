@@ -65,7 +65,11 @@ below are in that repository.
 
 Each robot's folder holds a glb per piece (`<pack>_robot.glb`, `_vehicle.glb`, weapons,
 projectiles), `textures/`, `sounds/<bank>/*.wav`, `<pack>.json`, `<pack>_attributes.json` and a
-`README.txt`. The JSON explains itself in its `note` fields. Points that trip importers:
+`README.txt`. The JSON's format is `docs/FORMAT.md`, versioned by `format_version`
+(`rotf_export::FORMAT_VERSION`). A change to the JSON changes that document in the same commit:
+the `json` test fails when the JSON has a key or event type the document does not name. Bump the
+version when a key is removed or renamed or changes its type, unit or meaning, and add a line to
+the document's "Changes". Points that trip importers:
 
 - Clips are at 60 ticks per second; event `tick`s count in those ticks.
 - A mesh node with `extras.render_set_hidden` starts hidden in the game (it also carries

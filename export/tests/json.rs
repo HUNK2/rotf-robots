@@ -3,11 +3,12 @@
 //! kind as the clip itself; and the change of form starts the vehicle's clips and swaps the models
 //! at the ticks the game's own driver does (`core/examples/form_swap_frames`: the car's
 //! `Trans_R2V_A` from tick 0, its `Trans_R2V_B` with the robot's part B, the robot hidden at
-//! part B's tick 14). Reads the install; skips without it.
+//! part B's tick 14). Both files carry `format_version`, and `docs/FORMAT.md` names every key
+//! and event type the JSON uses. Reads the install; skips without it.
 
 mod common;
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 
 use serde_json::Value;
 
@@ -18,6 +19,12 @@ fn bumblebee_json_names_only_what_exists() {
     let json: Value = serde_json::from_str(&text).unwrap();
     let attributes: Value = serde_json::from_str(&std::fs::read_to_string(export.out.join(json["attributes_file"].as_str().unwrap())).unwrap()).unwrap();
     assert!(attributes["attributes"]["baseHealth"].is_number(), "the attribute block has no baseHealth");
+    for file in [&json, &attributes] {
+        assert_eq!(file["format_version"], rotf_export::FORMAT_VERSION, "format_version");
+    }
+    let spec = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../docs/FORMAT.md")).unwrap();
+    let missing = undocumented(&json, &spec);
+    assert!(missing.is_empty(), "docs/FORMAT.md does not name {missing:?}");
 
     // Each file's animation and node names, read back.
     let mut animations: HashMap<String, HashSet<String>> = HashMap::new();
@@ -186,4 +193,32 @@ fn bumblebee_json_names_only_what_exists() {
     assert_eq!(a[0], (0.0, true, true, Some("VehicleModel.Trans_R2V_A".into())), "{a:?}");
     assert_eq!(b[0], (0.0, true, true, Some("VehicleModel.Trans_R2V_B".into())), "{b:?}");
     assert!(b.contains(&(14.0, false, true, None)), "{b:?}");
+}
+
+/// The keys and event types of the JSON that `spec` (docs/FORMAT.md) does not name as `key`: the
+/// spec keeps up with the exporter. The game's own data under a weapon's `numbers` is not the
+/// format's, nor are the names that key `sounds.events` and `sounds.samples`.
+fn undocumented(json: &Value, spec: &str) -> Vec<String> {
+    fn walk(v: &Value, keys: &mut BTreeSet<String>) {
+        match v {
+            Value::Object(map) => {
+                for (k, x) in map {
+                    keys.insert(k.clone());
+                    match (k.as_str(), x) {
+                        ("numbers", _) => {}
+                        ("events" | "samples", Value::Object(named)) => named.values().for_each(|y| walk(y, keys)),
+                        _ => walk(x, keys),
+                    }
+                }
+            }
+            Value::Array(items) => items.iter().for_each(|x| walk(x, keys)),
+            _ => {}
+        }
+    }
+    let mut keys = BTreeSet::new();
+    walk(json, &mut keys);
+    for clip in json["clips"].as_array().unwrap() {
+        keys.extend(clip["events"].as_array().unwrap().iter().map(|e| e["type"].as_str().unwrap().to_owned()));
+    }
+    keys.into_iter().filter(|k| !spec.contains(&format!("`{k}`"))).collect()
 }

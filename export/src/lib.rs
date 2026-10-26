@@ -27,6 +27,11 @@ use tf2_core::weapons::Kind;
 use model::ClipOut;
 use names::Names;
 
+/// The version of the JSON files' format (`docs/FORMAT.md`), written as their `format_version`.
+/// It goes up when a key is removed or renamed, or changes its type, unit or meaning; new keys,
+/// event types and values leave it as it is.
+pub const FORMAT_VERSION: u32 = 1;
+
 /// The character `name` takes, as the game's `--character` does: a display name or a pack, or
 /// `pack:Attributes` for one the list does not name.
 pub fn spec(roster: &CharacterList, name: &str) -> Spec {
@@ -263,7 +268,8 @@ fn readme(spec: &Spec) -> String {
          {pack}.json           what glTF cannot hold: every clip's events (sounds, effects, the\n\
          \x20                    change of form, weapon moves, attack windows), its attack and its\n\
          \x20                    root travel; where each weapon hangs; render sets; every material\n\
-         \x20                    parameter; the character's attributes as the game stores them\n\
+         \x20                    parameter; the character's attributes as the game stores them.\n\
+         \x20                    Its format: docs/FORMAT.md in github.com/HUNK2/rotf-robots-sdk\n\
          textures/            the textures as PNG; textures/dds/ the same as the game stores them\n\
          sounds/              every sample the character's sound events play, as WAV, by bank;\n\
          \x20                    the events themselves (layers, parameters, picks) are the JSON's\n\
