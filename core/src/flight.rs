@@ -362,7 +362,7 @@ pub const WALL_RAY: f32 = 35.0;
 /// 3). [game] Their writer is FlyMode's constructor 00863970, read 2026-10-18:
 /// `param_2[0x14b..0x150]` = -5.0, 0, -1.5 and 5.0, 0, -1.5 (0xc0a00000, 0, 0xbfc00000,
 /// 0x40a00000, 0, 0xbfc00000): five metres to each side and a metre and a half below.
-const SIDE_RAYS: [glam::Vec3; 2] = [glam::Vec3::new(-5.0, 0.0, -1.5), glam::Vec3::new(5.0, 0.0, -1.5)];
+pub const SIDE_RAYS: [glam::Vec3; 2] = [glam::Vec3::new(-5.0, 0.0, -1.5), glam::Vec3::new(5.0, 0.0, -1.5)];
 
 /// The flying form in normal flight under the player: FlyMode's update 00864320 with its
 /// steering 00866ef0, the tight turn 008676c0 while its button is held, and its speed layer

@@ -68,7 +68,9 @@ below are in that repository.
 
 Each robot's folder holds a glb per piece (`<pack>_robot.glb`, `_vehicle.glb`, weapons,
 projectiles), `textures/`, `sounds/<bank>/*.wav`, `<pack>.json`, `<pack>_attributes.json` and a
-`README.txt`. The JSON's format is `docs/FORMAT.md`, versioned by `format_version`
+`README.txt`. `mechanics` in the JSON carries the numbers for the formulas in `docs/MECHANICS.md`;
+a change to what the reference does to those mechanics changes that document too. The JSON's
+format is `docs/FORMAT.md`, versioned by `format_version`
 (`rotf_export::FORMAT_VERSION`). A change to the JSON changes that document in the same commit:
 the `json` test fails when the JSON has a key or event type the document does not name. Bump the
 version when a key is removed or renamed or changes its type, unit or meaning, and add a line to

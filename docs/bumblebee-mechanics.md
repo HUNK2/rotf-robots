@@ -229,8 +229,10 @@ vector to the physics holder each frame through `FUN_006e8da0`, which stores it 
 - the mode is MoveMode and no jump was asked for (`+0x26c` clear): (0.1, 0.1, 0);
 - otherwise the mode's own control vector (`mode + 0xc`).
 
-So walking and running do NOT use MoveMode's (1, 1, 0); that only applies on the frame a jump is
-asked for.
+Corrected 2026-10-26: `+0x26c` is the ground flag (see JumpMode), so the 0.1 applies to MoveMode
+OFF the ground (stepping off an edge before the fall starts). On the ground MoveMode uses its own
+(1, 1, 0): the body takes the clip's velocity at once, and the start and stop ramps are the
+clips' own blends (`MECHANICS.md`, "On foot"; `core/src/sim.rs` `MOVE_AIR_CONTROL`).
 
 The holder's step (`FUN_006db490`, given dt) then does, per axis:
 
@@ -245,8 +247,8 @@ control for that step.
 
 What follows from it:
 
-- On foot the body's horizontal velocity closes 10% of the gap to the clip's root-motion
-  velocity every update. That is the start and stop ramp (the test had guessed one).
+- On foot the body takes the clip's root-motion velocity at once; off the ground in MoveMode it
+  closes 10% of the gap each update (corrected 2026-10-26, above).
 - In the air the gap closes by the jump type's control value per update (0.038 running, 0.1
   standing, 0.025 long). With the stick centred the mode moves nothing, so `wanted` is zero and
   the horizontal speed bleeds off at that same rate.

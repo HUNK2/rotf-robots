@@ -87,6 +87,7 @@ Never branch on it: branch on `format_version`.
 | `sounds` | object | Every sound event the robot can play, and every sample written as WAV (below). |
 | `control` | object | The control state machine: what decides when he moves, jumps, attacks, dodges, climbs, aims or changes form (below). |
 | `animation_rules` | object | Within each animation set, which clip plays and which follows it (below). |
+| `mechanics` | object | Each mechanic's numbers for this robot, for the formulas in MECHANICS.md (below). |
 | `attributes_file` | string | The file name of `<pack>_attributes.json`. |
 | `not_exported` | array of strings | Prose: what the game has that is not in the export. |
 
@@ -701,6 +702,116 @@ partial sets play on), after the clip has moved on by the update's time:
 A control state that names a set and no clip starts the set by an entry walk from the clip that
 was playing (`control`'s "State classes").
 
+### `mechanics`
+
+Each mechanic's numbers for this robot, as the reference uses them. The formulas they go into are
+in [MECHANICS.md](MECHANICS.md). So far on foot, the jump, the car, flight and hover. Speeds are metres a second, times
+seconds, turn speeds degrees a second; a value that does not apply is null.
+
+`constants`: the game's own numbers, the same for every robot.
+
+| Key | What it is |
+| --- | --- |
+| `update_seconds` | The game's update, 0.032. |
+| `stick_dead_squared` | The stick counts as centred at or below this squared length. |
+| `full_stick_squared` | Past this squared length a running jump takes off at exactly `max_speed`. |
+| `move_air_control` | The share of the gap to the clips' pace that moving closes each update off the ground. |
+| `vehicle_exit_slow_squared` | Out of the car at or below this speed squared: the high standing jump. |
+| `fly_exit_long_squared` | Out of flight at or above this speed squared: the long jump. |
+| `climb_jump_push` | The push along his facing of a jump off a wall. |
+| `jump_leave_seconds` | The least time in the jump before the state may leave it. |
+| `drive_line_up` | Changing into the car, he keeps turning on foot until the stick's direction against his motion has at least this cosine. |
+| `unfold_run_stick` | Out of the car, a stick longer than this unfolds him into a run. |
+| `car_air_push` | How hard the stick pushes the car with no wheel down. |
+| `fly_drop_ray` | The length of a flyer's ray down to the ground. |
+| `fly_wall_ray`, `fly_side_rays` | The length of a flyer's three rays along its nose, and the two side rays' starts in the body's frame. |
+
+`on_foot`:
+
+| Key | What it is |
+| --- | --- |
+| `turn_speed_degrees` | How fast moving turns him toward the stick (`modeMove.turnSpeed`). |
+| `max_speed` | The running jump's take-off speed at full stick (`modeMove.maxSpeed`). |
+| `walk_run_speed` | The speed a landing into moving is capped at (`modeMove.walkRunSpeed`). |
+| `move_stick`, `run_stick` | Stick lengths past which he walks and runs (`animRuleMovement`, `animRuleMovementRun`). `run_stick` is null when he has no run. |
+| `walk_speed`, `run_speed` | The walk and run clips' root speed. |
+| `idle_blend`, `walk_blend`, `run_blend` | Seconds the idle, walk and run clips take to blend in. |
+| `stop_clip`, `land_run_clip`, `big_land_run_clip` | The one-off clips that set the pace: run to idle and the two landings into a run, by `clips` name. |
+| `long_fall_seconds` | Falling this long gives the big landing (`animRuleLongFall`). |
+
+`jump`:
+
+| Key | What it is |
+| --- | --- |
+| `gravity` | Gravity, metres a second squared (`Character.gravity`). |
+| `types` | One entry per jump type (below). |
+| `takeoff_clip`, `in_air_speed` | The take-off clip whose root pushes a standing or moving jump, and the in-air clip's root speed after it. |
+| `climb_up_height` | `climbJumpUpHeight`. Not used: every jump off a wall takes the `climb` type's height. |
+| `ground_punch_acceleration`, `ground_punch_speed_limit` | The ground punch's extra pull, per update, and the most gravity and pull reach. |
+| `weapon_dilation_start`, `weapon_dilation`, `weapon_dilation_rate` | The slow motion while aiming in the air. |
+| `strafe_speed` | Weapon mode's speed (`modeStrafe.strafeSpeed`): a jump from it takes off at this, a landing into it is capped at it. |
+
+Each of `types`:
+
+| Key | What it is |
+| --- | --- |
+| `type` | `standing`, `moving`, `high_standing`, `long`, `fall`, `climb`. |
+| `jump_type` | The value written to the animation variable `C_JUMP_TYPE` (hex hash). `fall` shares the standing jump's. |
+| `height`, `launch_speed` | How high it goes and the upward speed that does it; null for `fall`, which does not launch. |
+| `speed`, `control`, `turn_speed_degrees` | What the stick asks for in the air, the share of the gap closed each update, and the turn toward the stick. |
+
+`car`: the robot's `modeDrive` block and vehicle body, null for a robot that cannot drive. Each
+key is the game's field of the same meaning (`max_speed` is `maxSpeed`); MECHANICS.md, "The car",
+says where each goes.
+
+| Key | What it is |
+| --- | --- |
+| `max_speed`, `trigger_filter_strength` | The top speed at full trigger, and how fast the trigger's filter follows it. |
+| `throttle`, `engine_torque` | The engine's throttle and the torque each wheel gets per unit of it. |
+| `turn_speed`, `max_turn_speed` | The front wheels' steering rate in radians a second at top speed and at a standstill. |
+| `max_turbo_speed`, `max_turbo_time`, `max_turbo_cooldown_time` | The turbo's cap, how long it runs and its cooldown. |
+| `turbo_time_upgrades`, `turbo_cooldown_upgrades` | The multipliers of the turbo's time and cooldown at upgrade levels 1, 2 and 3. |
+| `turbo_throttle_boost`, `post_turbo_deceleration` | The throttle's multiplier in turbo, and how fast the cap comes back down after it. |
+| `braking_deceleration`, `min_reverse_brake_time`, `max_reverse_speed`, `post_reverse_throttle` | Braking, how long the brake is held at a stop before reversing, the reverse cap, and the throttle when rolling backward with no brake. |
+| `skid_out_deceleration`, `wheel_drift_factor`, `drift_steering_factor` | The slide: its slowing, and the tyres' sideways and forward grip while it lasts. |
+| `min_drift_time`, `min_drift_turbo_speed`, `drift_turbo_time`, `drift_turbo_boost_factor`, `max_drift_turbo_speed` | The drift turbo: the slide that arms it, how long it runs, its throttle multiplier and its cap. |
+| `bullet_slow_speed_percent` | The caps' scale while slowed by bullets. |
+| `front_axle_length`, `rear_axle_length`, `long_axle_length` | Where the wheels hang: the two axles' widths and the distance between them. |
+| `front_wheel_radius`, `rear_wheel_radius`, `wheel_friction` | The tyres. |
+| `suspension_length`, `suspension_k`, `suspension_damp`, `suspension_wt_scale` | The springs, and how much the rest length moves with weight transfer. |
+| `mass`, `inertia`, `body_half_size`, `body_offset_z`, `avatar_height` | The body: mass, its inertia about x, y and z, the box's half size, its centre's height above his root, and the height the wheel rays work from. |
+| `angular_vel_damp_x`, `angular_vel_damp_y`, `max_angular_vel` | The body's turning: the damping of pitch and roll each update, and the limits about x, y and z. |
+| `collision_forward_dot` | A hit whose normal dotted with his forward is under this stops the wheels. |
+| `exit_to_run_min_speed`, `exit_to_run_deceleration`, `exit_to_run_turn_speed_degrees` | Unfolding into a run: the speed it slows to, how fast, and the turn toward the stick. |
+| `exit_to_idle_min_speed`, `exit_to_idle_deceleration`, `exit_to_idle_turn_speed_degrees` | The same, unfolding to a stop. |
+
+`fly`: the robot's `modeFly` block, null for a robot that cannot fly; the AI's own numbers are
+left out. Angles are degrees, turn rates radians a second, `*_lag` and `*_strength` rates a
+second (MECHANICS.md, "Flight").
+
+| Key | What it is |
+| --- | --- |
+| `helicopter`, `robot`, `can_do_stunts` | Which kind of flyer: a helicopter (and both robot flyers) steers by its own rules; `robot` is a robot that flies as itself; stunts are allowed. |
+| `l_stick_deadzone` | The stick's dead zone. |
+| `thrust`, `turbo_thrust`, `lateral_thrust`, `lift` | The pushes: along the nose (in turbo), across it (helicopters), and up or down (helicopters). |
+| `max_speed`, `max_turbo_speed`, `max_turbo_time`, `max_turbo_cooldown_time`, `post_turbo_deceleration` | The caps and the turbo. |
+| `brake_duration`, `brake_cooldown`, `brake_speed_scale`, `braking_speed` | The air brake: how long, its cooldown, the lowest share of `max_speed` it brakes to, and how fast. |
+| `bullet_slow_speed_percent` | The caps' scale while slowed by bullets. |
+| `turn_speed`, `max_turn_speed`, `quick_turn_speed`, `turn_lag`, `turn_restore_lag` | The yaw rate the stick asks for, the helicopters' limit on it, the tight turn's, and how fast the rate follows and comes back. |
+| `pitch_lag_auto_level`, `pitch_strength`, `max_pitch`, `min_pitch` | The pitch: how fast it follows (jets, helicopters) and its limits. |
+| `max_roll`, `max_roll_quick`, `roll_strength`, `quick_roll_lag` | The roll in a turn and in the tight turn, and how fast it follows. |
+| `helicopter_turbo_turn_factor` | A helicopter's turbo push against its motion is multiplied by this. |
+| `stunt_move_button_press_time`, `stunt_move_stick_threshold_x`, `stunt_move_stick_threshold_y` | How long the action button arms the stunts, and the stick it takes to roll or loop. |
+| `extent_roll`, `extent_pitch` | The body's width and length, taken off its height over the ground as it rolls and pitches. |
+
+`hover`: the robot's `modeHover` block, null for a robot that cannot fly (MECHANICS.md, "Hover").
+
+| Key | What it is |
+| --- | --- |
+| `max_hover_time` | Seconds before the hover ends; -1 is no limit. |
+| `move_acceleration`, `max_move_speed`, `hover_deceleration` | The stick's push, the speed limit, and what the velocity keeps each update with the stick centred. |
+| `max_lean_degrees`, `lean_strength`, `hover_done_particles_pct` | The lean drawn and the effect; not used for movement. |
+
 ## `<pack>_attributes.json`
 
 | Key | Type | What it is |
@@ -815,5 +926,7 @@ The game has these, and the export does not. `not_exported` lists them too.
   connections and the button names, with the rules for running it.
 - **1**, added (2026-10-26): `animation_rules`, each set's entry rules and each clip's exit
   rules, with the variables they compare and the rules for running them.
+- **1**, added (2026-10-26): `mechanics`, on foot, the jump, the car, flight and hover, with the formulas in
+  MECHANICS.md.
 - **1**, added (2026-10-26): reference runs, `--run` and `<pack>_run.jsonl`, with the script
   that drives them.

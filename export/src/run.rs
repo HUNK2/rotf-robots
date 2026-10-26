@@ -230,7 +230,7 @@ fn vec3(v: &Value) -> Option<Vec3> {
 
 /// A float as its shortest decimal, so 0.1 is written 0.1 and not 0.10000000149, and -0 as 0;
 /// null if it is not finite.
-fn num(v: f32) -> Value {
+pub(crate) fn num(v: f32) -> Value {
     let v = if v == 0.0 { 0.0 } else { v };
     if v.is_finite() { serde_json::from_str(&v.to_string()).unwrap_or(Value::Null) } else { Value::Null }
 }

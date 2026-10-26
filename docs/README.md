@@ -10,7 +10,7 @@ The notes describe behaviour; they contain no game files and no decompiled code.
 here still needs your own install of the game.
 
 To port the robots into another game, start with [MODDING.md](MODDING.md) instead. The exporter's
-JSON format is [FORMAT.md](FORMAT.md).
+JSON format is [FORMAT.md](FORMAT.md); the mechanics as formulas are [MECHANICS.md](MECHANICS.md).
 
 ## How to read them
 

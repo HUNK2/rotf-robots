@@ -24,14 +24,14 @@ use crate::sound::{GearboxInput, TyreInput};
 use crate::tuning::{ActionClip, JumpKind, Locomotion, Tuning};
 
 /// Stick deflection (squared) below which the original treats the stick as centred. [game]
-const STICK_DEAD_SQUARED: f32 = 0.01;
+pub const STICK_DEAD_SQUARED: f32 = 0.01;
 /// Speed (squared) under which leaving vehicle form gives the high standing jump. [game]
-const VEHICLE_EXIT_SLOW_SQUARED: f32 = 3.0;
+pub const VEHICLE_EXIT_SLOW_SQUARED: f32 = 3.0;
 /// Out of FlyMode, JumpMode takes the long jump's type (with no launch) at this ground speed
 /// squared or more, else the fall (`25.0 <= fVar13`, 008740e0 l.111). [game]
-const FLY_EXIT_LONG_SQUARED: f32 = 25.0;
+pub const FLY_EXIT_LONG_SQUARED: f32 = 25.0;
 /// Stick deflection (squared) above which a running jump takes off at exactly the run speed. [game]
-const FULL_STICK_SQUARED: f32 = 0.9801;
+pub const FULL_STICK_SQUARED: f32 = 0.9801;
 /// The standing jump's height as a multiple of the running jump's. [game]
 const STANDING_JUMP_SCALE: f32 = 1.2;
 /// The per-update air-control shares are applied this many times a second: the game's update
@@ -59,18 +59,18 @@ pub const VEHICLE_MASS: f32 = 5000.0;
 /// held for one of the game's updates. [trace]
 const GROUND_FLAG_LAG: f32 = GAME_UPDATE - 1e-4;
 /// The jump state may not be left until the jump mode has run this long (`FUN_0087e380`). [game]
-const JUMP_LEAVE_TIME: f32 = 0.1;
+pub const JUMP_LEAVE_TIME: f32 = 0.1;
 /// MoveMode's share of the way to what the clips ask for, per update, while the ground flag is
 /// clear (`FUN_00852220`); on the ground it is 1. [game]
-const MOVE_AIR_CONTROL: f32 = 0.1;
+pub const MOVE_AIR_CONTROL: f32 = 0.1;
 /// The stick lines up with his motion for the car (`FUN_0087bcf0`): cosine of the angle. [game]
-const DRIVE_LINE_UP: f32 = 0.9;
+pub const DRIVE_LINE_UP: f32 = 0.9;
 /// The unfold runs out to the run if the stick is held past this when it starts
 /// (`FUN_00863670`). [game]
-const UNFOLD_RUN_STICK: f32 = 0.05;
+pub const UNFOLD_RUN_STICK: f32 = 0.05;
 /// In the air the stick pushes the car this hard, and a body tipped further than this is
 /// turned back toward level. [game]
-const CAR_AIR_PUSH: f32 = 10.0;
+pub const CAR_AIR_PUSH: f32 = 10.0;
 /// The car rumbles the pad when it touches something faster than this (`FUN_00860870`),
 /// and when it comes down later than this into the drive mode (`00b345ec`). [game]
 const CAR_KNOCK_SPEED: f32 = 5.0;
@@ -1639,7 +1639,7 @@ fn turn_toward(yaw: f32, target: f32, max_step: f32) -> f32 {
 }
 
 /// Speed, control share and turn speed of a jump type. [game]
-fn jump_kind(tuning: &Tuning, kind: JumpType) -> JumpKind {
+pub fn jump_kind(tuning: &Tuning, kind: JumpType) -> JumpKind {
     match kind {
         JumpType::Standing | JumpType::Fall => tuning.jump.standing,
         JumpType::Moving => tuning.jump.run,
@@ -2823,7 +2823,7 @@ fn queue_layer_events(s: &mut State, t: &Tuning) {
 
 /// `C_JUMP_TYPE`'s value for each jump the mode picks (`docs/bumblebee-mechanics.md`,
 /// "JumpMode"). [game]
-fn jump_type_hash(kind: JumpType) -> u32 {
+pub fn jump_type_hash(kind: JumpType) -> u32 {
     match kind {
         JumpType::Standing | JumpType::Fall => 0xaa18_5eeb,
         JumpType::Moving => 0x0ec5_1d8e,
@@ -3267,7 +3267,7 @@ fn fly_partial_start(s: &mut State, t: &Tuning, clip: &[u8]) {
 /// that is already running is not entered again (`FUN_00852150`). [game]
 /// The length of the flyer's drop ray, metres [game 00b6b3b4 (the constant 35.0), 0086b230 uses
 /// it for the drop probe (`docs/flight-contact.md` l.63, l.75)].
-const FLY_DROP_RAY: f32 = 35.0;
+pub const FLY_DROP_RAY: f32 = 35.0;
 
 /// One update of the flying form (`flight::Fly`: FlyMode's update 00864320 as far as it
 /// is ported; what is left out is listed there). The world it sees: the floor under it, the
@@ -3707,7 +3707,7 @@ const HOVER_DONE: u32 = 0xb587_f609;
 const CLIMB_MODE: u32 = 0xd706_8c31;
 const UNFOLD_MODE: u32 = 0xf081_d468;
 /// A jump that starts while the climb set plays is pushed this hard along his facing. [game]
-const CLIMB_JUMP_PUSH: f32 = 20.0;
+pub const CLIMB_JUMP_PUSH: f32 = 20.0;
 /// Blend time for clips whose own is negative ("none given"): the clip starter
 /// `FUN_00748f00` takes 0.1 for any blend time under 0. [game]
 const DEFAULT_CROSSFADE: f32 = 0.1;

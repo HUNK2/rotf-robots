@@ -55,6 +55,13 @@ starts on and when each clip hands over to which, by the stick, the fall, the we
 the other variables the game reads, with the blends. These are the transitions inside each state
 of the host's graph (walk to run, the landings, the fidgets, which dodge plays).
 
+**The formulas.** [MECHANICS.md](MECHANICS.md) gives what the reference does each update as
+formulas, and `mechanics` in `<pack>.json` gives each robot's numbers for them. So far on foot,
+the jump and the car: the turn, the paces and their blends, which jump is picked, the launch, the
+air control, the landing; the car's speed caps, turbo, brake, reverse, slide and steering, and its
+wheels and springs, split so a host can keep the rules and use its own vehicle physics; the jets',
+helicopters' and robot flyers' flight, and the hover.
+
 **The rules, written down.** Each system's notes in `docs/`, read from the game's code and data,
 say what it does, in what order, with which numbers, and tag what is fitted or guessed:
 
@@ -134,9 +141,9 @@ and captures.
 
 ## Coming: porting tools
 
-- **The rest of the rules as data.** The control states (`control`) and the clip rules
-  (`animation_rules`) are exported. Still to come: each mechanic's numbers with the formula they
-  go into, documented so a port builds the host's controller from them instead of reading Rust.
+- **The rest of the formulas.** On foot, the jump, the car, flight and hover are in MECHANICS.md
+  and `mechanics`. Still to come: the flight boundary, climbing, the dodge, melee, the weapons and
+  damage.
 - **More in the reference runs.** Runs cover movement, the change of form, the car, flight, melee
   and the clips. Still to come: the guns and their aim, the cameras, and targets that fight back.
 - **Guides per host engine.** How each part of a robot maps onto one engine's own systems, written

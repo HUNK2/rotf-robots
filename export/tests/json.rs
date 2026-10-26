@@ -147,6 +147,43 @@ fn bumblebee_json_names_only_what_exists() {
             problems.push(format!("{}: no clip {}", set["set"], clip["clip"]));
         }
     }
+    // The mechanics: every clip they name is one of `clips`, and each jump's launch speed is the
+    // one that peaks at its height.
+    let mechanics = &json["mechanics"];
+    assert!(mechanics["error"].is_null(), "mechanics: {}", mechanics["error"]);
+    let named = ["stop_clip", "land_run_clip", "big_land_run_clip"].map(|k| &mechanics["on_foot"][k]);
+    for clip in named.into_iter().chain([&mechanics["jump"]["takeoff_clip"]]).filter_map(Value::as_str) {
+        if !clip_names.contains(clip) {
+            problems.push(format!("mechanics: no clip {clip}"));
+        }
+    }
+    let gravity = mechanics["jump"]["gravity"].as_f64().unwrap();
+    for kind in mechanics["jump"]["types"].as_array().unwrap() {
+        if let Some(height) = kind["height"].as_f64() {
+            let launch = kind["launch_speed"].as_f64().unwrap();
+            if (launch - (2.0 * gravity * height).sqrt()).abs() > 1e-3 {
+                problems.push(format!("mechanics: {} launches at {launch}", kind["type"]));
+            }
+        }
+    }
+    // The car: Bumblebee drives, his inertia is his box's, and the turbo goes faster than the car.
+    let car = &mechanics["car"];
+    assert!(export.spec.pack != "bumblebee" || car.is_object(), "Bumblebee has no car in mechanics");
+    if car.is_object() {
+        let n = |k: &str| car[k].as_f64().unwrap_or_else(|| panic!("car.{k} is not a number"));
+        let half: Vec<f64> = car["body_half_size"].as_array().unwrap().iter().map(|v| v.as_f64().unwrap()).collect();
+        let yaw = n("mass") / 3.0 * (half[0] * half[0] + half[1] * half[1]);
+        if (car["inertia"][2].as_f64().unwrap() - yaw).abs() > 1.0 {
+            problems.push(format!("mechanics: car inertia {} against {yaw}", car["inertia"]));
+        }
+        if n("max_turbo_speed") <= n("max_speed") {
+            problems.push("mechanics: the turbo is no faster than the car".into());
+        }
+    }
+    // Flight and hover come together, and only for a robot that flies.
+    if mechanics["fly"].is_null() != mechanics["hover"].is_null() {
+        problems.push("mechanics: fly and hover disagree on whether he flies".into());
+    }
     assert!(problems.is_empty(), "{} problems:\n{}", problems.len(), problems.join("\n"));
 
     // Render sets: each mesh they list is a node of its file by that name (or `<name>.<part>`),

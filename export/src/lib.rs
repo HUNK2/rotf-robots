@@ -9,11 +9,15 @@
 //! character's attributes), and the sounds: every sample its events play as WAV, and the events
 //! themselves in the JSON.
 
+// `json!` with the car's fifty keys (`mechanics`) goes deeper than the default 128.
+#![recursion_limit = "256"]
+
 pub mod control;
 pub mod describe;
 pub mod rules;
 pub mod run;
 pub mod glb;
+pub mod mechanics;
 pub mod model;
 pub mod names;
 pub mod sounds;
@@ -156,6 +160,10 @@ pub fn export(install: &Path, spec: &Spec, out: &Path) -> Result<Written, String
         Err(e) => serde_json::json!({ "error": e }),
     };
     json["animation_rules"] = rules::animation_rules(&data, &names);
+    json["mechanics"] = match run::tuning(install, spec) {
+        Ok(tuning) => mechanics::mechanics(&tuning),
+        Err(e) => serde_json::json!({ "error": e }),
+    };
     let json_file = format!("{}.json", spec.pack);
     let attributes = describe::attributes(spec, &names);
     let sounds = sounds::write(install, &sound_events[0], &sound_events[1..], &json, &attributes, out);
