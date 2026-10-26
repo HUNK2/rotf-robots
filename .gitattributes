@@ -2,3 +2,4 @@
 *.rs text eol=lf
 *.wgsl text eol=lf
 *.csv text eol=lf
+*.md text eol=lf
