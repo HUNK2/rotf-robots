@@ -36,6 +36,22 @@ pub fn spec(roster: &CharacterList, name: &str) -> Spec {
     }
 }
 
+/// Every character `--character` takes, as (name, pack): the game's list (whose entries name some
+/// characters twice, as their single and multiplayer selves: once here), then those kept outside
+/// it (Devastator).
+pub fn roster(list: &CharacterList) -> Vec<(String, String)> {
+    let mut out: Vec<(String, String)> = Vec::new();
+    for entry in &list.entries {
+        if let Some(spec) = list.spec(entry).filter(|s| !out.iter().any(|(n, p)| *n == entry.name && *p == s.pack)) {
+            out.push((entry.name.clone(), spec.pack));
+        }
+    }
+    for e in tf2_core::formats::characterlist::ELSEWHERE {
+        out.push((e.pack.to_uppercase(), e.pack.to_owned()));
+    }
+    out
+}
+
 /// What a run wrote, for the report.
 pub struct Written {
     pub files: Vec<(String, model::Summary)>,
@@ -264,6 +280,12 @@ fn readme(spec: &Spec) -> String {
          as the game draws it: the travel is the character's movement, given per tick in the JSON.\n\
          Additive clips (and the weapon set's .aim_down / .aim_up) are written laid over the rest pose.\n\
          In Blender, set the scene to 60 fps before importing, so a frame is a game tick.\n\
+         The vehicle's clips: a node a clip does not key keeps the previous clip's pose in the game,\n\
+         but goes back to rest in glTF. A jet's V_Idle alone shows it folded; play Trans_R2V_A and\n\
+         Trans_R2V_B first (the JSON gives each such clip's unkeyed_nodes).\n\
+         Render sets (Optimus's special-attack meshes): a mesh outside its group's first set starts\n\
+         hidden. Its node says so with KHR_node_visibility and the custom property render_set_hidden;\n\
+         Blender does not read the first, so hide the objects that carry the second.\n\
          Names the game's files do not spell out are written as #xxxxxxxx (the CRC-32 of the name).\n\
          An event whose node its file lacks (a clip shared between two weapons) says \"node_in_file\":\n\
          false. A few weapon and wing parts have sheared rest matrices, which glTF cannot hold: they\n\

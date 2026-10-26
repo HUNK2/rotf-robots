@@ -49,7 +49,17 @@ pub fn character(install: &Path, spec: &Spec, data: &CharacterData, pieces: &[Pi
         let nodes: HashSet<&str> = piece.object.nodes.iter().map(|n| n.name.as_str()).collect();
         let left_out = written.iter().find(|(f, _)| *f == file).map_or(&[][..], |(_, s)| &s.other_model_clips[..]);
         for clip in &piece.clips {
-            clips.push(clip_entry(clip, &file, &nodes, !left_out.contains(&clip.name), vehicle_file.as_deref(), &held, names));
+            let mut entry = clip_entry(clip, &file, &nodes, !left_out.contains(&clip.name), vehicle_file.as_deref(), &held, names);
+            // The vehicle's animator leaves a node its clip has no channel for where the clip
+            // before left it [game 00544e00]; glTF puts it back at rest. (Starscream's `V_Idle`
+            // leaves 16 of the jet's nodes unkeyed: alone, it shows the jet folded small.)
+            if piece.kind == PieceKind::Vehicle {
+                let unkeyed = piece.object.nodes.iter().filter(|n| clip.clip.channel(n.name_hash).is_none()).count();
+                if unkeyed > 0 {
+                    entry["unkeyed_nodes"] = json!(unkeyed);
+                }
+            }
+            clips.push(entry);
         }
     }
     let robot_nodes: Vec<u32> = data.robot.nodes.iter().map(|n| n.name_hash).collect();
@@ -181,6 +191,7 @@ pub fn character(install: &Path, spec: &Spec, data: &CharacterData, pieces: &[Pi
             let steering: Vec<&str> = car.nodes.iter().map(|n| n.name.as_str()).filter(|n| n.starts_with("TireGOAL_Front")).collect();
             json!({
                 "file": vehicle_file,
+                "clips_hold_unkeyed_nodes": "a vehicle clip with unkeyed_nodes leaves those nodes where the clip before it left them, as the game plays it; glTF returns them to rest. Play the change of form (Trans_R2V_A, then Trans_R2V_B) before V_Idle, or hold the last clip's pose for those nodes.",
                 "wheels": wheels,
                 "steering_nodes": steering,
                 "note": "the game moves these in code every frame, on top of the vehicle's clip: each tyre spins by its wheel's travel and is lowered by its wheel's suspension to the ground, and the steering nodes turn with the steering (game/src/animation.rs). The clips alone leave the tyres where the change of form puts them, off the ground.",

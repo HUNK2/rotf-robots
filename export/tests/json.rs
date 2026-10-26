@@ -101,6 +101,39 @@ fn bumblebee_json_names_only_what_exists() {
     }
     assert!(problems.is_empty(), "{} problems:\n{}", problems.len(), problems.join("\n"));
 
+    // Render sets: each mesh they list is a node of its file by that name (or `<name>.<part>`),
+    // and exactly the meshes outside an exclusive group's first set start hidden.
+    for entry in json["render_sets"].as_array().unwrap() {
+        let file = entry["file"].as_str().unwrap();
+        let glb = export.read(file);
+        let mut listed = HashMap::new();
+        for group in entry["groups"].as_array().unwrap() {
+            let exclusive = group["exclusive"].as_bool().unwrap();
+            for (i, set) in group["sets"].as_array().unwrap().iter().enumerate() {
+                for mesh in set["meshes"].as_array().unwrap() {
+                    let shown = listed.entry(mesh.as_str().unwrap()).or_insert(!exclusive);
+                    *shown |= i == 0;
+                }
+            }
+        }
+        let mut hidden_nodes = 0;
+        for (model, shown) in &listed {
+            let parts: Vec<_> = glb
+                .document
+                .nodes()
+                .filter(|n| n.mesh().is_some())
+                .filter(|n| n.name().is_some_and(|name| name == *model || name.strip_prefix(*model).is_some_and(|rest| rest.starts_with('.') && rest[1..].parse::<u32>().is_ok())))
+                .collect();
+            assert!(!parts.is_empty(), "{file}: no mesh node named {model}");
+            for node in parts {
+                let extras: Value = serde_json::from_str(node.extras().as_ref().map_or("{}", |r| r.get())).unwrap();
+                assert_eq!(extras["render_set_hidden"] == true, !shown, "{file}: {model}");
+                hidden_nodes += usize::from(!shown);
+            }
+        }
+        println!("{file}: {} render-set meshes, {hidden_nodes} mesh nodes start hidden", listed.len());
+    }
+
     // Every event of every clip is written once: counted against the source, kind by kind.
     // By file and name: an object's own clips (a weapon's `Idle`) repeat names across files.
     let entries: HashMap<(&str, &str), &Value> =

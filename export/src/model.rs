@@ -283,8 +283,29 @@ pub fn write(object: &ObjectDef, shared: &mut Shared, clips: &[ClipOut], file: &
             continue;
         };
         let skeleton = mesh.skeleton.and_then(|id| library.skeletons.get(&id));
+        // A mesh in an exclusive render-set group but not in its first set starts hidden
+        // [game 00803150]: Optimus's special-attack meshes.
+        let hidden = object.render_sets.iter().any(|g| {
+            g.exclusive && (0..g.sets.len()).any(|i| g.contains_model(&render.model, i)) && !g.contains_model(&render.model, 0)
+        });
+        let mut extras = json!({ "model": render.model });
+        if hidden {
+            extras["render_set_hidden"] = json!(true);
+            if !w.glb.extensions_used.contains(&"KHR_node_visibility") {
+                w.glb.extensions_used.push("KHR_node_visibility");
+            }
+        }
+        let mesh_node = |name: &str, mesh_index: usize| {
+            let mut node = json!({ "name": name, "mesh": mesh_index, "extras": extras });
+            if hidden {
+                node["extensions"] = json!({ "KHR_node_visibility": { "visible": false } });
+            }
+            node
+        };
         for (k, part) in mesh.parts.iter().enumerate() {
-            let name = if mesh.parts.len() == 1 { mesh.name.clone() } else { format!("{}.{k}", mesh.name) };
+            // Named as the object names the model (`Optimus.Base_SFX`), as the JSON's render
+            // sets do; a mesh of several parts gets one node a part.
+            let name = if mesh.parts.len() == 1 { render.model.clone() } else { format!("{}.{k}", render.model) };
             let skinned = !part.palette.is_empty() && skeleton.is_some();
             let Some(primitive) = w.primitive(part, skinned, &name) else { continue };
             w.glb.meshes.push(json!({ "name": name, "primitives": [primitive] }));
@@ -292,7 +313,7 @@ pub fn write(object: &ObjectDef, shared: &mut Shared, clips: &[ClipOut], file: &
             w.summary.parts += 1;
             match skeleton.filter(|_| skinned) {
                 None => {
-                    let at = w.glb.node(json!({ "name": name, "mesh": mesh_index }));
+                    let at = w.glb.node(mesh_node(&name, mesh_index));
                     children.push(Vec::new());
                     children[frame_index(render.node)].push(at);
                 }
@@ -323,7 +344,9 @@ pub fn write(object: &ObjectDef, shared: &mut Shared, clips: &[ClipOut], file: &
                     let skin = w.glb.skins.len() - 1;
                     w.summary.skins += 1;
                     // glTF places a skinned mesh by its joints, not by its node.
-                    let at = w.glb.node(json!({ "name": name, "mesh": mesh_index, "skin": skin }));
+                    let mut node = mesh_node(&name, mesh_index);
+                    node["skin"] = json!(skin);
+                    let at = w.glb.node(node);
                     children.push(Vec::new());
                     children[root].push(at);
                 }
