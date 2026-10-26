@@ -184,6 +184,25 @@ fn bumblebee_json_names_only_what_exists() {
     if mechanics["fly"].is_null() != mechanics["hover"].is_null() {
         problems.push("mechanics: fly and hover disagree on whether he flies".into());
     }
+    // Climbing: Bumblebee climbs, every clip it names is one of `clips`, and the test starts
+    // where his body shape does.
+    let climb = &mechanics["climb"];
+    assert!(export.spec.pack != "bumblebee" || climb.is_object(), "Bumblebee has no climb in mechanics");
+    if climb.is_object() {
+        let hands = climb["clips"].as_object().unwrap().values().flat_map(|v| v.as_array().unwrap().iter());
+        let ones = ["catch_clip", "catch_clip_ground", "jump_up_clip", "jump_off_clip"].map(|k| &climb[k]);
+        for clip in hands.chain(ones) {
+            match clip.as_str() {
+                Some(name) if !clip_names.contains(name) => problems.push(format!("mechanics: no clip {name}")),
+                None => problems.push(format!("mechanics: a climb clip is missing ({})", climb["clips"])),
+                _ => {}
+            }
+        }
+        let n = |k: &str| climb[k].as_f64().unwrap_or_else(|| panic!("climb.{k} is not a number"));
+        if (n("body_offset") - n("height") * 24.0 / 121.0).abs() > 1e-4 {
+            problems.push(format!("mechanics: climb body_offset {} for height {}", n("body_offset"), n("height")));
+        }
+    }
     assert!(problems.is_empty(), "{} problems:\n{}", problems.len(), problems.join("\n"));
 
     // Render sets: each mesh they list is a node of its file by that name (or `<name>.<part>`),

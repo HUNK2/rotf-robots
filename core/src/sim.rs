@@ -4501,13 +4501,13 @@ fn stop_clip(s: &mut State, t: &Tuning) {
 
 /// How far past the top target, in radii, the ledge is looked for; how far under it his feet
 /// may be; and the least the ball must drop before what it touches counts. [game]
-const CATCH_REACH_RADII: f32 = 2.25;
-const CATCH_BELOW: f32 = 1.5;
-const CATCH_LEAST_DROP: f32 = 0.25;
+pub const CATCH_REACH_RADII: f32 = 2.25;
+pub const CATCH_BELOW: f32 = 1.5;
+pub const CATCH_LEAST_DROP: f32 = 0.25;
 /// How square to the top's facing he must be, and how long that facing must be to count as
 /// set (the climb mode's enter zeroes it). [game]
-const CATCH_FACING: f32 = 0.98;
-const CATCH_FACING_SET: f32 = 0.9;
+pub const CATCH_FACING: f32 = 0.98;
+pub const CATCH_FACING_SET: f32 = 0.9;
 
 /// The jump state's own update (`FUN_0087dde0`), run only when the state before was
 /// `stateClimbJumpUp`: once he is coming down, still under the top the climb mode aimed for,

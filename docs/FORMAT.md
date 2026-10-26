@@ -705,7 +705,7 @@ was playing (`control`'s "State classes").
 ### `mechanics`
 
 Each mechanic's numbers for this robot, as the reference uses them. The formulas they go into are
-in [MECHANICS.md](MECHANICS.md). So far on foot, the jump, the car, flight and hover. Speeds are metres a second, times
+in [MECHANICS.md](MECHANICS.md). So far on foot, the jump, the car, flight, hover and climbing. Speeds are metres a second, times
 seconds, turn speeds degrees a second; a value that does not apply is null.
 
 `constants`: the game's own numbers, the same for every robot.
@@ -725,6 +725,10 @@ seconds, turn speeds degrees a second; a value that does not apply is null.
 | `car_air_push` | How hard the stick pushes the car with no wheel down. |
 | `fly_drop_ray` | The length of a flyer's ray down to the ground. |
 | `fly_wall_ray`, `fly_side_rays` | The length of a flyer's three rays along its nose, and the two side rays' starts in the body's frame. |
+| `climb_stick_dead_squared` | On a wall the stick counts as centred at or below this squared length. |
+| `climb_hand_swap_at` | Climbing up or down, the leading hand changes as the clip passes this share of its length. |
+| `climb_default_crossfade` | The blend time, in seconds, of a climb clip that has none. |
+| `ledge_catch_reach_radii`, `ledge_catch_below`, `ledge_catch_least_drop`, `ledge_catch_facing` | The ledge catch after the jump up a wall: how many radii past the top it looks, how far above his feet it may put him, the least drop that counts, and how square to the top's facing he must be. |
 
 `on_foot`:
 
@@ -811,6 +815,23 @@ second (MECHANICS.md, "Flight").
 | `max_hover_time` | Seconds before the hover ends; -1 is no limit. |
 | `move_acceleration`, `max_move_speed`, `hover_deceleration` | The stick's push, the speed limit, and what the velocity keeps each update with the stick centred. |
 | `max_lean_degrees`, `lean_strength`, `hover_done_particles_pct` | The lean drawn and the effect; not used for movement. |
+
+`climb`: the climbable test's sizes, the robot's `modeClimb` block and the climb clips, null for a
+robot whose pack has no `ClimbSet` (MECHANICS.md, "Climbing"). Each clip is named as in `clips`,
+or null when the pack lacks it.
+
+| Key | What it is |
+| --- | --- |
+| `radius`, `height` | The robot form's radius and height: he hangs `radius` off the wall, and the ledge catch uses both. |
+| `body_offset` | How far above his feet the climbable test starts, `height * 24/121`; he lets go at the bottom by it. |
+| `reach` | How far along his facing the test looks, `(radius + 2) * sqrt 2`. |
+| `min_height` | The least height, top less bottom, of a wall to climb (`modeJump.jumpHeight`). |
+| `pull_up_dist` | He goes over the top within this of it. |
+| `edge_limit_dist` | He stops shimmying, and is moved in on catching hold, this close to a side. |
+| `arrival_deceleration` | How fast the speed he catches hold with dies away. |
+| `catch_clip`, `catch_clip_ground` | The clip he catches hold with from the air and from the ground (the climb set's entry rules). |
+| `clips` | `idle`, `climb_up`, `climb_down`, `shim_left`, `shim_right`, `pull_up`: each `[left hand, right hand]`. |
+| `jump_up_clip`, `jump_off_clip` | The clips of the jump up the wall and the jump off it. |
 
 ## `<pack>_attributes.json`
 
@@ -930,3 +951,5 @@ The game has these, and the export does not. `not_exported` lists them too.
   MECHANICS.md.
 - **1**, added (2026-10-26): reference runs, `--run` and `<pack>_run.jsonl`, with the script
   that drives them.
+- **1**, added (2026-10-27): `mechanics.climb` and the climb constants, with MECHANICS.md
+  "Climbing".

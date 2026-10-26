@@ -20,11 +20,11 @@ pub fn body_offset(height: f32) -> f32 {
     height * (6.0 / 11.0) * (5.0 / 11.0) * 0.8
 }
 /// Stick deflection (squared) below which the climb treats the stick as centred. [game]
-const STICK_DEAD_SQUARED: f32 = 0.01;
+pub const STICK_DEAD_SQUARED: f32 = 0.01;
 /// The hand changes once each time an up or down clip passes this share of its length. [game]
-const HAND_SWAP_AT: f32 = 0.3;
+pub const HAND_SWAP_AT: f32 = 0.3;
 /// The animation player uses a tenth of a second when a clip has no blend time. [game]
-const DEFAULT_CROSSFADE: f32 = 0.1;
+pub const DEFAULT_CROSSFADE: f32 = 0.1;
 
 /// The messages the climb mode sends the control state machine. [game]
 pub mod message {

@@ -9,7 +9,7 @@ part; read it where this leaves a question.
 How sure each part is goes in brackets, as in the code: **[game]** read from the game's code or
 data, **[trace]** measured on recordings of the running game, **[assumed]** a guess.
 
-So far: on foot, the jump, the car, flight and hover. Climbing, the dodge, melee, weapons and
+So far: on foot, the jump, the car, flight, hover and climbing. The dodge, melee, weapons and
 damage are to come; until then their notes in `docs/` and the reference code are the source.
 
 ## Before anything: the update
@@ -422,6 +422,129 @@ gravity. Each update:
 
 `max_lean_degrees`, `lean_strength` and `hover_done_particles_pct` are the lean drawn and the
 effect; the reference does not use them for movement.
+
+## Climbing
+
+Reference: `core/src/climb.rs` (`find`, `Climb::enter`, `update`) and `core/src/sim.rs`
+(`step_climb`, `ledge_catch`); `docs/climbing.md`. The numbers are `climb`, which is null for a
+robot whose pack has no climb set (`ClimbSet`). Checked against the 12 climbs of a recording of
+Bumblebee (the numbers are at the end of `docs/climbing.md`). [game] [trace]
+
+On the wall the clips move him: each update the climb clip's root motion, turned from his own
+frame (x right, y forward, z up) into the world, is his velocity. The climb mode decides which
+clip plays, holds him to the wall and decides when he leaves it. There is no gravity on the wall,
+and the two jumps off it (`stateClimbJumpUp`, `stateClimbJumpOff`) are moved by their clips on
+all three axes too.
+
+### What is a wall
+
+The climb starts from the control states (`control`): the Climb button down and the climbable
+test passing. The test does not look at collision. It looks at the level's **ledge mesh**, the
+2.5D map of floor heights the game keeps beside the collision (`docs/climbing.md` "What starts a
+climb"); a host has to give its levels something that answers the same question. [game]
+
+1. Start at his feet raised by `body_offset` (his `height * 24/121`: where his body shape starts
+   above the ground), and look along his facing for `reach = (radius + 2) * sqrt 2`.
+2. The **wall** is the first place along that line where the ground beyond is higher than the
+   start. Its **bottom** is the ground before it, its **top** the ground beyond.
+3. It counts when `top - bottom >= min_height` (the jump block's `jumpHeight`; anything lower is
+   a ledge to jump onto), when the start is less than `radius + 2` in front of it, and when he
+   faces it within 45 degrees (`facing . n <= -0.7071`, `n` the wall's normal pointing out of
+   it).
+4. The wall runs along neighbouring edges that stay within cos 11.5 degrees (0.98) of the same
+   line. Where it turns a corner by less than 45 degrees, that end is extended by `radius + 2`.
+5. The **wall frame**: x along the wall from its (extended) left end, y into the wall, z up from
+   the bottom. In it, x runs from 0 to the `width`, y is `-radius` when he touches it, and z is
+   the height above the bottom, up to the wall's `height` (top less bottom). Where the top's cell
+   has another ledge above it, it carries an `extra` height.
+6. While the test passes it is run again every update, from where he is; the climb's clip and
+   the wall follow what it finds.
+
+When he leaves the climb state with Climb still held, the test is locked until Climb is let go,
+so letting go of a wall by the stick does not catch it again at once. [game]
+
+### Catching hold
+
+When he catches hold (`Climb::enter`): [game]
+
+1. His velocity less its part along the wall's frame y is kept as an **arrival speed**.
+2. Within `edge_limit_dist` of either side he is moved in to that distance, at `-radius` off the
+   wall and 0.1 higher; a wall no wider than twice that puts him at its middle.
+3. Above the pull-up line (`height - pull_up_dist`) by `over`, the arrival speed is replaced by
+   `(0, 0, -sqrt(100 * over))`.
+4. The catch clip plays: `catch_clip` in the air, `catch_clip_ground` from the ground (the
+   climb set's own rules pick them).
+5. On the first update he is put at `-radius` off the wall and turned square to it.
+
+### Each update on the wall
+
+`climb.rs` `update`, in this order. "Pushed" is the pad's left stick, x right and y up, past
+`constants.climb_stick_dead_squared` (0.01). [game]
+
+1. If the pull-up clip has finished, the climb ends in the pull-up's exit (below).
+2. If the climbable test fails from where he is, he lets go: the bottom exit (unless he is
+   pulling up).
+3. The arrival speed loses `arrival_deceleration * dt` of its length. Beyond either side limit
+   (x under `edge_limit_dist` or over `width - edge_limit_dist`) its part along the wall goes
+   at once.
+4. Held to the wall: when he is more than `radius + 0.1` off it and nothing touches his body from
+   within 45 degrees of his facing, a tenth of the gap to `-radius` is closed (per update). Where
+   the collision stands in front of the ledge mesh he hangs on it instead (2.1 to 2.2 off on some
+   walls of the recording). [trace] Then, while the arrival speed lasts, `pos += arrival * dt`.
+5. While the catch clip plays, he waits for it to finish or for the stick to be pushed, then
+   hangs (`WallL_Idle`) and the rest of this list starts next update.
+6. The stick's angle, 0 straight up and positive to the left:
+   - **Centred:** below the pull-up line he hangs; at or above it he goes over the top.
+   - **Up** (from -45 up to, not including, 45 degrees): below the pull-up line he climbs up;
+     at or above it he goes over the top.
+   - **Down** (under -135 or from 135 round): when his z in the wall frame is under
+     `0.1 - body_offset` or he stands on the ground, the bottom exit; else he climbs down.
+   - **Left** (45 up to 135) or **right** (-135 up to -45): he shimmies that way unless he is
+     within `edge_limit_dist` of that end, in which case he hangs. Either way he turns square to
+     the wall at half a turn a second.
+   A clip already playing is not started again. Climbing up or down, the next clip (the other
+   hand's, after the change in 7) starts when the one playing has finished. Nothing changes the
+   clip during the pull-up.
+7. **The hands.** Each clip comes as `WallL_<stem>` and `WallR_<stem>` for the leading hand
+   (stems `Idle`, `ClimbUp`, `ClimbDown`, `ShimLeft`, `ShimRight`, `PullUp`). Climbing up or
+   down, the hand changes once each time the clip passes `constants.climb_hand_swap_at` (0.3) of
+   its length. After the catch he leads with the left.
+8. The velocity is the clip's root motion. When the clip changes, the new clip's motion is
+   blended in from the old clip's over the new clip's blend time
+   (`constants.climb_default_crossfade`, 0.1 s, when it has none).
+
+**Over the top:** the point above him at the top of the wall and his facing are kept. With no
+`extra` above, the pull-up clip plays and the pull-up exit is sent; with an `extra`, the top is
+raised by it and the jump-up exit is sent.
+
+The pad rumbles each update: going down hums, going up or sideways is silent (its preset lasts 0
+seconds). [data]
+
+### Leaving the wall
+
+The exits are messages to the control states, which take them (`control`): [game]
+
+- **Pull-up:** `stateClimbPullup` plays the pull-up clip out, then he falls (onto the top, in
+  the recording: he is in Move or a short fall right after, about 4.7 past the wall). As that
+  state ends, the **ledge catch** below runs without asking that he be coming down.
+- **Bottom:** he falls.
+- **Jump up** (the exit, or Jump pressed): `stateClimbJumpUp` plays `Wall_JumpUp`, then the jump.
+  With the stick pulled back, Jump plays `Wall_JumpOff` (`stateClimbJumpOff`), then the jump.
+- **Climb pressed again:** he falls.
+
+A jump that starts while the climb set plays is the climb jump: vertical speed cleared, then
+`constants.climb_jump_push` (20) added along his facing, and the `climb` row of `jump.types`
+(height `climbJumpOffHeight`, no control in the air). The jump up the wall is the same type.
+[game; the recording has no wall jumps, so this is not checked]
+
+**The ledge catch** (`ledge_catch`): after the jump up, while he is coming down, below the kept
+top, less than `radius` past it along the kept facing, and facing within
+`constants.ledge_catch_facing` (0.98) of it: a ball of his `radius` is dropped from the top plus
+his `height`, at `constants.ledge_catch_reach_radii` (2.25) radii past the top along the kept
+facing, down to his feet. If it lands above his feet, less than `constants.ledge_catch_below`
+(1.5) above them, under his feet plus his height, and more than `constants.ledge_catch_least_drop`
+(0.25) below where it started, he is put there, facing the kept way, with no velocity. The catch
+after the pull-up leaves out "coming down" and "under his feet plus his height". [game]
 
 ## Checking
 

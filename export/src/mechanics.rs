@@ -1,7 +1,9 @@
 //! `<pack>.json`'s `mechanics`: each mechanic's numbers for this robot, as the reference uses
-//! them, for the formulas in `docs/MECHANICS.md`. So far on foot, the jump, the car, flight and hover.
+//! them, for the formulas in `docs/MECHANICS.md`. So far on foot, the jump, the car, flight, hover and climbing.
 
 use serde_json::{Value, json};
+use tf2_core::climb;
+use tf2_core::formats::hash::crc32;
 use tf2_core::sim::{self, JumpType};
 use tf2_core::tuning::{RootCurve, Tuning};
 
@@ -24,6 +26,47 @@ fn constants() -> Value {
         "fly_drop_ray": num(sim::FLY_DROP_RAY),
         "fly_wall_ray": num(tf2_core::flight::WALL_RAY),
         "fly_side_rays": tf2_core::flight::SIDE_RAYS.map(|p| [num(p.x), num(p.y), num(p.z)]),
+        "climb_stick_dead_squared": num(climb::STICK_DEAD_SQUARED),
+        "climb_hand_swap_at": num(climb::HAND_SWAP_AT),
+        "climb_default_crossfade": num(climb::DEFAULT_CROSSFADE),
+        "ledge_catch_reach_radii": num(sim::CATCH_REACH_RADII),
+        "ledge_catch_below": num(sim::CATCH_BELOW),
+        "ledge_catch_least_drop": num(sim::CATCH_LEAST_DROP),
+        "ledge_catch_facing": num(sim::CATCH_FACING),
+    })
+}
+
+/// Climbing: the climbable test's sizes, `modeClimb` and the climb clips, for MECHANICS.md's
+/// "Climbing". Null for a robot whose pack has no `ClimbSet`.
+fn climb(t: &Tuning) -> Value {
+    if !t.rule_sets.contains_key(&crc32(b"ClimbSet")) {
+        return Value::Null;
+    }
+    // A clip by its id, as `clips` writes it, or null when the pack lacks it.
+    let named = |id: u32| t.actions.clips.get(&id).map_or(Value::Null, |c| json!(format!("{}.{}", c.set, c.id)));
+    let hands = |stem: &str| ["L", "R"].map(|hand| named(crc32(format!("Wall{hand}_{stem}").as_bytes())));
+    let c = &t.climb;
+    json!({
+        "radius": num(t.robot_radius),
+        "height": num(t.robot_height),
+        "body_offset": num(climb::body_offset(t.robot_height)),
+        "reach": num((t.robot_radius + 2.0) * std::f32::consts::SQRT_2),
+        "min_height": num(t.jump.standing.height),
+        "pull_up_dist": num(c.pull_up_dist),
+        "edge_limit_dist": num(c.edge_limit_dist),
+        "arrival_deceleration": num(c.arrival_deceleration),
+        "catch_clip": named(climb::catch_clip(t, true)),
+        "catch_clip_ground": named(climb::catch_clip(t, false)),
+        "clips": {
+            "idle": hands("Idle"),
+            "climb_up": hands("ClimbUp"),
+            "climb_down": hands("ClimbDown"),
+            "shim_left": hands("ShimLeft"),
+            "shim_right": hands("ShimRight"),
+            "pull_up": hands("PullUp"),
+        },
+        "jump_up_clip": named(crc32(b"Wall_JumpUp")),
+        "jump_off_clip": named(crc32(b"Wall_JumpOff")),
     })
 }
 
@@ -215,5 +258,5 @@ pub fn mechanics(t: &Tuning) -> Value {
         "weapon_dilation_rate": num(t.jump.weapon_dilation_rate),
         "strafe_speed": num(t.strafe_speed),
     });
-    json!({ "constants": constants(), "on_foot": on_foot, "jump": jump, "car": car(t), "fly": fly(t), "hover": hover(t) })
+    json!({ "constants": constants(), "on_foot": on_foot, "jump": jump, "car": car(t), "fly": fly(t), "hover": hover(t), "climb": climb(t) })
 }

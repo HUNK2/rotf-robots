@@ -57,10 +57,11 @@ of the host's graph (walk to run, the landings, the fidgets, which dodge plays).
 
 **The formulas.** [MECHANICS.md](MECHANICS.md) gives what the reference does each update as
 formulas, and `mechanics` in `<pack>.json` gives each robot's numbers for them. So far on foot,
-the jump and the car: the turn, the paces and their blends, which jump is picked, the launch, the
+the jump, the car, flight, hover and climbing: the turn, the paces and their blends, which jump is picked, the launch, the
 air control, the landing; the car's speed caps, turbo, brake, reverse, slide and steering, and its
 wheels and springs, split so a host can keep the rules and use its own vehicle physics; the jets',
-helicopters' and robot flyers' flight, and the hover.
+helicopters' and robot flyers' flight, and the hover; climbing: what counts as a wall, catching
+hold, the clips that move him on it, and the ways off it.
 
 **The rules, written down.** Each system's notes in `docs/`, read from the game's code and data,
 say what it does, in what order, with which numbers, and tag what is fitted or guessed:
@@ -141,9 +142,9 @@ and captures.
 
 ## Coming: porting tools
 
-- **The rest of the formulas.** On foot, the jump, the car, flight and hover are in MECHANICS.md
-  and `mechanics`. Still to come: the flight boundary, climbing, the dodge, melee, the weapons and
-  damage.
+- **The rest of the formulas.** On foot, the jump, the car, flight, hover and climbing are in
+  MECHANICS.md and `mechanics`. Still to come: the flight boundary, the dodge, melee, the weapons
+  and damage.
 - **More in the reference runs.** Runs cover movement, the change of form, the car, flight, melee
   and the clips. Still to come: the guns and their aim, the cameras, and targets that fight back.
 - **Guides per host engine.** How each part of a robot maps onto one engine's own systems, written
