@@ -12,3 +12,5 @@
 /exported/
 *.glb
 *.gltf
+__pycache__/
+*.zip

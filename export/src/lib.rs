@@ -286,10 +286,12 @@ fn readme(spec: &Spec) -> String {
          Animations: the game's own keys (it plays clips at 60 ticks a second). The root stays put,\n\
          as the game draws it: the travel is the character's movement, given per tick in the JSON.\n\
          Additive clips (and the weapon set's .aim_down / .aim_up) are written laid over the rest pose.\n\
-         In Blender, set the scene to 60 fps before importing, so a frame is a game tick.\n\
+         In Blender, the add-on in blender/ of github.com/HUNK2/rotf-robots-sdk imports the JSON with\n\
+         all of this applied. Without it, set the scene to 60 fps before importing the glb files,\n\
+         so a frame is a game tick.\n\
          The vehicle's clips: a node a clip does not key keeps the previous clip's pose in the game,\n\
          but goes back to rest in glTF. A jet's V_Idle alone shows it folded; play Trans_R2V_A and\n\
-         Trans_R2V_B first (the JSON gives each such clip's unkeyed_nodes).\n\
+         Trans_R2V_B first (the JSON names each such clip's nodes in unkeyed_node_names).\n\
          Render sets (Optimus's special-attack meshes): a mesh outside its group's first set starts\n\
          hidden. Its node says so with KHR_node_visibility and the custom property render_set_hidden;\n\
          Blender does not read the first, so hide the objects that carry the second.\n\

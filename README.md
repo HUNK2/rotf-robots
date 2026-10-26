@@ -9,6 +9,9 @@ Unity, Godot, Blender, or a host game. Nothing here uses Bevy or any other engin
   JSON file with everything a model cannot hold (animation events, the change of form, weapons
   and where they mount, meshes that start hidden, hit boxes, sound events, the robot's
   attributes). The JSON's format is written down and versioned in [`docs/FORMAT.md`](docs/FORMAT.md).
+- **`blender/`**: a Blender add-on that imports an exported robot ready to animate: 60 fps, the
+  hidden meshes hidden, events as markers, the vehicle's clips holding their pose, weapons on their
+  nodes, collision shapes, and a panel that plays a change of form ([`blender/README.md`](blender/README.md)).
 - **`tf2-core`**: the game's file-format readers and the robots' mechanics (movement, the change
   of form, the car, flight, climbing, fighting, weapons, damage, cameras), as a Rust library
   with no engine types.

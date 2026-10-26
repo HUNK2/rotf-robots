@@ -146,6 +146,7 @@ it moves (the vehicle's idle in `DriveSet` goes with the vehicle file). Names re
 | `root_travel` | array of [x, y, z] | *Optional; only when the root moves.* The root's place at each tick from 0 to the clip's length (`round(length_ticks) + 1` entries), in metres, in the root's own frame at tick 0 (x right, y forward, z up). |
 | `root_turn_degrees` | array of numbers | *Optional; with `root_travel`.* The root's turn about z at each tick, in degrees, positive toward -x (to the left). |
 | `unkeyed_nodes` | integer | *Optional; vehicle clips only.* How many of the vehicle's nodes this clip has no key for (see `vehicle`). |
+| `unkeyed_node_names` | array of strings | *Optional; with `unkeyed_nodes`.* Those nodes, by name. |
 | `events` | array | The clip's events in tick order (below). |
 
 **Root motion.** The glTF keeps the root in place, as the game draws it. The character's movement
@@ -338,7 +339,9 @@ Two rules for the vehicle:
 - **A vehicle clip leaves the nodes it does not key where the clip before left them.** glTF puts
   them back at rest instead. A clip with `unkeyed_nodes` needs the clip before it: play the change
   of form (`Trans_R2V_A`, then `Trans_R2V_B`) before `V_Idle`, or hold the last pose for those
-  nodes. Starscream's `V_Idle` alone shows the jet folded small.
+  nodes. Starscream's `V_Idle` alone shows the jet folded small. Only the nodes in
+  `unkeyed_node_names` hold: a node the glTF does not animate but that list leaves out has a
+  channel in the game that keys nothing, and it stays at rest.
 
 ### `materials`
 
@@ -478,3 +481,4 @@ The game has these, and the export does not. `not_exported` lists them too.
 - **1** (2026-10-26): the first version. It describes what rotf-export 0.1.0 writes.
 - **1**, added (2026-10-26): `collision`, and a `<node>.collision.<n>` node in the `.glb` for
   each body. Only new keys, so the version stays 1.
+- **1**, added (2026-10-26): `unkeyed_node_names` on vehicle clips.

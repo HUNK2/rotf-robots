@@ -20,7 +20,8 @@ same way:
 another game, which moves it with its own character or vehicle code. Run `rotf-export` (see the
 README): it writes the robot as glTF, PNG, DDS and WAV with a JSON file of its animation events,
 change of form, weapons and sounds, which any engine or Blender can import. The JSON's format is
-[FORMAT.md](FORMAT.md): write your importer against it and check `format_version`. The asset readers it
+[FORMAT.md](FORMAT.md): write your importer against it and check `format_version`. In Blender, the
+add-on in [`blender/`](../blender/README.md) imports a robot with all of that applied. The asset readers it
 uses are in `core/src/formats/` (`pack`, `model`, `texture`, `anim`, `scene`, `fsb`, `fev`) if you
 would rather read the install yourself. Simplest, least faithful.
 
@@ -110,5 +111,4 @@ and captures.
 - A small robot API: load a robot, step it, read back its pose, state and events, instead of
   copying the game's per-frame code.
 - A C-compatible library over it, for hosts not written in Rust, with a worked example.
-- A Blender add-on that imports an exported robot ready to animate.
 - Conformance checks: recorded input replayed through a port and compared with the expected output.

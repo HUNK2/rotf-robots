@@ -50,6 +50,9 @@ cargo clippy --workspace --all-targets -- -D warnings         # must stay clean
 - `export/` (crate `rotf-export`): the exporter. `src/model.rs` writes the glTF files,
   `src/describe.rs` the JSON, `src/sounds.rs` the sound events and WAVs, `src/lib.rs` ties a
   robot's pieces together. Its tests (`export/tests/`) read every written file back.
+- `blender/`: the Blender add-on (`rotf_import/`, one Python file) and `check_import.py`, which
+  checks an import against the JSON without a window (`blender/README.md` says how to run it).
+  A change to the JSON that the add-on reads is checked with it too.
 - `core/` (crate `tf2-core`): **the file readers and all the robot logic, with no engine types**
   (only `glam` for maths). File-format readers in `core/src/formats/`.
 - `core/fixtures/`: physics values recorded from the running game, replayed by tests.

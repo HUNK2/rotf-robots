@@ -54,9 +54,18 @@ pub fn character(install: &Path, spec: &Spec, data: &CharacterData, pieces: &[Pi
             // before left it [game 00544e00]; glTF puts it back at rest. (Starscream's `V_Idle`
             // leaves 16 of the jet's nodes unkeyed: alone, it shows the jet folded small.)
             if piece.kind == PieceKind::Vehicle {
-                let unkeyed = piece.object.nodes.iter().filter(|n| clip.clip.channel(n.name_hash).is_none()).count();
-                if unkeyed > 0 {
-                    entry["unkeyed_nodes"] = json!(unkeyed);
+                // A channel that keys nothing is not one of these: the node keeps its rest. The
+                // glTF has no channel for either, so the names tell them apart.
+                let unkeyed: Vec<&str> = piece
+                    .object
+                    .nodes
+                    .iter()
+                    .filter(|n| clip.clip.channel(n.name_hash).is_none())
+                    .map(|n| n.name.as_str())
+                    .collect();
+                if !unkeyed.is_empty() {
+                    entry["unkeyed_nodes"] = json!(unkeyed.len());
+                    entry["unkeyed_node_names"] = json!(unkeyed);
                 }
             }
             clips.push(entry);
