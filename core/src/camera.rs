@@ -37,25 +37,25 @@ pub use fade::Fades;
 /// the measured frame time times 60, smoothed by 0.3, clamped 0 to 3 [game]), so each gain
 /// runs faster at a higher frame rate. docs/camera.md (Time step). The port keeps one step;
 /// the rate the original's values were tuned at is not known.]
-const UPDATE: f32 = 0.032;
+pub const UPDATE: f32 = 0.032;
 /// The camera option "sensitivity", 0 to 1; a fresh game's turn rates in the recording fit
 /// the middle of the range.
-const SENSITIVITY: f32 = 0.5;
+pub const SENSITIVITY: f32 = 0.5;
 /// The radius of the sphere the driving camera sweeps instead of a line.
-const CAR_SWEEP: f32 = 0.65;
+pub const CAR_SWEEP: f32 = 0.65;
 /// How far above the point on the car the driving camera's floor is: neither its eye nor
 /// the point it asks the world from goes lower. [trace: 0.500 all through run 1]
-const DRIVE_FLOOR: f32 = 0.5;
+pub const DRIVE_FLOOR: f32 = 0.5;
 /// Legacy flat-road replay/test fixture: the recorded point is 1.10..1.15 above the
 /// root, with 1.12 in the middle. [trace] Runtime uses the rotated physics holder
 /// and avatar half-height (0070abe0), rather than this constant.
 pub const CAR_BODY_RISE: f32 = 1.12;
 /// How long the follow camera goes on standing off by faceExtraDist once the character
 /// stops telling it to (`FUN_00922580`, behaviour `+0x13c`; constant at `00b6b020`).
-const STAND_OFF: f32 = 3.7;
+pub const STAND_OFF: f32 = 3.7;
 /// The extra distance in the climbing camera mode (and in mode 7d110862): a constant in
 /// the code, which the settings' climbExtraDist only switches on. [game]
-const CLIMB_EXTRA: f32 = 15.0;
+pub const CLIMB_EXTRA: f32 = 15.0;
 /// A hit nearer the point looked at than this leaves the camera where it was.
 const TOO_NEAR: f32 = 0.1;
 /// How far out of the wall a corner point is put.
@@ -64,10 +64,10 @@ const CORNER_CLEAR: f32 = 0.15;
 const STICK_STILL: f32 = 0.008_726_65;
 /// The overhead rule: how far up the last direction to the camera points (its z) before the
 /// heading is held back, and where it is held all the way. [game] `docs/camera.md` step 6.
-const OVERHEAD_FROM: f32 = 0.83;
-const OVERHEAD_FULL: f32 = 0.88;
+pub const OVERHEAD_FROM: f32 = 0.83;
+pub const OVERHEAD_FULL: f32 = 0.88;
 /// Squared horizontal movement threshold, read at 00924b37. [game]
-const OVERHEAD_MOVED_SQUARED: f32 = 0.0001;
+pub const OVERHEAD_MOVED_SQUARED: f32 = 0.0001;
 
 /// Character message camera modes. Names other than Normal/Climb describe their effect;
 /// the original's symbolic names have not survived. [game]

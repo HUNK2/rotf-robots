@@ -14,6 +14,7 @@
 
 pub mod control;
 pub mod describe;
+pub mod effects;
 pub mod rules;
 pub mod run;
 pub mod glb;
@@ -120,6 +121,7 @@ pub fn export(install: &Path, spec: &Spec, out: &Path) -> Result<Written, String
     std::fs::create_dir_all(out).map_err(|e| format!("{}: {e}", out.display()))?;
     std::fs::write(out.join("README.txt"), readme(spec)).map_err(|e| e.to_string())?;
     let mut files = names::data_files(&spec.pack_file(install));
+    let pack_files = files.len();
     files.extend(names::data_files(&install.join("bnxglobal.str")));
     // The character's own events, then the shared ones: every level carries its own copy of the
     // shared events (footsteps, jumps, landings, punches); the port reads us_city_00's, and so
@@ -161,9 +163,10 @@ pub fn export(install: &Path, spec: &Spec, out: &Path) -> Result<Written, String
     };
     json["animation_rules"] = rules::animation_rules(&data, &names);
     json["mechanics"] = match run::tuning(install, spec) {
-        Ok(tuning) => mechanics::mechanics(&tuning),
+        Ok(tuning) => mechanics::mechanics(&tuning, &data, &names, pack_files, &spec.attributes),
         Err(e) => serde_json::json!({ "error": e }),
     };
+    json["effects"] = effects::effects(&data, &names.files()[..pack_files], &mut shared, &names);
     let json_file = format!("{}.json", spec.pack);
     let attributes = describe::attributes(spec, &names);
     let sounds = sounds::write(install, &sound_events[0], &sound_events[1..], &json, &attributes, out);

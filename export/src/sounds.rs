@@ -48,6 +48,9 @@ struct Writer<'a> {
 /// The level whose shared events are written (the port's default sound level).
 pub const SHARED_LEVEL: &str = r"levels\us_city_00\eng\mission.fev";
 
+/// The bank of the battle chatter's voice lines.
+pub const CHATTER_BANK: &str = r"audio\eng\CHATTER.fsb";
+
 /// Writes the sounds of `own` (the character's .fev) and the events of `shared` that the
 /// character's JSON or its attributes name.
 pub fn write(install: &Path, own: &Path, shared: &[PathBuf], character: &Value, attributes: &Value, out: &Path) -> Written {
@@ -77,6 +80,29 @@ pub fn write(install: &Path, own: &Path, shared: &[PathBuf], character: &Value, 
             }
         }
     }
+    // The battle chatter's lines are samples of `CHATTER.fsb`, each the event of the same name in
+    // capitals, played through the `ProgrammerSoundPlayer` event (`mechanics.sound`). [game]
+    let chatter = install.join(CHATTER_BANK);
+    let wanted: BTreeSet<String> = character["mechanics"]["sound"]["chatter_lines"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|line| line["event"].as_str().map(str::to_ascii_uppercase))
+        .collect();
+    let mut voices = Map::new();
+    if !wanted.is_empty() {
+        match Bank::open(&chatter) {
+            Ok(bank) => {
+                for (index, entry) in bank.entries.iter().enumerate() {
+                    let stem = entry.name.rsplit_once('.').map_or(entry.name.as_str(), |(s, _)| s).to_ascii_uppercase();
+                    if wanted.contains(&stem) && !voices.contains_key(&stem) {
+                        voices.insert(stem, json!(writer.sample(&chatter, index)));
+                    }
+                }
+            }
+            Err(e) => writer.problems.push(format!("{}: {e}", chatter.display())),
+        }
+    }
     let mut played = BTreeSet::new();
     clip_sounds(&character["clips"], &mut played);
     let not_found: Vec<&String> = played.iter().filter(|e| !events.contains_key(*e)).collect();
@@ -97,6 +123,7 @@ pub fn write(install: &Path, own: &Path, shared: &[PathBuf], character: &Value, 
                      range, as shares. A sound plays one sample of its list, picked by play_mode. \
                      The WAVs are the banks' MPEG audio decoded; loop points are in frames, end exclusive.",
             "events": events,
+            "voices": voices,
             "samples": writer.samples,
         }),
         samples,
@@ -134,6 +161,8 @@ impl Writer<'_> {
             "pitch_octaves": num(event.pitch * 4.0),
             "pitch_random_octaves": num(event.pitch_randomisation * 4.0),
             "positional": event.mode & 0x10 != 0,
+            // FMOD's roll-off bits of the event's mode (`tf2_core::sound::distance_gain`). [game]
+            "rolloff": if event.mode & 0x0400_0000 != 0 { "custom" } else if event.mode & 0x0020_0000 != 0 { "linear" } else { "logarithmic" },
             "min_distance": num(event.min_distance),
             "max_distance": num(event.max_distance),
             "max_playbacks": event.max_playbacks,

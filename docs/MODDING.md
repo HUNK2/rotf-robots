@@ -68,7 +68,17 @@ formulas, and `mechanics` in `<pack>.json` gives each robot's numbers for them:
 - melee: the chain, the target search, the turn and slide, the hit and the ground punch's blast;
 - the weapons: weapon mode's movement and aim, firing and heat, a gun's round, missiles, the
   lock-on and grenades;
-- damage and health: taking a hit, the throw, the statuses, the reaction and regeneration.
+- damage and health: taking a hit, the throw, the statuses, the reaction and regeneration;
+- the special: its clocks, what its trigger sets off, Optimus's shield, the weapon specials, the
+  deployed turret and CombatRepair's heal;
+- the cameras: the follow, driving and weapon cameras step by step, the shakes and the pad's rumble;
+- sound: how an event plays, what plays when, the engine's gearbox and the battle chatter;
+- effects: what starts each one, a particle effect's update, its sources, domains and actions, how
+  a particle is drawn, skid marks and ribbons.
+
+**The effects and voices.** `effects` in `<pack>.json` is every particle effect of the robot's pack
+as the game stores it, with its pictures, and the things on his models that a name starts;
+`sounds.voices` are his battle chatter's lines.
 
 **The rules, written down.** Each system's notes in `docs/`, read from the game's code and data,
 say what it does, in what order, with which numbers, and tag what is fitted or guessed:
@@ -149,9 +159,6 @@ and captures.
 
 ## Coming: porting tools
 
-- **The rest of the formulas.** Movement, the car, flight, climbing, the dodge, melee, the weapons
-  and damage are in MECHANICS.md and `mechanics`. Still to come: the specials, the cameras, and
-  sound and effects.
 - **More in the reference runs.** Runs cover movement, the change of form, the car, flight, melee
   and the clips. Still to come: the guns and their aim, the cameras, and targets that fight back.
 - **Guides per host engine.** How each part of a robot maps onto one engine's own systems, written

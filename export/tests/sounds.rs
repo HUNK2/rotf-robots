@@ -79,6 +79,8 @@ fn bumblebee_sounds_match_the_banks() {
             }
         }
     }
+    // The chatter's lines are played by name, through the voice event.
+    referenced.extend(sounds["voices"].as_object().unwrap().values().filter_map(Value::as_str).map(str::to_owned));
     assert_eq!(referenced.len(), samples.len(), "samples nothing plays");
     let mut silent = Vec::new();
     for (file, info) in samples {

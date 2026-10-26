@@ -226,6 +226,43 @@ fn bumblebee_json_names_only_what_exists() {
     if mechanics["damage"]["base_health"].as_f64().is_none_or(|h| h <= 0.0) {
         problems.push(format!("mechanics: base health {}", mechanics["damage"]["base_health"]));
     }
+    // The special, the cameras and the sound: a cooldown, three levels of each camera, and the
+    // shakes every blast names; a car's gears.
+    if mechanics["special"]["cooldown"].as_f64().is_none() {
+        problems.push("mechanics: the special has no cooldown".into());
+    }
+    let cameras = &mechanics["cameras"];
+    for form in ["robot", "weapon", "drive"] {
+        let levels = cameras[form].as_array().map_or(0, Vec::len);
+        if levels != 3 {
+            problems.push(format!("mechanics: {levels} {form} camera levels"));
+        }
+    }
+    for blast in mechanics["special"]["blasts"].as_array().unwrap() {
+        if let Some(shake) = blast["camera_shake"].as_str().filter(|s| cameras["shakes"].get(*s).is_none()) {
+            problems.push(format!("mechanics: the special's shake {shake} is not in cameras.shakes"));
+        }
+    }
+    if json["vehicle"].is_object() && mechanics["fly"].is_null() && mechanics["sound"]["gears"].as_array().is_none_or(Vec::is_empty) {
+        problems.push("mechanics: a car with no gears".into());
+    }
+    // Effects: every effect a clip or a model names is a template, and every picture and voice
+    // named is on disk.
+    let templates = json["effects"]["templates"].as_object().expect("effects.templates");
+    let named = json["clips"].as_array().unwrap().iter().flat_map(|c| c["events"].as_array().unwrap()).filter(|e| e["type"] == "effect_start").map(|e| &e["effect"]);
+    let on_models = json["effects"]["on_models"].as_array().expect("effects.on_models");
+    for effect in named.chain(on_models.iter().map(|t| &t["template"])).filter_map(Value::as_str) {
+        if !templates.contains_key(effect) {
+            problems.push(format!("effects: no template {effect}"));
+        }
+    }
+    let pictures = templates.values().flat_map(|t| t["textures"].as_array().unwrap()).filter_map(Value::as_str);
+    let voices = json["sounds"]["voices"].as_object().expect("sounds.voices").values().filter_map(Value::as_str);
+    for path in pictures.chain(voices).collect::<BTreeSet<_>>() {
+        if !export.out.join(path).exists() {
+            problems.push(format!("effects or voices: {path} was not written"));
+        }
+    }
     assert!(problems.is_empty(), "{} problems:\n{}", problems.len(), problems.join("\n"));
 
     // Render sets: each mesh they list is a node of its file by that name (or `<name>.<part>`),
@@ -352,8 +389,11 @@ fn undocumented(json: &Value, spec: &str) -> Vec<String> {
                 for (k, x) in map {
                     keys.insert(k.clone());
                     match (k.as_str(), x) {
-                        ("numbers", _) => {}
-                        ("events" | "samples", Value::Object(named)) => named.values().for_each(|y| walk(y, keys)),
+                        // The game's own data, under its own names.
+                        ("numbers" | "data" | "chatter" | "fire" | "rotator", _) => {}
+                        // Maps by name: the names are not keys.
+                        ("voices", _) => {}
+                        ("events" | "samples" | "shakes" | "templates", Value::Object(named)) => named.values().for_each(|y| walk(y, keys)),
                         _ => walk(x, keys),
                     }
                 }

@@ -88,6 +88,7 @@ Never branch on it: branch on `format_version`.
 | `control` | object | The control state machine: what decides when he moves, jumps, attacks, dodges, climbs, aims or changes form (below). |
 | `animation_rules` | object | Within each animation set, which clip plays and which follows it (below). |
 | `mechanics` | object | Each mechanic's numbers for this robot, for the formulas in MECHANICS.md (below). |
+| `effects` | object | The particle effects of his pack and the things on his models that a name starts (below). |
 | `attributes_file` | string | The file name of `<pack>_attributes.json`. |
 | `not_exported` | array of strings | Prose: what the game has that is not in the export. |
 
@@ -196,7 +197,7 @@ to the new one. An event with `"rerun": false` runs only on a looping clip's fir
 | `model` | `show_robot` (bool), `show_vehicle` (bool), `vehicle_animation` (string or null), `vehicle_then` (string or null), `vehicle_file` (string or null) | The change of form. It shows or hides the robot model and the vehicle model. When `vehicle_animation` is set, it starts that clip on the vehicle (in `vehicle_file`), and `vehicle_then` follows it when it ends. |
 | `sound_play` | `event` (string), `auto_stop` (bool), `held` (bool), `rerun` (bool) | Plays the sound event `event` (a key of `sounds.events`). With `auto_stop`, the sound ends with the clip. With `held`, the object keeps the sound by name, and a later play of the same name reuses the playing sound instead of starting another. |
 | `sound_stop` | `event` (string) | Stops that sound event. |
-| `effect_start` | `node`, `effect` (string), `id` (string or null), `follows_node` (bool), `use_rotation` (bool), `use_scale` (bool), `auto_stop` (bool), `rerun` (bool) | Starts the particle effect `effect` at `node`. With `follows_node`, it moves with the node; otherwise it stays where it started. `use_rotation` and `use_scale` take the node's turn and scale. `id` names the effect so that an `effect_stop` can end it. With `auto_stop`, it is stopped when the clip is left. The effects themselves are not exported. |
+| `effect_start` | `node`, `effect` (string), `id` (string or null), `follows_node` (bool), `use_rotation` (bool), `use_scale` (bool), `auto_stop` (bool), `rerun` (bool) | Starts the particle effect `effect` at `node`. With `follows_node`, it moves with the node; otherwise it stays where it started. `use_rotation` and `use_scale` take the node's turn and scale. `id` names the effect so that an `effect_stop` can end it. With `auto_stop`, it is stopped when the clip is left. The effect is `effects.templates` by that name. |
 | `effect_stop` | `node`, `id` (string or null) | Stops the effect started with that `id`. |
 | `footstep` | `node`, `side` (string: `LEFT` or `RIGHT`) | A foot comes down at `node`. The game probes the ground there and plays the step's sound and effect for the surface (`character_sounds.by_surface.step`). |
 | `climb_step` | `node`, `limb` (`left_hand`, `right_hand`, `left_foot`, `right_foot` or `slide`) | A limb touches the wall while climbing. The sound and effect come from `character_sounds.by_surface.climb`, in that order of limbs. |
@@ -407,6 +408,7 @@ The sound events, as FMOD Designer stores them in the game, and the samples they
 | `not_found` | array of strings | Events the clips name that no event file holds. The game plays nothing for them. |
 | `note` | string | Prose. |
 | `events` | object | Event name → event (below). |
+| `voices` | object | The battle chatter's lines (`mechanics.sound.chatter_lines`): event name → its WAV path (null when it could not be written). A line the bank lacks is not listed. |
 | `samples` | object | WAV path → sample (below). |
 
 An **event**:
@@ -419,6 +421,7 @@ An **event**:
 | `pitch_octaves`, `pitch_random_octaves` | Its pitch in octaves (0 plays the sample as recorded) and the random part. |
 | `positional` | It is placed in the world (3D). |
 | `min_distance`, `max_distance` | The 3D rolloff's range, in metres. |
+| `rolloff` | How the distance lowers it: `custom` (the `(distance)` envelopes alone), `linear` or `logarithmic` (MECHANICS.md, "Sound"). |
 | `max_playbacks` | How many may play at once. |
 | `fade_in_ms`, `fade_out_ms` | Fades, in milliseconds. |
 | `reverb_dry_db`, `reverb_wet_db` | Reverb levels. |
@@ -706,8 +709,9 @@ was playing (`control`'s "State classes").
 
 Each mechanic's numbers for this robot, as the reference uses them. The formulas they go into are
 in [MECHANICS.md](MECHANICS.md): on foot, the jump, the car, flight and its boundary, hover,
-climbing, the dodge, melee, the weapons, and damage and health. Speeds are metres a second, times
-seconds, turn speeds degrees a second; a value that does not apply is null.
+climbing, the dodge, melee, the weapons, damage and health, the special, the cameras and the sound.
+Speeds are metres a second, times seconds, turn speeds degrees a second; a value that does not
+apply is null.
 
 `constants`: the game's own numbers, the same for every robot.
 
@@ -739,6 +743,11 @@ seconds, turn speeds degrees a second; a value that does not apply is null.
 | `aim_reach`, `weapon_facing_reach` | How far the aim point is looked for, and how far ahead of its barrel a `useFacingAsTarget` weapon aims. |
 | `lock_keep_share` | A lock is kept within this share of the field of view (the whole of it for a car's weapon). |
 | `hit_react_cooldown` | Seconds after a full hit reaction before the next one (a flail does not wait). |
+| `camera_update_seconds` | The step the reference runs its cameras at. |
+| `camera_sensitivity` | The camera option's sensitivity, 0 to 1, that scales the stick's turn. |
+| `camera_stand_off_seconds`, `camera_climb_extra` | How long the follow camera stands off after a melee attack, and its extra distance climbing or dead. |
+| `camera_overhead_from`, `camera_overhead_full` | The rise of the direction to the camera at which its heading starts to be held back, and is held all the way. |
+| `camera_car_sweep_radius`, `camera_drive_floor` | The driving camera's collision sphere, and its floor above the point on the car in the old recordings. |
 
 `on_foot`:
 
@@ -884,6 +893,76 @@ or null when the pack lacks it.
 | `slow_multiplier`, `slow_fire_rate`, `slow_heat_rate` | The slow's movement share and its scale on the rate of fire and the heat. |
 | `low_health_fraction` | Below this share of full health the low-health overlay shows. |
 
+`special`: the special ability (MECHANICS.md, "The special").
+
+| Key | What it is |
+| --- | --- |
+| `type` | The game's type number: 0 and 1 Optimus's shield (on foot, flying), 2 the scout's speed, 3 the sniper's, 4 Megatron's, 6 Starscream's; -1 none of its own. |
+| `cooldown`, `duration` | Seconds before it may be used again, and how long it runs (-1: no end). |
+| `icon` | The HUD's icon number. |
+| `trigger`, `vehicle_trigger` | The name it sends to himself as a Trigger on foot and in the vehicle form, or null. |
+| `vehicle_clip` | The vehicle model's clip it plays in the vehicle form, or null. |
+| `weapon`, `vehicle_weapon` | Each form's weapon: `weapon` (a name in `weapons`, or null) and `from_animation` (fired by the clip's `special_fire` events, not at the start). |
+| `blasts` | The explosions its triggers set off: `trigger`, `vehicle` (on the vehicle model), `node`, `follows_node`, `delay`, `radius`, `start_scale`, `grow_seconds`, `damage`, `min_damage`, `fall_off`, `ground_pound_override`, `damages_player`, `damages_self`, `damage_flags` (hex), `knock_back_speed`, `knock_back_angle_degrees`, `stun_seconds`, `slow_seconds`, `dot_seconds`, `heat`, `camera_shake` (a name of `cameras.shakes`, or null) and `rumble` (`kind`, `duration`, `strength`, `scale_type`, `distance_near`, `distance_far`, or null). |
+| `factors`, `multiplayer_factors` | Types 0 and 1: `shield`, `flight_shield` (on the damage he takes), `melee`, `flight_melee` (on the damage his melee does). |
+| `scout_speed_factor` | Type 2: the clips' rate while it runs. |
+| `starscream_special_multiplier` | Type 6: his missiles' damage while it runs. |
+| `flight_transfer_multiplier`, `flight_transfer_radius` | Type 1: the share of his hits an ally within the radius takes over. |
+| `heal_zones` | CombatRepair's zones in his pack: `trigger`, `vehicle` (on the vehicle model), `radius`, `slot` (0 Long Haul's, 1 Ratchet's). A pack that carries another robot's models has theirs too (Devastator's has Long Haul's, which nothing of his triggers). |
+| `healed` | How fast he heals inside a zone: `rate_from_long_haul`, `rate_from_ratchet` (health a second), `seconds_per_tic_from_long_haul`, `seconds_per_tic_from_ratchet` (above 0: in tics of that length). |
+| `turret` | `fire` and `rotator`: every `FireTurret` and `TurretRotator` of his pack, as the game stores them. |
+
+`cameras`: the cameras (MECHANICS.md, "The cameras").
+
+| Key | What it is |
+| --- | --- |
+| `robot`, `weapon`, `drive` | Each form's camera settings, at distance levels 0, 1 and 2 (below). |
+| `sniper` | The sniping camera's settings, with `zoom_fov` and `zoom_full_time`; null for a robot without one. |
+| `robot_height`, `robot_radius`, `vehicle_height`, `vehicle_radius`, `body_offset_z` | His body's sizes, from which the point looked at is made. |
+| `weapon_look_height` | What weapon mode adds to the height looked at. |
+| `shakes` | Every camera shake of the game, by name: `ang_horiz_degrees`, `ang_vert_degrees`, `tilt_degrees`, `pos_horiz`, `pos_vert`, `full_dist`, `max_dist`, `duration`, `half_duration`, `max_ang_acc_degrees`, `ang_gain`, `ang_damp`, `max_offs_acc`, `offs_gain`, `offs_damp`. |
+| `rumbles` | The pad's preset rumbles by number: `kind`, `duration`, `strength`. |
+
+A camera's settings, each as the data names it (angles in degrees, scales in percent): `fov`,
+`min_dist`, `max_dist`, `min_elevation`, `default_elevation`, `max_elevation`, `user_rot_speed_z`,
+`user_rot_speed_x`, `scale_rot_speed_min`, `scale_rot_speed_max`, `face_extra_dist`,
+`face_extra_dist_gain`, `climb_extra_dist`, `min_height_gain`, `interp_elev_gain`,
+`interp_ang_gain`, `interp_target_height_time`, `height_offset`; the driving camera's
+`min_speed_align_move`, `max_speed_align_move`, `align_gain`, `align_damp`, `max_speed_fov_scale`,
+`max_speed_dist_add`, `user_rot_scale_max_speed`, `user_rot_gain`, `user_rot_damp`, `tilt_amount`,
+`tilt_gain`, `lean_amount`, `lean_gain`; the weapon camera's `max_rot_speed`, `side_offset`,
+`ahead_offset`, `elev_gain`. Every camera has every key; each camera reads only its own.
+
+`sound`: what the code drives (MECHANICS.md, "Sound").
+
+| Key | What it is |
+| --- | --- |
+| `gears` | The vehicle's gears, first first: `min_rpm`, `max_rpm`, `ratio`. |
+| `gearbox` | `engine_torque`, `front_wheel_radius`, `mass`, `max_speed`, `turning_velocity_delta`: the numbers the gearbox is made from. |
+| `voice_event` | The event the chatter's lines play through. |
+| `chatter_lines` | His voice lines: `action`, `category`, `subcategory`, `event` (its sample is in `sounds.voices`), `frequency`. |
+| `chatter` | The game's `BattleChatter` tuning, as the game stores it, or null. |
+
+### `effects`
+
+| Key | Type | What it is |
+| --- | --- | --- |
+| `templates` | object | Every particle effect of his pack, by name: `textures` (each element's picture, a path, or null) and `data` (the `ParticleTemplate` as the game stores it, its actions' and domains' `id` as their four letters, its renderers' `Texture` as the path). |
+| `on_models` | array | The things on his models that a name, a clip or the model's start sets off (below). |
+
+Each entry of `on_models` has `kind` and `model` (`robot` or `vehicle`), and a `node` it rides:
+
+| `kind` | Fields | What it is |
+| --- | --- | --- |
+| `effect` | `trigger`, `template`, `upright`, `follows_node`, `mesh`, `timeout` (`delete`, `fade` seconds, or null) | An effect started by a Trigger to its name. |
+| `emitter` | `template`, `auto_start`, `use_rotation`, `use_scale`, `delete_when_done`, `spawn_chance` | An effect that runs from the model's start when `auto_start`. |
+| `sound` | `trigger`, `event`, `waits_for_trigger`, `once`, `retrigger`, `key_off_on_untrigger` | A sound player started by a Trigger to its name. |
+| `spawned_sound` | `trigger`, `events` | Sounds played where a spawner puts its object. |
+| `footstep` | `side`, `height` | Where a `footstep` event's ground probe starts: the node less `height`. |
+| `climb_step` | `limb` | The node a `climb_step` event's limb probes from. |
+| `skid_mark` | `tyre`, `point_length`, `point_width`, `colour`, `material` | A tyre's skid mark. No `node`'s place is used: the points go at the tyre's. |
+| `ribbon` | `trigger`, `links`, `material`, `trails`, `subdivisions`, `trigger_speed`, `enabled` | A trail drawn through its `links` (nodes). It has no `node`. |
+
 ## `<pack>_attributes.json`
 
 | Key | Type | What it is |
@@ -979,8 +1058,9 @@ the reference), the cameras, Devastator's vortex and pods, levels, and anything 
 
 The game has these, and the export does not. `not_exported` lists them too.
 
-- The voice lines (the game picks them in code).
-- The particle effects, ribbons and lights: only their names at their events.
+- The voice lines the chatter names that its bank lacks (six of Bumblebee's 115).
+- Lights (the muzzle flash's) and the vehicle's knock effects (`CollisionFX`).
+- The level's own: its reverb, its turbo screen blur (`Environment_SpeedBlur`), its sun.
 - The clip fields the game reads but the port does not (`chance`, `minWalkSpd` and `maxWalkSpd`,
   `minStrafeAng` and `maxStrafeAng`, `walkFlags`, `group_type`): how they pick between clips is
   not read.
@@ -1007,3 +1087,6 @@ The game has these, and the export does not. `not_exported` lists them too.
 - **1**, added (2026-10-27): `mechanics.dodge`, `melee`, `weapons` and `damage`, and the
   constants of the flight boundary, melee, weapon mode and the hit reaction, with MECHANICS.md's
   sections on them.
+- **1**, added (2026-10-27): `mechanics.special`, `cameras` and `sound`, the camera constants,
+  `effects`, `sounds.voices` and each event's `rolloff`, with MECHANICS.md's "The special", "The
+  cameras", "Sound" and "Effects".

@@ -35,7 +35,7 @@ fn fine(v: f32) -> Value {
 }
 
 /// The climbing steps' limbs, in `anim::CLIMB_SIDES`' order.
-const LIMBS: [&str; 5] = ["left_hand", "right_hand", "left_foot", "right_foot", "slide"];
+pub const LIMBS: [&str; 5] = ["left_hand", "right_hand", "left_foot", "right_foot", "slide"];
 
 pub fn character(install: &Path, spec: &Spec, data: &CharacterData, pieces: &[Piece], written: &[(String, Summary)], shared: &mut Shared, names: &Names) -> Value {
     let file_of = |kind: PieceKind, weapon: u32| {
@@ -213,8 +213,8 @@ pub fn character(install: &Path, spec: &Spec, data: &CharacterData, pieces: &[Pi
         "character_sounds": character_sounds(data, names),
         "attributes_file": format!("{}_attributes.json", spec.pack),
         "not_exported": [
-            "the voice lines (chatter): the game picks them from audio\\eng\\CHATTER.fsb in code",
-            "particle effects, ribbons and lights: named at their events only",
+            "the voice lines a bank lacks (chatter lines with no sample in audio\\eng\\CHATTER.fsb)",
+            "lights (the muzzle flash's) and the vehicle's knock effects (CollisionFX): core/src/point_light.rs and collisionfx.rs",
             "the clip fields the port does not read (chance, minWalkSpd, maxWalkSpd, minStrafeAng, maxStrafeAng, walkFlags, group_type): how they pick between clips is not read",
             "what each control state class does in code beyond its data (the dodge's direction, the drive and fly states' own steps): docs/state-machine.md and core/src/sim.rs",
             "flight's moving surfaces (flaps, rotors), the wheels' spin and the suspension: the game moves them in code",
