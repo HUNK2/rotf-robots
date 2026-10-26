@@ -14,7 +14,7 @@ image = { version = "=0.25.9", default-features = false, features = ["png"] }
 serde_json = "1"
 
 [dev-dependencies]
-# Reads the written files back in the tests; the version Bevy's loader already brings in.
+# Reads the written files back in the tests.
 gltf = { version = "1.4", default-features = false, features = ["utils", "names", "extras"] }
 
 [lints]
