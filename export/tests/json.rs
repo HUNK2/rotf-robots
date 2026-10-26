@@ -128,6 +128,25 @@ fn bumblebee_json_names_only_what_exists() {
             problems.push(format!("{}: a member is missing", c["name"]));
         }
     }
+    // The clip rules: each clip and each rule's target clip is one of `clips`, and every rule's
+    // variable has its name.
+    for set in json["animation_rules"]["sets"].as_array().unwrap() {
+        let clips = set["clips"].as_array().unwrap();
+        let exits = clips.iter().flat_map(|c| c["exits"].as_array().unwrap());
+        for rule in set["entries"].as_array().unwrap().iter().chain(exits) {
+            if let Some(clip) = rule["to_clip"].as_str().filter(|c| !clip_names.contains(c)) {
+                problems.push(format!("{}: no clip {clip}", set["set"]));
+            }
+            for r in rule["rules"].as_array().unwrap() {
+                if r["variable"].as_str().unwrap().starts_with('#') {
+                    problems.push(format!("{}: unnamed variable {}", set["set"], r["variable"]));
+                }
+            }
+        }
+        for clip in clips.iter().filter(|c| !clip_names.contains(c["clip"].as_str().unwrap())) {
+            problems.push(format!("{}: no clip {}", set["set"], clip["clip"]));
+        }
+    }
     assert!(problems.is_empty(), "{} problems:\n{}", problems.len(), problems.join("\n"));
 
     // Render sets: each mesh they list is a node of its file by that name (or `<name>.<part>`),

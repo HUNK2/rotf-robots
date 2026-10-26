@@ -50,6 +50,11 @@ plays and its motion mode, and every way out of it with the button, stick or con
 it and its priority, with the rules for running them ([FORMAT.md](FORMAT.md), `control`). This is
 the skeleton of the host's animation graph or state machine.
 
+**The clip rules.** `animation_rules` in `<pack>.json`: inside each animation set, the clip it
+starts on and when each clip hands over to which, by the stick, the fall, the weapon's state and
+the other variables the game reads, with the blends. These are the transitions inside each state
+of the host's graph (walk to run, the landings, the fidgets, which dodge plays).
+
 **The rules, written down.** Each system's notes in `docs/`, read from the game's code and data,
 say what it does, in what order, with which numbers, and tag what is fitted or guessed:
 
@@ -123,10 +128,9 @@ and captures.
 
 ## Coming: porting tools
 
-- **The rest of the rules as data.** The control states are exported (`control`). Still to come:
-  the animation sets' clip-selection rules (which clip of a set plays, which follows it, and the
-  blends), and each mechanic's numbers with the formula they go into, documented in `FORMAT.md`
-  so a port maps them onto a host's animation graph and controller instead of reading Rust.
+- **The rest of the rules as data.** The control states (`control`) and the clip rules
+  (`animation_rules`) are exported. Still to come: each mechanic's numbers with the formula they
+  go into, documented so a port builds the host's controller from them instead of reading Rust.
 - **Reference runs.** A command that runs a scripted or recorded input through the reference and
   writes, every update, the position, speed, state, clip and events, so a native port's output can
   be compared with it number by number.

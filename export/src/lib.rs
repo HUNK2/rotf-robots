@@ -11,6 +11,7 @@
 
 pub mod control;
 pub mod describe;
+pub mod rules;
 pub mod glb;
 pub mod model;
 pub mod names;
@@ -133,6 +134,9 @@ pub fn export(install: &Path, spec: &Spec, out: &Path) -> Result<Written, String
             names.add(clip.name.rsplit('.').next().unwrap_or(&clip.name));
         }
     }
+    for variable in rules::VARIABLES.iter().chain(&rules::MORE_VARIABLES) {
+        names.add(variable);
+    }
     for (set, refs) in &data.animations.sets {
         names.add(set);
         for r in refs {
@@ -150,6 +154,7 @@ pub fn export(install: &Path, spec: &Spec, out: &Path) -> Result<Written, String
         Ok(tuning) => control::control(&tuning, &data, &names),
         Err(e) => serde_json::json!({ "error": e }),
     };
+    json["animation_rules"] = rules::animation_rules(&data, &names);
     let json_file = format!("{}.json", spec.pack);
     let attributes = describe::attributes(spec, &names);
     let sounds = sounds::write(install, &sound_events[0], &sound_events[1..], &json, &attributes, out);
@@ -276,6 +281,7 @@ fn readme(spec: &Spec) -> String {
          \x20                    root travel; where each weapon hangs; render sets; the collision\n\
          \x20                    bodies; every material parameter; the control state machine (each\n\
          \x20                    state, its clip, and what button or condition leaves it for which);\n\
+         \x20                    each animation set's rules for which clip plays and follows;\n\
          \x20                    the character's attributes as the game stores them.\n\
          \x20                    Its format: docs/FORMAT.md in github.com/HUNK2/rotf-robots-sdk\n\
          textures/            the textures as PNG; textures/dds/ the same as the game stores them\n\

@@ -85,6 +85,7 @@ Never branch on it: branch on `format_version`.
 | `character_sounds` | object | Sound events named outside the clips: engine, steps by surface... (below). |
 | `sounds` | object | Every sound event the robot can play, and every sample written as WAV (below). |
 | `control` | object | The control state machine: what decides when he moves, jumps, attacks, dodges, climbs, aims or changes form (below). |
+| `animation_rules` | object | Within each animation set, which clip plays and which follows it (below). |
 | `attributes_file` | string | The file name of `<pack>_attributes.json`. |
 | `not_exported` | array of strings | Prose: what the game has that is not in the export. |
 
@@ -483,7 +484,7 @@ pad and keyboard button each is. Several share one button (`AttackFast`, `Dodge`
 | `overlay` | boolean | It runs on top of another state instead of replacing it (the special, the firing). |
 | `clip` | string or null | The clip it plays, by its name in `clips`. null when it names none, or names one this robot does not have (then `clip_id` says which). |
 | `clip_id` | string or null | The clip's id as the state names it, whether or not the robot has it. |
-| `anim_set` | string or null | The animation set it names. With no clip, the set's own rules pick one (they are not exported yet). |
+| `anim_set` | string or null | The animation set it names. With no clip, the set's own entry rules pick one (`animation_rules`). |
 | `robot_form` | string or number | The control mode it puts the character in as it is entered: `robot`, `weapon`, `vehicle`, or `unchanged`. The mode decides the camera and the weapon. The drive states set `vehicle` and the weapon states `weapon` in their own code whatever this says. |
 | `motion_mode` | string or null | How the body moves while in it: `MoveMode`, `JumpMode`, `AttackMode`, `StrafeMode`, `DriveMode`, `DriveCompanionMode` (the slowing roll while unfolding out of the car), `ClimbMode`, `DashMode`, `FlyMode`, `HoverMode`, `FirstMode` (standing: the clip moves him), and the rest of `docs/bumblebee-mechanics.md` "Modes". A hash names one the executable's list does not have. |
 | `finish_anim` | boolean | It may not be left until its clip has finished. |
@@ -592,6 +593,113 @@ What each `class` does beyond its data, as read from the game (`docs/state-machi
 | `StateHitReact`, `StateStun`, `StateDeath` | Forced by damage when the current state's `can_go_to` allows it (`docs/damage.md`). |
 | `StateInteract` | Picking up a human and flipping a car: mission interactions, not ported. |
 
+### `animation_rules`
+
+Within an animation set, which clip plays and which follows it is data too: each set has entry
+rules (the clip it starts on, by where it comes from) and each clip has exit rules (when it hands
+over, and to what). A control state that names a clip plays it; one that names only a set, and
+every clip that finishes or branches, goes through these rules. Walking to running, the landings,
+the idle's fidgets, which dodge and which hit reaction plays, and most of weapon mode are decided
+here. They are the transitions of the host's animation graph inside each state.
+`docs/animation-rules.md` has the research; `core/src/animrules.rs` runs them.
+
+| Key | Type | What it is |
+| --- | --- | --- |
+| `default_crossfade` | number | 0.1: the blend, in seconds, for a clip whose own `crossfade` is negative (none given). |
+| `sets` | array | Every set of the robot (below), by name in alphabetical order. |
+
+Each set:
+
+| Key | Type | What it is |
+| --- | --- | --- |
+| `set` | string | Its name (`WalkSet`, `IdleStandSet`, `WeaponSet`...): the part of a clip's name before the dot. |
+| `entries` | array | Its entry rules, in the order they are tried (below). |
+| `clips` | array | Each of its clips that the robot has, with its exit rules (below), in stored order. |
+
+An entry rule:
+
+| Key | Type | What it is |
+| --- | --- | --- |
+| `from_set`, `from_clip_id` | string or null | It fits only when the set and the clip being left are these. null fits any. |
+| `base_set`, `base_clip_id` | string or null | For a set played on a layer over the base (the partial sets): it fits only while the base layer plays these. null fits any. |
+| `rules` | array | Comparisons that must all hold (below). |
+| `to_set` | string | The set it leads into: this set, or another. `emptyAnimSet` stops the layer. |
+| `to_clip` | string or null | The clip it starts, by its name in `clips`. null with `to_clip_id` null: walk `to_set`'s entries in turn. null with `to_clip_id` set: this robot lacks that clip. |
+| `to_clip_id` | string or null | The clip's id as the rule names it. |
+
+A clip, with what decides how it hands over:
+
+| Key | Type | What it is |
+| --- | --- | --- |
+| `clip` | string | Its name in `clips` (its `looping`, `speed`, `crossfade` and events are there). |
+| `keeps_time` | boolean | It starts at the time the clip before it had reached, not at 0 (the weapon set's strafing runs, `Weapon_PrevRun*`, keep the stride as the direction changes). |
+| `continue_time` | boolean | The time it runs past its end is carried into the clip that follows it. |
+| `exit_events` | boolean | Its events still run while it fades out. |
+| `exit_crossfade` | number or null | The blend, in seconds, into the clip that follows it, in place of that clip's own. null: none. |
+| `exit_crossfade_to` | string or null | With `exit_crossfade`: only into this clip id. null: into any. |
+| `exits` | array | Its exit rules, in the order they are tried: each has `to_set`, `to_clip` and `to_clip_id` as an entry rule's, `finish`, `branch_point` and `rules`. |
+
+An exit rule may be taken when `finish` is true and the clip has finished, or when `finish` is
+false and the clip's branch count has reached `branch_point` (the count is 1 as the clip starts,
+one more at each `branch_point` event, 100 once it has finished; so 0 is "at any time"), and
+every one of its `rules` holds.
+
+A rule:
+
+| Key | Type | What it is |
+| --- | --- | --- |
+| `variable` | string | What it compares (below). |
+| `compare` | string | `==`, `!=`, `>`, `>=`, `<` or `<=`: the variable on the left. |
+| `value` | number, string or null | What it is compared with: a number for an `F_` or `I_` variable; a name for a `C_` one, null standing for "none" (the hash 0). A variable of no known kind gives an object with all three: `float`, `int`, `hash`. |
+
+The variables, as the game works them out (`docs/animation-rules.md`, "Variables"):
+
+| Variable | What it is |
+| --- | --- |
+| `F_L_STICK_AMP` | How far the move stick is pushed, 0 to 1 (0.01 is "moving", 0.7 "running"). |
+| `F_L_STICK_DIR` | Degrees between where the stick points and where he aims. |
+| `F_R_STICK_AMP`, `F_R_STICK_DIR` | The same for the camera stick. |
+| `F_STRAFE_ANG`, `I_IS_STRAFING` | Set by weapon mode's strafing: the angle he moves at against his aim, and 1 while strafing. |
+| `F_Z_VEL` | His vertical speed. |
+| `F_FALL_DUR` | Seconds he has been falling. |
+| `F_TIME_IN_ANIM` | Seconds the clip has played, counting on round its loops. |
+| `F_TIME_SINCE_DAMAGED` | Seconds since he was last hurt. |
+| `F_HP_PERCENT` | Health over its maximum. |
+| `F_STUN_TIME` | The stun clock. |
+| `F_RANDOM` | A fresh random number from 0 to 100 each time it is read. |
+| `I_IN_AIR`, `I_ON_GROUND` | 1 off the ground, or on it. |
+| `I_CHAR_FORM`, `I_PREV_CHAR_FORM` | The control mode, and the one before (1 robot, 2 weapon, 3 vehicle). |
+| `I_WEAPON_INDEX` | The weapon in hand (0 none). |
+| `I_SPECIAL_ON`, `I_SPECIAL_IDLE_ON` | 1 while the special runs; the idle's special variant. |
+| `I_IS_HOVERING` | 1 while hovering. |
+| `C_JUMP_TYPE` | The kind of jump being made (`LONG_JUMP`...). |
+| `C_DAMAGE_TYPE` | The kind of hit or death to react to (`ANIM_DEATH_EXPLODE`...). |
+| `C_WEAPON_ACTION`, `C_WEAPON_EQUIP` | What the weapon is doing (`WEAPON_ACTION_OVERHEAT`, `..._RECOIL`...). |
+| `C_INTERACT_TYPE`, `C_INTERACT_ACTION_TYPE`, `C_CHAR_MESSAGE`, `C_VEHICLE_STUNT` | Carrying, interactions, messages, stunts. |
+
+A variable is worked out when a rule first asks for it in an update, unless the game's code has
+set it (the modes set `I_IS_STRAFING`, `F_STRAFE_ANG`, `I_IS_HOVERING`, `C_JUMP_TYPE`): then it
+keeps what was set. A variable nothing answers compares as 0.
+
+#### Running the rules
+
+Every update, for each layer playing a clip (the base layer, and the layers over it that the
+partial sets play on), after the clip has moved on by the update's time:
+
+1. **Exit.** Its `exits` are tried in order; the first that may be taken wins. With a `to_clip`,
+   that clip starts. With none, `to_set`'s entries are walked, coming from this clip.
+2. **Entry walk.** A set's `entries` are tried in order; the first that fits (its `from_`
+   filters match the set and clip being left, its `base_` filters what the base layer plays, and
+   its `rules` hold) wins. With a `to_clip`, that clip starts; with none, `to_set`'s entries are
+   walked in turn; `emptyAnimSet` stops the layer. Nothing fits: nothing changes.
+3. **Starting a clip.** It blends in over its own `crossfade` (`default_crossfade` when that is
+   negative), or over the `exit_crossfade` of the clip it replaces when that names it or any
+   clip. It starts at 0, or where the clip before had reached with `keeps_time`, or at the time
+   the clip before ran past its end with that clip's `continue_time`.
+
+A control state that names a set and no clip starts the set by an entry walk from the clip that
+was playing (`control`'s "State classes").
+
 ## `<pack>_attributes.json`
 
 | Key | Type | What it is |
@@ -616,9 +724,9 @@ The game has these, and the export does not. `not_exported` lists them too.
 
 - The voice lines (the game picks them in code).
 - The particle effects, ribbons and lights: only their names at their events.
-- The animation sets' clip-selection rules: which clip of a set plays, and which follows it.
-  The control states are exported (`control`); a state that names a set but no clip, and the
-  classes that pick by their set's rules, rely on these.
+- The clip fields the game reads but the port does not (`chance`, `minWalkSpd` and `maxWalkSpd`,
+  `minStrafeAng` and `maxStrafeAng`, `walkFlags`, `group_type`): how they pick between clips is
+  not read.
 - What each state class does in code beyond its data. `control`'s "State classes" sums it up;
   `docs/state-machine.md` and `core/src/sim.rs` have the detail.
 - What the game moves in code: flight's surfaces, the wheels' spin, the suspension.
@@ -631,3 +739,5 @@ The game has these, and the export does not. `not_exported` lists them too.
 - **1**, added (2026-10-26): `unkeyed_node_names` on vehicle clips.
 - **1**, added (2026-10-26): `control`, the control state machine: states, transitions,
   connections and the button names, with the rules for running it.
+- **1**, added (2026-10-26): `animation_rules`, each set's entry rules and each clip's exit
+  rules, with the variables they compare and the rules for running them.
