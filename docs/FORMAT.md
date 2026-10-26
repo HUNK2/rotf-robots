@@ -13,6 +13,7 @@ for as long as `format_version` stays the same.
 | --- | --- |
 | `<pack>.json` | The robot: its files, clips and their events, weapons, render sets, vehicle, materials, numbers and sounds. |
 | `<pack>_attributes.json` | The robot's attribute block exactly as the game stores it, field by field. |
+| `<pack>_run.jsonl` | A reference run: a scripted input played through the reference, one line per update ("Reference runs"). |
 
 `<pack>` is the character's pack name (`bumblebee`, `optimus`, `starscream`...). Both files sit in
 the export folder beside the `.glb` files, `textures/` and `sounds/`.
@@ -718,6 +719,79 @@ bodies, the control state machine (`stateMachineList`) and the brains of compute
 - A reference the exporter did not follow is written as `{ "_link": name }`.
 - A chain deeper than 12 levels is cut off as `"..."`.
 
+## Reference runs
+
+`rotf-export --character <name> --run <script.json> [--out <file>]` plays a script of inputs
+through the reference (`tf2-core`, the same code the Bevy game runs) and writes `<pack>_run.jsonl`:
+a header line, then one line of JSON per update with where the robot is and what he is doing. A
+native port plays the same script through its own controller and compares its numbers with these,
+update by update. `export/runs/` has example scripts.
+
+### The script
+
+| Key | Type | What it is |
+| --- | --- | --- |
+| `format_version` | integer | 1. A script of another version is refused. |
+| `start` | object | Optional. `pos` (three numbers, metres) and `yaw_degrees` where he starts; the origin, facing +y, if left out. |
+| `arena` | object | Optional. `boxes`, each with `min` and `max` (three numbers), and `targets`, each with `pos`: inert dummies his size, with no health limit, for the attacks to hit. The ground is the flat plane at height 0. |
+| `steps` | list | The input, in order. |
+
+Each step holds its input for `updates` updates (1 if left out). Every key is optional:
+
+| Key | Type | What it is |
+| --- | --- | --- |
+| `updates` | integer | How many updates the step lasts. |
+| `stick` | two numbers | The move stick in world space, x and y, length up to 1. |
+| `steer` | number | The stick's left and right as the pad gives it, which steers the car. Defaults to `stick`'s x. |
+| `pad_stick` | two numbers | The stick as the pad gives it, which climbing reads. Defaults to `stick`. |
+| `look` | two numbers | The camera stick, which the helicopter turns and climbs by. |
+| `vehicle` | number | The vehicle trigger, 0 to 1: held, the car or flying form and the throttle. |
+| `brake` | number | The brake, 0 to 1. |
+| `drift` | boolean | The slide button held. |
+| `aim` | two numbers | Weapon mode: the direction he aims along the ground. Left out, he is not aiming. |
+| `hold` | list | Buttons held through the step, by `control.buttons` names. |
+| `press` | list | Buttons pressed: down through the step, and going down on its first update only. |
+
+The buttons are the game's, not the pad's. One pad button can raise several: the melee button
+raises `AttackFast`, `Dodge` and `AttackVehicle` together, as the game's default binding does, so a
+melee tap is `"press": ["AttackFast", "Dodge", "AttackVehicle"]`. `Jump` and `VehicleTurbo` go in
+as the reference's own jump and turbo inputs.
+
+### The header line
+
+| Key | Type | What it is |
+| --- | --- | --- |
+| `format_version` | integer | As above. |
+| `character`, `pack`, `attributes` | string | Who ran: the display name, the pack and the `characterAttributes` block. |
+| `update_seconds` | number | 0.032, the game's update. |
+| `updates` | integer | How many lines follow. |
+| `missing` | list | Values the reference looked for in the game data and did not find. Devastator's names the sets and clips he does not have (no car, jump, dash or climb); the other robots' is empty. |
+
+### An update line
+
+| Key | Type | What it is |
+| --- | --- | --- |
+| `update` | integer | 0 for the first update. |
+| `time` | number | Seconds at the end of this update. |
+| `pos`, `vel` | three numbers | His place (metres) and velocity (metres a second). |
+| `yaw_degrees`, `pitch_degrees`, `roll_degrees` | number | Which way he faces (0 is +y, positive turns left), and the body's pitch and roll. |
+| `speed` | number | Forward speed along his facing on the ground, metres a second; negative when the car reverses. |
+| `mode` | string | The motion mode moving him: `Stand`, `Move`, `Strafe`, `Jump(<kind>)`, `Drive`, `Fly`, `Unfold`, `Hover`, `Climb`, `Action`. |
+| `gait` | string | What the stick asks for on the ground: `Idle`, `Walk`, `Run`. |
+| `vehicle` | boolean | In the vehicle form. |
+| `health` | number | His health. |
+| `state`, `overlay` | string or null | The control state and the overlay state, by `control.states` names. |
+| `clip` | object or null | The clip that decides his pose: `layer` (`action` when a control state, climb, death or weapon clip plays it, `base` when the set's own rules do), `set`, `id`, `tick` (1/60 s), and for `base` the `blend` into it. |
+| `triggers`, `untriggers` | list | Trigger and Untrigger messages his clips sent this update, by the name of what they start or stop (the effects of that name on him). |
+| `shakes` | list | Camera shakes started this update, by name. |
+| `rumbles` | list | Pad rumbles started: `kind`, `duration` (seconds) and `strength`. |
+| `hits` | list | Hits his attacks landed: `target` (the arena target's number, from 1), `damage`, `point`, `body` (the collision body that hit), `knock_back_speed`, `knock_back_angle_degrees`, `flags`. |
+
+Numbers are written as the shortest decimal that gives back the same 32-bit float.
+
+What a run does not cover yet: the guns and their aim (the weapons are run by the Bevy game around
+the reference), the cameras, Devastator's vortex and pods, levels, and anything fighting back.
+
 ## Not in the export
 
 The game has these, and the export does not. `not_exported` lists them too.
@@ -741,3 +815,5 @@ The game has these, and the export does not. `not_exported` lists them too.
   connections and the button names, with the rules for running it.
 - **1**, added (2026-10-26): `animation_rules`, each set's entry rules and each clip's exit
   rules, with the variables they compare and the rules for running them.
+- **1**, added (2026-10-26): reference runs, `--run` and `<pack>_run.jsonl`, with the script
+  that drives them.

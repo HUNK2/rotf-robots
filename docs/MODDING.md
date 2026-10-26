@@ -99,6 +99,12 @@ it into the mod.
 
 ## Checking a port
 
+- **Reference runs.** `rotf-export --character <name> --run <script.json>` plays a script of
+  inputs through the reference and writes, for every 0.032 s update, his place, velocity,
+  facing, motion mode, control state, clip and tick, and the triggers, shakes and hits his clips
+  set off ([FORMAT.md](FORMAT.md), "Reference runs"). Play the same script in the port and compare
+  line by line. `export/runs/basics.json` runs, jumps, does the three-hit combo, drives and
+  changes back.
 - The Bevy game is the reference you can play. Run the same input in both and compare.
 - The windowless examples in `core/examples/` print what a system does for a scripted input
   (`control_check`, `vehicle_check`, `fly_check`, `combat_check`, `melee_check`...). Run the same
@@ -131,8 +137,7 @@ and captures.
 - **The rest of the rules as data.** The control states (`control`) and the clip rules
   (`animation_rules`) are exported. Still to come: each mechanic's numbers with the formula they
   go into, documented so a port builds the host's controller from them instead of reading Rust.
-- **Reference runs.** A command that runs a scripted or recorded input through the reference and
-  writes, every update, the position, speed, state, clip and events, so a native port's output can
-  be compared with it number by number.
+- **More in the reference runs.** Runs cover movement, the change of form, the car, flight, melee
+  and the clips. Still to come: the guns and their aim, the cameras, and targets that fight back.
 - **Guides per host engine.** How each part of a robot maps onto one engine's own systems, written
   against that engine's real tools and checked there.

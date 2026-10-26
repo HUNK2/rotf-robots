@@ -3,6 +3,10 @@
 //!   cargo run --release -p rotf-export -- --list
 //!   cargo run --release -p rotf-export -- --character <name> [--out <folder>] [--game-dir <install>]
 //!   cargo run --release -p rotf-export -- --all [--out <folder>] [--game-dir <install>]
+//!   cargo run --release -p rotf-export -- --character <name> --run <script.json> [--out <file>]
+//!
+//! `--run` plays the script through the reference and writes one JSON line per update
+//! (`docs/FORMAT.md`, "Reference runs"); `--out` defaults to `<pack>_run.jsonl`.
 //!
 //! `<name>` is what the game's `--character` takes (`--list` prints them). The install is found as
 //! the game finds it; `--game-dir` names it when it is not. The output folder defaults to
@@ -65,6 +69,16 @@ fn main() {
         fail("Name a robot: --character <name>, or --all (--list prints them).".into());
     };
     let spec = rotf_export::spec(&roster, &name);
+    if let Some(script) = flag(&args, "--run") {
+        let text = std::fs::read_to_string(&script).unwrap_or_else(|e| fail(format!("{script}: {e}")));
+        let script: serde_json::Value = serde_json::from_str(&text).unwrap_or_else(|e| fail(format!("{script}: {e}")));
+        let lines = rotf_export::run::run(&install, &spec, &script).unwrap_or_else(|e| fail(format!("{name}: {e}")));
+        let out = flag(&args, "--out").map_or_else(|| PathBuf::from(format!("{}_run.jsonl", spec.pack)), PathBuf::from);
+        let text: String = lines.iter().map(|line| format!("{line}\n")).collect();
+        std::fs::write(&out, text).unwrap_or_else(|e| fail(format!("{}: {e}", out.display())));
+        println!("{name}: {} updates -> {}", lines.len() - 1, out.display());
+        return;
+    }
     let out = flag(&args, "--out").map_or_else(|| PathBuf::from("exported").join(&spec.pack), PathBuf::from);
     let written = rotf_export::export(&install, &spec, &out).unwrap_or_else(|e| fail(format!("{name}: {e}")));
     report(&name, &spec, &out, &written);

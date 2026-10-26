@@ -12,6 +12,7 @@
 pub mod control;
 pub mod describe;
 pub mod rules;
+pub mod run;
 pub mod glb;
 pub mod model;
 pub mod names;
