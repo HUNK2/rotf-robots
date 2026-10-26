@@ -705,7 +705,8 @@ was playing (`control`'s "State classes").
 ### `mechanics`
 
 Each mechanic's numbers for this robot, as the reference uses them. The formulas they go into are
-in [MECHANICS.md](MECHANICS.md). So far on foot, the jump, the car, flight, hover and climbing. Speeds are metres a second, times
+in [MECHANICS.md](MECHANICS.md): on foot, the jump, the car, flight and its boundary, hover,
+climbing, the dodge, melee, the weapons, and damage and health. Speeds are metres a second, times
 seconds, turn speeds degrees a second; a value that does not apply is null.
 
 `constants`: the game's own numbers, the same for every robot.
@@ -729,6 +730,15 @@ seconds, turn speeds degrees a second; a value that does not apply is null.
 | `climb_hand_swap_at` | Climbing up or down, the leading hand changes as the clip passes this share of its length. |
 | `climb_default_crossfade` | The blend time, in seconds, of a climb clip that has none. |
 | `ledge_catch_reach_radii`, `ledge_catch_below`, `ledge_catch_least_drop`, `ledge_catch_facing` | The ledge catch after the jump up a wall: how many radii past the top it looks, how far above his feet it may put him, the least drop that counts, and how square to the top's facing he must be. |
+| `flight_boundary_limit`, `flight_ceiling_z` | The flight boundary's half size in its own coordinates (1.01), and the push-back's z under which it counts as out through the top. |
+| `flight_bounce_damping`, `flight_scrape_limit`, `flight_ramp_rate`, `flight_push_speed`, `flight_pitch_target_down`, `flight_pitch_rate_down` | A jet's bounce off the boundary: the share of the speed across the stick taken off each update, the stick-toward-centre cosine that stops the turn, the turn's and roll's rate a second, the push down out of the top, and the nose-down pitch (radians) and its rate. |
+| `flight_wall_align_gate`, `flight_wall_velocity_keep`, `flight_wall_forward_limit` | A helicopter's or robot flyer's stop at the boundary: the cosine at which it counts as facing in, the share of velocity kept each update, and the body-frame forward part under which it turns by that part. |
+| `melee_aim_stick_least`, `melee_turn_least_radians`, `melee_slide_least_squared`, `melee_rise_most` | An attack: the stick length that sets the search's direction, the least angle off a target it turns for, the least squared distance it slides at, and the most upward speed off the ground. |
+| `strafe_stick_squared`, `strafe_twist_most_radians` | Weapon mode: the squared stick length under which he stands, and how far the spine twists before the body turns. |
+| `aim_stick_still`, `aim_fine_up_to`, `aim_fine_scale`, `aim_sensitivity`, `aim_assist_hard`, `aim_snap_rate_radians` | Weapon mode's aim: the camera stick's dead zone (squared), the push above which it is cubed and the scale below it, the sensitivity option's default, the squared push under which the assist pulls, and the turn to a target as weapon mode starts. |
+| `aim_reach`, `weapon_facing_reach` | How far the aim point is looked for, and how far ahead of its barrel a `useFacingAsTarget` weapon aims. |
+| `lock_keep_share` | A lock is kept within this share of the field of view (the whole of it for a car's weapon). |
+| `hit_react_cooldown` | Seconds after a full hit reaction before the next one (a flail does not wait). |
 
 `on_foot`:
 
@@ -832,6 +842,47 @@ or null when the pack lacks it.
 | `catch_clip`, `catch_clip_ground` | The clip he catches hold with from the air and from the ground (the climb set's entry rules). |
 | `clips` | `idle`, `climb_up`, `climb_down`, `shim_left`, `shim_right`, `pull_up`: each `[left hand, right hand]`. |
 | `jump_up_clip`, `jump_off_clip` | The clips of the jump up the wall and the jump off it. |
+
+`dodge`: null for a robot without `DodgeFront` (MECHANICS.md, "The dodge").
+
+| Key | What it is |
+| --- | --- |
+| `cooldown` | Seconds after a dodge ends before another may start (`groundDashCooldown`). |
+| `front_degrees`, `back_degrees` | The stick's angle against the aim within which the front dodge plays, and from which the back one does; between them, left and right. |
+| `dash_seconds` | The dash clock a dodge starts, during which homing missiles do not steer at him. |
+| `clips`, `hover_clips` | `front`, `back`, `left`, `right`: on foot, and while he hovers (null where the pack has none). |
+
+`melee`: the shared numbers of the attacks; each attack's own are its clip's `attack` (MECHANICS.md,
+"Melee").
+
+| Key | What it is |
+| --- | --- |
+| `angle_degrees`, `distance`, `height` | The search's angle, range and height limit for a clip that gives none. |
+| `best_dist`, `angle_weight`, `dist_weight` | The search's score: the distance a target is best at and the two weights. |
+| `upgrades` | Three rows (the jump attack and the three hits, the charged hit, the slam), each the damage multiplier at upgrade levels 1, 2 and 3. |
+| `ground_pound_damage`, `ground_pound_damage_weak` | The ground punch's blast damage: the first for an explosion whose own damage is over 5 (both punches'), the second otherwise. |
+
+`weapons`: the shared numbers; each weapon's own are `weapons[].numbers` (MECHANICS.md, "Weapons").
+
+| Key | What it is |
+| --- | --- |
+| `aim` | The camera stick's turn of the aim: `lowest_sensitivity`, `highest_sensitivity` (degrees a second), `acceleration`, `min_pitch`, `max_pitch` (degrees), the assist's `speed_reduction`, `speed_acceleration` and `look_assist_turn_rate`, `target_box` (shares of 640 by 360 pixels), `default_max_range`, and the turn to a target as weapon mode starts, `snap_cone` and `snap_cone_elevation` (degrees). |
+| `strafe_speed` | `modeStrafe.strafeSpeed`; moves only a character the code drives, not a player. |
+| `vehicle_weapon_wait` | Seconds after changing into the car before its weapon fires. |
+
+`damage`: health and the receiving side (MECHANICS.md, "Damage and health").
+
+| Key | What it is |
+| --- | --- |
+| `base_health` | Full health. |
+| `regen_rate`, `regen_delay`, `regen_duration`, `regen_interval` | Regeneration: on when the rate is over 0; the wait after a hit; the time scale of its curve; the step, when over 0 (else every update). |
+| `vehicle_regen_multiplier`, `weapon_regen_multiplier` | Regeneration's scale in car or flight form and in weapon mode. |
+| `invincible`, `immovable`, `large` | No damage; never thrown; a large character (which damage flags apply). |
+| `reaction_immunity` | Hex: the damage flag bits whose reactions he ignores. |
+| `vehicle_multiplier`, `knockback_multiplier`, `overdrive_multiplier` | Damage in car or flight form, the throw's scale, and the attacker's overdrive. |
+| `bumblebee_stun_break`, `other_stun_break` | The damage that breaks a stun Bumblebee started, and one anyone else did. |
+| `slow_multiplier`, `slow_fire_rate`, `slow_heat_rate` | The slow's movement share and its scale on the rate of fire and the heat. |
+| `low_health_fraction` | Below this share of full health the low-health overlay shows. |
 
 ## `<pack>_attributes.json`
 
@@ -953,3 +1004,6 @@ The game has these, and the export does not. `not_exported` lists them too.
   that drives them.
 - **1**, added (2026-10-27): `mechanics.climb` and the climb constants, with MECHANICS.md
   "Climbing".
+- **1**, added (2026-10-27): `mechanics.dodge`, `melee`, `weapons` and `damage`, and the
+  constants of the flight boundary, melee, weapon mode and the hit reaction, with MECHANICS.md's
+  sections on them.

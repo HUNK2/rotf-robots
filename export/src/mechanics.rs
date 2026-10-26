@@ -1,8 +1,9 @@
 //! `<pack>.json`'s `mechanics`: each mechanic's numbers for this robot, as the reference uses
-//! them, for the formulas in `docs/MECHANICS.md`. So far on foot, the jump, the car, flight, hover and climbing.
+//! them, for the formulas in `docs/MECHANICS.md`: on foot, the jump, the car, flight and its
+//! boundary, hover, climbing, the dodge, melee, the weapons, and damage and health.
 
 use serde_json::{Value, json};
-use tf2_core::climb;
+use tf2_core::{aim, climb, flybound, lockon, weapons};
 use tf2_core::formats::hash::crc32;
 use tf2_core::sim::{self, JumpType};
 use tf2_core::tuning::{RootCurve, Tuning};
@@ -26,6 +27,32 @@ fn constants() -> Value {
         "fly_drop_ray": num(sim::FLY_DROP_RAY),
         "fly_wall_ray": num(tf2_core::flight::WALL_RAY),
         "fly_side_rays": tf2_core::flight::SIDE_RAYS.map(|p| [num(p.x), num(p.y), num(p.z)]),
+        "flight_boundary_limit": num(flybound::BOUNDARY_LIMIT),
+        "flight_ceiling_z": num(flybound::CEILING_Z),
+        "flight_bounce_damping": num(flybound::BOUNCE_DAMPING),
+        "flight_scrape_limit": num(flybound::SCRAPE_LIMIT),
+        "flight_ramp_rate": num(flybound::RAMP_RATE),
+        "flight_push_speed": num(flybound::PUSH_SPEED),
+        "flight_pitch_target_down": num(flybound::PITCH_TARGET_DOWN),
+        "flight_pitch_rate_down": num(flybound::PITCH_RATE_DOWN),
+        "flight_wall_align_gate": num(flybound::WALL_ALIGN_GATE),
+        "flight_wall_velocity_keep": num(flybound::WALL_VELOCITY_KEEP),
+        "flight_wall_forward_limit": num(flybound::WALL_FORWARD_LIMIT),
+        "melee_aim_stick_least": num(sim::AIM_STICK_LEAST),
+        "melee_turn_least_radians": num(sim::ATTACK_TURN_LEAST),
+        "melee_slide_least_squared": num(sim::SLIDE_LEAST_SQUARED),
+        "melee_rise_most": num(sim::ATTACK_RISE_MOST),
+        "strafe_stick_squared": num(sim::STRAFE_STICK_SQUARED),
+        "strafe_twist_most_radians": num(sim::STRAFE_TWIST_MOST),
+        "aim_stick_still": num(aim::STICK_STILL),
+        "aim_fine_up_to": num(aim::FINE_UP_TO),
+        "aim_fine_scale": num(aim::FINE_SCALE),
+        "aim_sensitivity": num(aim::SENSITIVITY),
+        "aim_assist_hard": num(aim::ASSIST_HARD),
+        "aim_snap_rate_radians": num(aim::SNAP_RATE),
+        "aim_reach": num(weapons::AIM_REACH),
+        "weapon_facing_reach": num(weapons::FACING_REACH),
+        "lock_keep_share": num(lockon::keep_share(&weapons::WeaponTuning::default())),
         "climb_stick_dead_squared": num(climb::STICK_DEAD_SQUARED),
         "climb_hand_swap_at": num(climb::HAND_SWAP_AT),
         "climb_default_crossfade": num(climb::DEFAULT_CROSSFADE),
@@ -33,6 +60,35 @@ fn constants() -> Value {
         "ledge_catch_below": num(sim::CATCH_BELOW),
         "ledge_catch_least_drop": num(sim::CATCH_LEAST_DROP),
         "ledge_catch_facing": num(sim::CATCH_FACING),
+        "hit_react_cooldown": num(sim::HIT_REACT_COOLDOWN),
+    })
+}
+
+/// Health and the receiving side of every hit, for MECHANICS.md's "Damage and health": the
+/// robot's own attributes and the shared `Character` values the receiver reads.
+fn damage(t: &Tuning) -> Value {
+    let d = &t.damage;
+    json!({
+        "base_health": num(t.base_health),
+        "regen_rate": num(t.health_regen_rate),
+        "regen_delay": num(t.health_regen_delay),
+        "regen_duration": num(d.regen_duration),
+        "regen_interval": num(d.regen_interval),
+        "vehicle_regen_multiplier": num(d.vehicle_regen_multiplier),
+        "weapon_regen_multiplier": num(d.weapon_regen_multiplier),
+        "invincible": d.invincible,
+        "immovable": d.immovable,
+        "large": d.large,
+        "reaction_immunity": format!("0x{:08x}", d.reaction_immunity),
+        "vehicle_multiplier": num(d.vehicle_multiplier),
+        "knockback_multiplier": num(d.knockback_multiplier),
+        "overdrive_multiplier": num(d.overdrive_multiplier),
+        "bumblebee_stun_break": num(d.bumblebee_stun_break),
+        "other_stun_break": num(d.other_stun_break),
+        "slow_multiplier": num(d.slow_multiplier),
+        "slow_fire_rate": num(d.slow_fire_rate),
+        "slow_heat_rate": num(d.slow_heat_rate),
+        "low_health_fraction": num(d.low_health_fraction),
     })
 }
 
@@ -42,8 +98,7 @@ fn climb(t: &Tuning) -> Value {
     if !t.rule_sets.contains_key(&crc32(b"ClimbSet")) {
         return Value::Null;
     }
-    // A clip by its id, as `clips` writes it, or null when the pack lacks it.
-    let named = |id: u32| t.actions.clips.get(&id).map_or(Value::Null, |c| json!(format!("{}.{}", c.set, c.id)));
+    let named = |id: u32| named(t, id);
     let hands = |stem: &str| ["L", "R"].map(|hand| named(crc32(format!("Wall{hand}_{stem}").as_bytes())));
     let c = &t.climb;
     json!({
@@ -198,6 +253,77 @@ fn car(t: &Tuning) -> Value {
     })
 }
 
+/// A clip by its id, as `clips` writes it (`Set.Id`), or null when the pack lacks it.
+fn named(t: &Tuning, id: u32) -> Value {
+    t.actions.clips.get(&id).map_or(Value::Null, |c| json!(format!("{}.{}", c.set, c.id)))
+}
+
+/// The dodge: the dash mode's cooldown, the dodge set's angles and its clips, for MECHANICS.md's
+/// "The dodge". Null for a robot without `DodgeFront`, which the dodge states need.
+fn dodge(t: &Tuning) -> Value {
+    if !t.actions.clips.contains_key(&crc32(b"DodgeFront")) {
+        return Value::Null;
+    }
+    let clips = |prefix: &str| {
+        json!({
+            "front": named(t, crc32(format!("{prefix}DodgeFront").as_bytes())),
+            "back": named(t, crc32(format!("{prefix}DodgeBack").as_bytes())),
+            "left": named(t, crc32(format!("{prefix}DodgeLeft").as_bytes())),
+            "right": named(t, crc32(format!("{prefix}DodgeRight").as_bytes())),
+        })
+    };
+    json!({
+        "cooldown": num(t.dash_cooldown),
+        "front_degrees": num(t.actions.dodge_forward),
+        "back_degrees": num(t.actions.dodge_back),
+        "dash_seconds": num(sim::DODGE_DASH_SECONDS),
+        "clips": clips(""),
+        "hover_clips": clips("Hover_"),
+    })
+}
+
+/// Melee's shared numbers: the search's weights and the character's reach, the upgrades, and the
+/// ground punch's damage, for MECHANICS.md's "Melee". Each attack's own are `clips[].attack`.
+fn melee(t: &Tuning) -> Value {
+    let m = &t.melee;
+    json!({
+        "angle_degrees": num(m.ang_range),
+        "best_dist": num(m.best_dist),
+        "angle_weight": num(m.angle_weight),
+        "dist_weight": num(m.dist_weight),
+        "distance": num(m.distance),
+        "height": num(m.height),
+        "upgrades": m.upgrades.map(|row| row.map(num)),
+        "ground_pound_damage": num(t.ground_pound_damage),
+        "ground_pound_damage_weak": num(t.ground_pound_damage_weak),
+    })
+}
+
+/// The weapons' shared numbers: how the camera stick turns the aim in weapon mode (`AimAssist`),
+/// and the car weapon's wait, for MECHANICS.md's "Weapons". Each weapon's own are
+/// `weapons[].numbers`.
+fn weapons(t: &Tuning) -> Value {
+    let a = &t.aim;
+    json!({
+        "aim": {
+            "lowest_sensitivity": num(a.lowest_sensitivity),
+            "highest_sensitivity": num(a.highest_sensitivity),
+            "acceleration": num(a.acceleration),
+            "min_pitch": num(a.min_pitch),
+            "max_pitch": num(a.max_pitch),
+            "speed_reduction": num(a.speed_reduction),
+            "speed_acceleration": num(a.speed_acceleration),
+            "look_assist_turn_rate": num(a.look_assist_turn_rate),
+            "target_box": a.target_box.map(num),
+            "default_max_range": num(a.default_max_range),
+            "snap_cone": num(a.snap_cone),
+            "snap_cone_elevation": num(a.snap_cone_elevation),
+        },
+        "strafe_speed": num(t.strafe_speed),
+        "vehicle_weapon_wait": num(t.vehicle_weapon_wait),
+    })
+}
+
 /// A one-off clip's name as `clips` writes it, or null when the robot has none.
 fn clip(curve: &RootCurve, name: &str) -> Value {
     if curve.forward.is_empty() { Value::Null } else { json!(name) }
@@ -258,5 +384,5 @@ pub fn mechanics(t: &Tuning) -> Value {
         "weapon_dilation_rate": num(t.jump.weapon_dilation_rate),
         "strafe_speed": num(t.strafe_speed),
     });
-    json!({ "constants": constants(), "on_foot": on_foot, "jump": jump, "car": car(t), "fly": fly(t), "hover": hover(t), "climb": climb(t) })
+    json!({ "constants": constants(), "on_foot": on_foot, "jump": jump, "car": car(t), "fly": fly(t), "hover": hover(t), "climb": climb(t), "dodge": dodge(t), "melee": melee(t), "weapons": weapons(t), "damage": damage(t) })
 }

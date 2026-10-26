@@ -2673,8 +2673,8 @@ fn step_move(s: &mut State, input: &Input, t: &Tuning, dt: f32) {
 /// Standing in weapon mode his spine twists toward the aim no further than this; past it
 /// his body turns by the rest. And the least squared stick StrafeMode counts as pushed.
 /// [game]
-const STRAFE_TWIST_MOST: f32 = 0.794_124_84;
-const STRAFE_STICK_SQUARED: f32 = 0.0001;
+pub const STRAFE_TWIST_MOST: f32 = 0.794_124_84;
+pub const STRAFE_STICK_SQUARED: f32 = 0.0001;
 const WEAPON_SET: u32 = crc32(b"WeaponSet");
 /// The sets the control states start on the base layer, whose clips `animrules::Base` picks.
 /// [game: `docs/state-machine.md`: Idle enter plays IdleStandSet, Move's WalkSet, Jump's
@@ -3706,6 +3706,10 @@ const DRIVE_MODE: u32 = 0xe2b2_2eb4;
 const HOVER_DONE: u32 = 0xb587_f609;
 const CLIMB_MODE: u32 = 0xd706_8c31;
 const UNFOLD_MODE: u32 = 0xf081_d468;
+/// The dash clock a dodge's enter sets, which homing missiles read (status `+0x94`). [game 0087a960 l.27]
+pub const DODGE_DASH_SECONDS: f32 = 0.5;
+/// The wait a full hit reaction's enter puts on the next one (the damage object's `+0x108`). [game]
+pub const HIT_REACT_COOLDOWN: f32 = 4.0;
 /// A jump that starts while the climb set plays is pushed this hard along his facing. [game]
 pub const CLIMB_JUMP_PUSH: f32 = 20.0;
 /// Blend time for clips whose own is negative ("none given"): the clip starter
@@ -4241,7 +4245,7 @@ fn enter_state(s: &mut State, input: &Input, t: &Tuning, next: usize, wall: Opti
             s.hit_flyback = matches!(s.damage_type, 0x6a58_53c5 | 0xfea0_bd86);
             s.hit_start_z = s.pos.z;
             s.hit_last = None;
-            s.hit_cooldown = 4.0;
+            s.hit_cooldown = HIT_REACT_COOLDOWN;
             s.wall_splatted = false;
             s.car_mode = false;
             if s.hit_direction.truncate().length_squared() > 1e-8 { s.yaw = yaw_of(-s.hit_direction.truncate()); }
@@ -4614,7 +4618,7 @@ fn begin_action(s: &mut State, input: &Input, t: &Tuning, state: usize, on_groun
         s.yaw = heading;
         // The dodge's enter sets his dash clock to half a second (status +0x94), which homing
         // missiles read. [game 0087a960 l.27]
-        s.damage_timers.dash = 0.5;
+        s.damage_timers.dash = DODGE_DASH_SECONDS;
         id
     } else if def.class=="StateAttack" && def.anim==0 {
         let (from_set,from_id)=playing_clip(s,t);
@@ -5286,12 +5290,12 @@ fn step_action(s: &mut State, input: &Input, t: &Tuning, arena: &dyn World, dt: 
 
 /// The attack mode turns to a target only when it is more than this off it (`FUN_00717770`),
 /// and caps his upward speed at this while he is off the ground. [game]
-const ATTACK_TURN_LEAST: f32 = 0.017_453_292;
-const ATTACK_RISE_MOST: f32 = 2.0;
+pub const ATTACK_TURN_LEAST: f32 = 0.017_453_292;
+pub const ATTACK_RISE_MOST: f32 = 2.0;
 /// The slide wants the target further than this (squared), and the stick counts as held for
 /// choosing a target from this deflection. [game]
-const SLIDE_LEAST_SQUARED: f32 = 0.1;
-const AIM_STICK_LEAST: f32 = 0.001;
+pub const SLIDE_LEAST_SQUARED: f32 = 0.1;
+pub const AIM_STICK_LEAST: f32 = 0.001;
 
 /// The attack mode's own part of its update (`FUN_00855af0`), before the clip moves him.
 /// Until the attack has hit a character, and while the clip allows a slide or a turn

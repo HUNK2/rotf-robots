@@ -18,13 +18,13 @@ use crate::tuning::AimTuning;
 /// The option "aim sensitivity", 0 to 1 (options `+0x1f44`, the global `00dad8a0`): 0.5 is
 /// what the options menu's "defaults" sets (`FUN_008e21a0`, `FUN_008e1550`, which also
 /// turn the aim assist on). [game]
-const SENSITIVITY: f32 = 0.5;
+pub const SENSITIVITY: f32 = 0.5;
 /// The stick's length squared under which it counts as let go. [game]
-const STICK_STILL: f32 = 0.001;
+pub const STICK_STILL: f32 = 0.001;
 /// Up to this much stick the push is scaled down for fine aiming; past it, it is the
 /// stick's length cubed. The two do not meet (0.25 against 0.51 at the border). [game]
-const FINE_UP_TO: f32 = 0.8;
-const FINE_SCALE: f32 = 0.3125;
+pub const FINE_UP_TO: f32 = 0.8;
+pub const FINE_SCALE: f32 = 0.3125;
 /// The rise or drop of the aim at which a clip's offset clip is laid on in full
 /// (0x3f91361e, 65 degrees; the clips themselves turn him about that far). [game]
 const OFFSET_MOST: f32 = 1.134_464;
@@ -33,12 +33,12 @@ const OFFSET_MOST: f32 = 1.134_464;
 /// from the picture's middle (pixels of a 1280 x 720 picture, squared) the target's point
 /// may be before a hard push away from it gets out of the assist. [game]
 const ASSIST_STILL: f32 = 0.01;
-const ASSIST_HARD: f32 = 0.81;
+pub const ASSIST_HARD: f32 = 0.81;
 const ASSIST_NEAR: f32 = 576.0;
 /// How fast the aim turns to the target taken as weapon mode starts, in both angles
 /// (0x4096cbe4: three quarters of a turn a second), and how near (the cosine between the
 /// aim and the way to the target) ends it. [game]
-const SNAP_RATE: f32 = 4.712_389;
+pub const SNAP_RATE: f32 = 4.712_389;
 const SNAP_DONE: f32 = 0.9999;
 /// The search as weapon mode starts (`FUN_00715c50`): its height limit, the distance a
 /// target is best at, and its weights (the query's words 100, 5, and 1, 2.5, 1).

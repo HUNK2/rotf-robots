@@ -203,6 +203,29 @@ fn bumblebee_json_names_only_what_exists() {
             problems.push(format!("mechanics: climb body_offset {} for height {}", n("body_offset"), n("height")));
         }
     }
+    // The dodge: Bumblebee dodges, and every dodge clip named is one of `clips`.
+    let dodge = &mechanics["dodge"];
+    assert!(export.spec.pack != "bumblebee" || dodge.is_object(), "Bumblebee has no dodge in mechanics");
+    if dodge.is_object() {
+        let named = ["clips", "hover_clips"].into_iter().flat_map(|k| dodge[k].as_object().unwrap().values());
+        for clip in named.filter_map(Value::as_str).filter(|c| !clip_names.contains(c)) {
+            problems.push(format!("mechanics: no clip {clip}"));
+        }
+        if dodge["clips"]["front"].is_null() {
+            problems.push("mechanics: a dodge without its front clip".into());
+        }
+    }
+    // Melee, the weapons and damage are there for every robot, and he has health.
+    let upgrades = mechanics["melee"]["upgrades"].as_array().map_or(0, Vec::len);
+    if upgrades != 3 {
+        problems.push(format!("mechanics: {upgrades} melee upgrade rows"));
+    }
+    if !mechanics["weapons"]["aim"].is_object() {
+        problems.push("mechanics: no weapons.aim".into());
+    }
+    if mechanics["damage"]["base_health"].as_f64().is_none_or(|h| h <= 0.0) {
+        problems.push(format!("mechanics: base health {}", mechanics["damage"]["base_health"]));
+    }
     assert!(problems.is_empty(), "{} problems:\n{}", problems.len(), problems.join("\n"));
 
     // Render sets: each mesh they list is a node of its file by that name (or `<name>.<part>`),

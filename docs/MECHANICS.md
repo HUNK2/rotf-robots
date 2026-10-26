@@ -9,8 +9,9 @@ part; read it where this leaves a question.
 How sure each part is goes in brackets, as in the code: **[game]** read from the game's code or
 data, **[trace]** measured on recordings of the running game, **[assumed]** a guess.
 
-So far: on foot, the jump, the car, flight, hover and climbing. The dodge, melee, weapons and
-damage are to come; until then their notes in `docs/` and the reference code are the source.
+Covered: on foot, the jump, the car, flight and its boundary, hover, climbing, the dodge, melee,
+the weapons, and damage and health. The specials, the cameras, sound and effects are not; their
+notes in `docs/` and the reference code are the source for them.
 
 ## Before anything: the update
 
@@ -398,9 +399,66 @@ clips, then thrust and the cap hold it at `max_speed`. Letting go starts the cha
 
 ### The flight boundary
 
-Each zone has a boundary the flyers stay inside. Outside it a jet is turned and bounced back
-in, and a helicopter or robot flyer stopped against it and pushed back (`core/src/flybound.rs`,
-`docs/flight-boundary.md`). Those rules are not written out here yet.
+Reference: `core/src/flybound.rs` (`Boundary::test`, `Steerback`, `wall_stop`) and
+`core/src/flight.rs` (`boundary_contact`, `step_mode`); `docs/flight-boundary.md`. The robot's
+numbers are in `fly`, the rest in `constants`. [game] Nobody has recorded a flyer leaving a
+zone: Starscream has been seen bouncing off a boundary in the game, and that is the only check.
+
+Each zone has a **flight boundary**, a level object, not a robot's number: a box (or, for the
+ellipsoid class, a cylinder) placed by a 4x3 row-vector placement (rows 0 to 2 its half-size
+axes, row 3 its centre) on an owner whose node matrix puts it in the world. The host has to give
+its levels the same. The test arena has none.
+
+**The test,** before the flight update each update, at the flyer's camera target point (its root
+x and y, and the lower of its root z and its body's z less half the vehicle's height). Take the
+point into the box's coordinates `(u, v, s)`, where the box runs from -1 to 1: [game]
+
+1. Outside when `u > constants.flight_boundary_limit` (1.01), else `u < -1.01`, else `v > 1.01`,
+   else `v < -1.01`, else `s > 1.01` (the ceiling), tested in that order. The face's normal points
+   back in: `(-1,0,0)` for `u` too big, and so on; `(0,0,-1)` for the ceiling. **There is no
+   floor.**
+2. The cylinder: inside the box but `u² + v² > 1` is also outside, and the normal of any side is
+   `(-u, -v, 0)`.
+3. The push-back direction **V** is that normal turned into the world by the owner's matrix and
+   made unit length. **N** is the unit direction from the point to the box's centre.
+4. On the update he goes outside, the "armed" flag clears. While outside, the **target turn
+   rate** is `±fly.quick_turn_speed`. When V points down (`V.z < constants.flight_ceiling_z`,
+   -0.95: out through the top) its sign is the sign of the turn rate he has. Otherwise it is
+   negative when V points to his left (`V . right < 0`).
+
+Outside, and not in a stunt, the flight update in "A jet" or "A helicopter" is replaced by one of
+these. The turbo, the brake and the speed caps still run after it.
+
+**A jet** (neither `helicopter` nor `robot`) is turned and bounced back in. With `stick` his left
+stick and `t = (stick.y, -stick.x, 0)`: [game]
+
+1. `vel -= constants.flight_bounce_damping * (vel . t) * t` (0.9, per update, not by `dt`).
+2. `d = N . stick`. When `d > constants.flight_scrape_limit` (0.95), or once armed: the turn rate
+   is 0 and he is armed. Otherwise the turn rate moves toward the target at
+   `constants.flight_ramp_rate` (5) a second: `rate += (target - rate) * 5 * dt`, or jumps to it
+   when `5 * dt >= 1`.
+3. The heading turns by `rate * dt`, `heading -= rate * dt`, wrapped to [-pi, pi).
+4. The roll moves the same way toward `±fly.max_turn_speed` degrees, by the turn rate's sign (0
+   counts as positive), or toward 0 when armed.
+5. V not pointing down: the pitch moves toward 0 the same way. V pointing down: `vel += V *
+   constants.flight_push_speed * dt` (30), and the pitch moves toward
+   `constants.flight_pitch_target_down` (-30 degrees, nose down) at
+   `constants.flight_pitch_rate_down` (2) a second.
+
+**A helicopter or robot flyer** is stopped against it and turned to face in. With `right` its right
+axis and `w = (-right.y, right.x, 0)` (its nose, when level): [game]
+
+1. V pointing down (out through the top): the steering below runs with no stick push, the camera
+   stick's x as the turn, and a lift of +1, so it is pushed down. The velocity is kept.
+2. Otherwise, when `N . w >= constants.flight_wall_align_gate` (0.8), it is facing in: the
+   steering runs with the forward stick full on and no turn.
+3. Otherwise the velocity is multiplied by `constants.flight_wall_velocity_keep` (0.95, per
+   update, not by `dt`). Take `d = N - w` made unit length into the body's frame as
+   `(xc, yc)`. The steering runs with no stick push and a turn of `yc` when `yc <
+   constants.flight_wall_forward_limit` (-0.9), else `xc`.
+
+"The steering" is the helicopter's update ("A helicopter or robot flyer, each update") with those
+inputs in place of the sticks, and no turbo boost.
 
 ## Hover
 
@@ -545,6 +603,369 @@ facing, down to his feet. If it lands above his feet, less than `constants.ledge
 (1.5) above them, under his feet plus his height, and more than `constants.ledge_catch_least_drop`
 (0.25) below where it started, he is put there, facing the kept way, with no velocity. The catch
 after the pull-up leaves out "coming down" and "under his feet plus his height". [game]
+
+## When a clip moves him
+
+The dodge, the attacks, the specials and other states whose clip moves him (`control`, motion
+modes `DashMode`, `AttackMode`, `FirstMode`) share this. Reference: `core/src/sim.rs`
+`begin_action`, `start_clip`, `step_action`. [game]
+
+1. The state's clip starts. When the clip before it ended in this same update, the new clip
+   starts as far in as the old one ran past its end. [trace, one transition measured]
+2. Each update the clip's root moves on by `dt * 60 * clip speed` ticks. Its root travel over
+   that span, turned from his frame (x right, y forward) into the world, divided by `dt`, is the
+   velocity the clip asks for.
+3. That velocity is blended in from the one he had when the clip started, over the clip's blend
+   time (0.1 s when it has none): `fade += dt / blend` up to 1, `vel.xy = lerp(before, clip,
+   fade)`.
+4. Only x and y: gravity and the ground act on z as on foot. The exceptions are the climb's two
+   jumps and the attacks out of the car and out of flight, whose clips drive z too.
+5. A clip whose root turns turns him with it (only `Wall_JumpOff` does, by 124 degrees).
+   [assumed]
+
+## The dodge
+
+Reference: `core/src/sim.rs` `begin_action` (the `StateDash` branch), `step_action`, `stop_clip`;
+`docs/bumblebee-mechanics.md`. The numbers are `dodge`, null for a robot without the dodge's front
+clip. [game] [data]
+
+1. **When:** the dodge states in `control` (the dodge button, from the states that allow it). A
+   dodge state agrees to start only when the cooldown has run out and the robot has `DodgeFront`.
+2. **Which way:** take his aim's heading in weapon mode, else his yaw. The stick's angle against
+   it, in degrees from -180 to 180, positive to the left, picks the clip by the dodge set's own
+   rules (`animation_rules`, `DashSet`):
+   - front from `-front_degrees` up to, not including, `front_degrees` (45);
+   - back from `back_degrees` (135) round either way;
+   - right between them on the negative side, left on the positive.
+   While he hovers, the same angles pick the `Hover_Dodge*` clips.
+3. **Facing:** he is turned to that heading at once and kept on it until the dodge ends.
+4. **The move:** the clip moves him ("When a clip moves him"). Gravity acts as on foot.
+5. **Homing:** on starting a dodge his dash clock is set to 0.5 s; while it runs, homing
+   missiles do not steer at him. Clip events (`DashEvent`) can set it too, for their own time.
+6. **The end:** the control states leave the dodge when its clip has finished. As the dodge state
+   ends, the cooldown starts at `cooldown` seconds (`groundDashCooldown`), and it counts down
+   every update.
+
+## Melee
+
+Reference: `core/src/sim.rs` (`attack_aim`, `step_action`, `land_hits`, `play_action`,
+`pass_events`), `core/src/melee.rs` (`Query`, `touch`, `upgrade_scale`); `docs/melee.md`. Each
+attack clip's own numbers are its `clips[].attack` (FORMAT.md); the shared ones are `melee`.
+[game] No recording has melee or health data in it: this is checked only by tests.
+
+### The chain
+
+The attacks are control states (`StateAttack`, motion mode `AttackMode`); the clip's events say
+when what can happen (FORMAT.md, `clips[].events`): [game]
+
+1. `attack_button_window` opens and closes a window. An attack press while it is open is kept.
+   When it closes with a press kept, the state may branch: `attack_can_branch` in `control`.
+   That is the chain: the next hit's state takes that connection.
+2. `branch_point` raises the clip's branch count (1 at the start, 100 once finished), which the
+   connections' `branch_begin`, `branch_end` test.
+3. `attack_face_and_slide` sets what the attack may do from there: slide, face, follow the stick.
+4. `attack_hit` switches the collision body on a node (`collision`, preset `Attack`, and the
+   melee weapons' own bodies) into hitting, and back.
+
+### Each update of an attack
+
+Before the clip moves him ("When a clip moves him"): [game]
+
+1. **Looking for a target,** while the attack has not hit a character and slide or face is on:
+   - The direction is the stick when it is at least `constants.melee_aim_stick_least` (0.001)
+     long, else his facing. When the clip's `stick_choose_target_max_degrees` is under 180 and
+     the stick is further round than that, the direction is put at that limit, on the side
+     **away** from the stick (the game's own arithmetic; only the slam out of the car has such a
+     limit).
+   - With no target kept yet, search along it ("The search") with the clip's `max_range` and
+     `auto_target_search_angle_degrees`. A target found is kept for the rest of the attack and the
+     chain, until an attack that hit a character is left.
+2. **Toward the target,** while it is flat further away than touching (his `radius` plus, for a
+   character, its radius):
+   - with face on and the clip's `auto_target_turn_speed` over 0: turn to it at that rate (degrees
+     a second), only when more than `constants.melee_turn_least_radians` (1 degree) off;
+   - with slide on, the clip's `slide_speed` over 0, and the 3D distance between `min_range` and
+     `max_range` and its square over `constants.melee_slide_least_squared` (0.1): **move his
+     position** toward it by `slide_speed * dt`, at most the distance. He is not stopped at
+     touching distance; the bodies' collision parts them.
+3. **The stick's turn,** when no turn to a target happened this update, the clip allows the stick,
+   its `turn_speed` is over 0, the stick is not centred, and, for a clip with `stop_on_hit`, no
+   character has been hit: turn toward the stick at `turn_speed`.
+4. With `stop_on_hit`, once a character is hit, on the ground: no more root motion along the ground
+   (velocity x and y 0).
+5. Off the ground his upward speed is at most `constants.melee_rise_most` (2).
+
+### The search
+
+A candidate at offset `d` from him: [game]
+
+- `distance = | flat length of d - its radius |`, which must be over 0 and under the range (the
+  clip's `max_range`, or `melee.distance` when it gives none); `|d.z| < melee.height`.
+- `yaw` and `pitch`: how far its direction is off the direction looked along, each under the angle
+  (the clip's, or `melee.angle_degrees` when it gives a negative one).
+- `score = melee.dist_weight * |distance - melee.best_dist| / span(range, best_dist)
+  + melee.angle_weight * (yaw + pitch) / angle`, where `span(a, b) = a - b` when that is over
+  `b`, else `b`. Something that is not a character scores `dist_weight + angle_weight` more.
+- The lowest score wins; the first listed wins a tie.
+
+### The hit
+
+A hit is a touch, not a query. While a node's `attack_hit` is on, its bodies (spheres, capsules
+and boxes from `collision`, and the melee weapon's) are tested against each target's
+(`Character` preset) bodies: [game]
+
+1. A target already hit in this attack state is skipped: one hit per target per state, and the
+   list empties when the state is left.
+2. A foot's body hits only characters.
+3. **Damage:** the clip's `damage` (a computer-run attacker's `ai_damage`, in multiplayer
+   `multiplayer_damage`, when not negative). For a human player in single player, times the
+   melee upgrade for this clip at the level he has it (`melee.upgrades`: the first row for the
+   jump attack and `AttackFast_1` to `_3`, the second for the charged hit, the third for the slam;
+   1 at level 0). Times Optimus's special's melee multiplier while it runs. For a computer-run
+   attacker, times the difficulty's enemy damage scale instead.
+4. **Direction** by the clip's `direction`: his forward, left, right, down or up, or from him to
+   the target; flat and made length 1.
+5. **Throw:** the clip's `knock_back_speed` and `knock_back_angle_degrees`; the target is thrown
+   only when the damage flags have a flail or knock-back kind ("Damage and health").
+6. **Flags:** `damage_flags`, or `damage_flags_small` / `damage_flags_large` by the target's size,
+   less `damage_flags_excluded`.
+
+### The ground punch's blast
+
+The ground punch's own fist does no damage. At tick 8 its clip triggers an object spawned at the
+fist: an explosion sphere (radius 18, the weak punch 15) that grows from half its size to full
+over 0.15 s and hits each body once: [game] [data]
+
+- Damage: `melee.ground_pound_damage` when the explosion's own damage is over 5 (both punches'
+  are), else `melee.ground_pound_damage_weak`, also as its least damage. So both punches do
+  `ground_pound_damage`.
+- With a fall-off share `f` (both punches have none, -1: the whole damage everywhere), at a
+  distance `x` from the middle of a sphere of radius `R`: the whole damage under `f*R`, the least
+  damage from `R`, and in between `least + (damage - least) * (1 - (x - f*R) / (R - f*R))`.
+- Direction flat from the blast to the target; throw 35 at 3 degrees (the weak one 25 at 3).
+
+## Weapons
+
+Reference: `core/src/weapons.rs` (`Weapon`, `bullet_damage`, `scattered_point`, `aim_point`,
+`Missile`, `Grenade`), `core/src/aim.rs`, `core/src/lockon.rs`, `core/src/sim.rs` (the strafe
+mode); `docs/weapon-mode.md`, `docs/weapon-kinds.md`, `docs/weapon-charged-shot.md`,
+`docs/weapon-flamethrower.md`, `docs/special-weapons.md`. Each weapon's own numbers are its
+`weapons[].numbers` (FORMAT.md), by the game's names, written `numbers.rateOfFire` below. The
+aim's are `weapons.aim`. [game] No recording has weapon data in it: all of this is checked only
+by tests and captures.
+
+### Weapon mode: moving and aiming
+
+Weapon mode is the `StateWeapon` states (`control`) in the motion mode `StrafeMode`. [game]
+
+**Moving.** Each update the stick is turned into his frame:
+
+1. **Stick centred** (squared length under `constants.strafe_stick_squared`, 0.0001): he stands.
+   `off` = the aim's heading less his yaw, wrapped. When `|off|` is over
+   `constants.strafe_twist_most_radians` (45.5 degrees) his body turns by what is past it; the spine
+   takes the rest (`off` clamped to that), shared out over the links of his `SpineIK`.
+2. **Stick pushed:** he faces the aim's heading at once and the spine is straight. The weapon
+   set's clips move him by their root motion ("When a clip moves him"), picked by the stick's
+   heading against the aim's (`F_STRAFE_ANG`, degrees, in `animation_rules`, `WeaponSet`). For a
+   player the strafe mode itself moves him no other way.
+3. As weapon mode starts, the aim is put on the camera's forward (unless he comes from a dodge or a
+   jump, which keep theirs).
+
+**Aiming,** each update, with the camera stick `s` (x right, y up): [game]
+
+1. The assist's share goes toward `aim.speed_reduction` while the aim is over a target, else
+   toward 1, by `aim.speed_acceleration` a second.
+2. `s` counts when `|s|² > constants.aim_stick_still` (0.001). Not pushed: the ramp is 0.
+3. Pushed: `m = |s|`, then `m³` when `m > constants.aim_fine_up_to` (0.8), else
+   `m * constants.aim_fine_scale` (0.3125). The ramp rises toward `m` by `aim.acceleration`
+   (degrees, taken as radians a second) and drops to it at once; at most 1.
+4. `rate = aim.lowest_sensitivity + (aim.highest_sensitivity - aim.lowest_sensitivity) *
+   constants.aim_sensitivity` (the option's default, 0.5), degrees a second.
+5. `turn = ramp * share * rate * dt`. The aim's heading turns right by `(s.x / |s|) * turn`; its
+   pitch moves by `(s.y / |s|) * turn`, kept within `aim.min_pitch` and `aim.max_pitch`.
+6. **The pull:** with a target from the assist, the move stick pushed and `|s|² <
+   constants.aim_assist_hard` (0.81), the heading moves toward the heading to the target by
+   `aim.look_assist_turn_rate` a second.
+7. As weapon mode starts, a target within `aim.snap_cone` degrees to either side and
+   `aim.snap_cone_elevation` up or down is turned to at `constants.aim_snap_rate_radians` (4.71 radians a
+   second, both angles).
+
+**The aim point:** the first thing on the camera's forward line, from the point of the line nearest
+to him out to `constants.aim_reach` (500) from the camera; or the line's far end.
+
+### Firing and heat
+
+Every weapon runs in whole updates of 0.032 s. Each update: [game]
+
+1. **Asked:** the trigger is held. A launcher with `numbers.mustHoldFireTriggerToLockOn`, and a
+   weapon with `numbers.hasChargedShot`, are asked when the trigger is let go after being held.
+2. **Refused** when asked with the heat at `numbers.heatMeterCapacity` or over: the refusal sound,
+   again at most every `numbers.rateOfFire`.
+3. **Fires** when asked, more than `numbers.rateOfFire` seconds since the last round, and (unless
+   `numbers.automaticFiring`) not already fired in this pull. At 0.032 s an update a rate of 0.15
+   gives a round every fifth update, 0.16 s.
+4. **A firing** sets the time since the last round to 0 and adds `numbers.heatMeterIncrementPerRound`
+   to the heat, once whatever the number of projectiles. Under the capacity that restarts a wait
+   of `numbers.heatMeterCooldownTilDecrement`; reaching it starts the overheat,
+   `numbers.heatMeterOverHeatPeriod` seconds, at whose end the heat goes to 0.
+5. **Bursts:** with `numbers.burstPerFire` over 1, the firings after the first come by themselves
+   every `numbers.timeBetweenEachBurst`, with no trigger and no rate or heat test, while his
+   weapons stay out (a car weapon while he drives or flies; a special's always).
+6. **The heat falls,** when neither the overheat nor the wait runs, by
+   `numbers.heatMeterDecrementPerSecond`.
+
+A flamethrower heats by time instead: `heatMeterIncrementPerRound * dt` every update it burns.
+The charged shot (`hasChargedShot`): held past `timeTilChargeStarts`, it charges over
+`chargeDurationTilMaxEffect` and fires on release, with its damage or its number of firings scaled
+by how far it got (`docs/weapon-charged-shot.md`).
+
+Each projectile leaves from the next of the weapon's `barrel_nodes`. A weapon whose
+`useFacingAsTarget` is set (the car's guns) aims at `constants.weapon_facing_reach` (100) straight
+ahead of the barrel instead of the aim point. A car weapon fires only once
+`weapons.vehicle_weapon_wait` (`vehicleWeaponTimeTilCanFire`) has passed since he changed into the car.
+
+### A gun's round
+
+1. **Scatter** (a player's): the aim point moves in the camera's picture plane by up to `most =
+   distance from the camera * tan(vertical fov / 2) * numbers.playerNoiseRadius`, in a direction
+   drawn evenly round the whole turn, by `most` times a number drawn evenly from -1 to 1. [game]
+2. **The line** runs from the muzzle toward that point, `numbers.bulletRange` long. With
+   `numbers.tracerFirePerRound` over 0 the whole line is traced in the update it is fired and the
+   hit lands at once; the visible round then flies at `numbers.bulletSpeed` to the hit. [game]
+3. **Damage:** `numbers.damage` times the charge (1 uncharged) times
+   `numbers.positionalDamageMultiplier` for the part hit (head, upper body, lower body, vehicle
+   body; a head counts as one only for a player's round). From `numbers.bulletDamageFallOffRange`
+   (when not negative) it falls in a straight line to `numbers.minDamage` at `bulletRange`. The
+   push is along the round's way, `damage * 10`; the throw, flags and special case numbers come
+   with it ("Damage and health"). [game]
+
+### A missile
+
+Launched from the barrel along the weapon's forward at `numbers.missileStartSpeed`, sent at the
+locked target or the aim point (an unguided one at a point 10 000 along that way). Each update:
+[game]
+
+1. Clocks: the wait before it steers (drawn between `minGuidanceDelay` and `maxGuidanceDelay`),
+   then the time it steers before giving up (drawn between `minGuidanceOffDelay` and
+   `maxGuidanceOffDelay`; negative: never), the wobble's wait and length.
+2. Once it steers: the point is the target's middle while guided, else its kept point. With `c`
+   the cosine between its way and the point:
+   - it is armed once `c >= cos(pastTargetConeAngleActivated)`; armed, `c <= 0` (it has passed
+     the target) ends the guidance and it flies straight on;
+   - not wobbling: within the cone `c > cos(guidedViewAngle)` it points straight at it, else it
+     turns toward it by at most `outOfViewTurnSpeed * dt`.
+   - A wobble (when `minWobbleTimer` is over 0) turns it about a random axis by up to
+     `maxWobbleAngle` a second, for a drawn time.
+3. `speed += acceleration * dt` (times `accelFactor` once its drawn delay has passed), at most
+   `missileTopSpeed`; `pos += way * speed * dt`. After `missileLifetime` it is gone.
+4. While a target's dash clock runs (a dodge), a missile does not steer at it.
+
+### The lock-on
+
+For a `guided` launcher in weapon mode (or the car's, once it may fire): [game]
+
+1. **Seen:** up to three targets whose picture overlaps a box of `missileLockOnBoxWidth` by
+   `missileLockOnBoxHeight` pixels of a 1280 x 720 picture about its middle, ahead of the camera
+   and of him, nearer than `aimAssistMaxRange`, with a clear line to their head. The best is the
+   nearest, in the picture, of its point halfway across and 0.8 of the way up; last update's best
+   stays first.
+2. While the trigger is held (and the weapon could fire): with the candidate still seen, the time
+   held goes up; at `missileCrosshairLockOnTime` it is the lock, for `lockOnBracketStayOnTime`
+   after it leaves the box. With the candidate gone, the first living one seen is the new
+   candidate, and the lock is dropped when its target is dead, its stay has run out, a different
+   candidate is seen, or it is further off the camera's forward than
+   `constants.lock_keep_share` (0.33) of the field of view (the whole of it for a car weapon).
+   With the trigger up nothing changes, which is how a released missile keeps its target.
+3. A lock time of 0 or less locks the best seen at once.
+
+### A grenade
+
+Thrown at the aim point (`fireTowardsTarget`) or along the weapon's forward, the way tilted up by
+`launchArcAngle`, at `launchSpeed` (plus his own speed along it with `tackOnOwnerSpeed`). Each
+update: [game]
+
+1. After its drawn `grenadeMinLifetime` to `grenadeMaxLifetime` it goes off. A proximity grenade,
+   once armed, goes off (at once, or after its drawn `proximityExplosion*Delay`) when a target's
+   middle is within `proximityRadius`.
+2. `vel.z += Zgravity * dt`; `pos += vel * dt`. It touches nothing for its first 0.05 s.
+3. On a touch: a proximity grenade on a character goes off; a sticky one stops
+   `stickyOffsetFromCollision` off the surface and stays (and goes off after its sticky time, or at
+   once with none); anything else bounces, `vel -= (1 + bounciness) (vel . n) n`, and at most every
+   0.25 s its velocity is also multiplied by `dampeningOnCollision`.
+
+The blast of a missile or grenade is an explosion like the ground punch's, with the weapon's
+`explosiveDamage` ("Melee", "The ground punch's blast").
+
+## Damage and health
+
+Reference: `core/src/damage.rs` (`resolve`, `Runtime`), `core/src/sim.rs`
+(`State::receive_damage` and the reaction states); `docs/damage.md`. The numbers are `damage`.
+[game] No recording has health data in it: checked only by tests.
+
+Every hit (a fist, a round, a blast, a damage-over-time tick) reaches the one hit as a **packet**:
+an amount, damage flags, a direction, a throw (speed and angle), and stun, slow and
+damage-over-time times.
+
+### Taking a hit
+
+1. **Refused** when he cannot take damage (`damage.invincible`), when it is his own unless the
+   flags have one of `0x40f0f0`, from his own team unless they have one of `0x42000000`, or from
+   another team with "friends only" (bit 25).
+2. The amount is multiplied, in order:
+   - by `damage.overdrive_multiplier` when the attacker's overdrive runs;
+   - for a computer-run receiver hit by a player, by 1 / the difficulty's enemy health scale;
+   - unless "predamage" (bit 23): by a shield special's factor (Optimus's), and by
+     `damage.vehicle_multiplier` in car or flight form;
+   - and by 0.1 when the attacker's damage is reduced (character flag 30).
+3. While a shield special runs, or for a "spirit link" hit (bit 27), it may not take the last point:
+   `amount <= health - 1`.
+4. Unless "damage over time" (bit 15): `health -= amount`. Under 0.1, or with "instant kill" (bit
+   28), he dies: a headshot, explosion (bit 1) or ordinary death, by which the death clip is picked
+   (`DeathSet`).
+5. **Thrown** when the flags have a flail or knock-back kind (`0xf0000`), unless he is
+   `damage.immovable`: when the packet's direction already rises more steeply than the throw's
+   angle it keeps it, else its rise is replaced by the angle; times the throw's speed and
+   `damage.knockback_multiplier`. That is his velocity.
+6. **Statuses:** "stun" (bit 13) with a stun time starts the stun, with a break budget of
+   `damage.bumblebee_stun_break` when Bumblebee stunned him, else `damage.other_stun_break`. Later
+   damage takes from the budget, and the stun ends when it goes below 0. The stun time also sets
+   "no car" (bit 12), "no change of form" (bit 22) and the flash (bit 6) for that long. "Slow"
+   (bit 14) starts the slow (`damage.slow_multiplier`; weapons fire at `damage.slow_fire_rate` and
+   heat at `damage.slow_heat_rate`). "Damage over time" ticks the packet's amount once per whole
+   second crossed, over `ceil(dot time) - 0.01` seconds, the last one included. Bits 4 and 5 add
+   the packet's heat to his weapon in hand or to all of them.
+7. Regeneration stops and waits `damage.regen_delay` again.
+
+### The reaction
+
+None while a shield special runs, or for "no hit react" (bit 21). Otherwise: [game]
+
+- Stunned (and not immune to it): the stun state (`stateStun`).
+- A **full** reaction (`stateHitReact`, `HitReactionSet`) for flags in `0x170100` (melee, the
+  flails, knock-back), when he is not immune to melee, not in the car, and the last full reaction
+  was more than `constants.hit_react_cooldown` (4 s) ago, or at once for a flail. He turns to face
+  where the hit came from.
+- Otherwise a **partial** one: `HitReactPartialSet` played over what he is doing.
+- Only when the control state he is in allows it (`control`).
+
+### Regeneration
+
+Not at a constant rate. While his health is under full, no damage over time runs, and the
+character regenerates (`damage.regen_rate` over 0): the wait counts down from
+`damage.regen_delay`, and once it is below zero, each step of length `i` (the update, or
+`damage.regen_interval` when that is over 0) adds [game]
+
+    3 * max_health / regen_duration³ * (i/2 - wait)² * i
+
+(`wait` is negative by then, so this grows with time), up to full health, times
+`damage.vehicle_regen_multiplier` in car or flight form and `damage.weapon_regen_multiplier` in
+weapon mode. Reaching full health resets the wait.
+
+### Death
+
+He dies at under 0.1 health. The death state plays its clip from the root's x and y (an explosion
+death from all three axes) and ends when it has finished and he is on the ground after 3 s, or
+after 10 s.
 
 ## Checking
 
