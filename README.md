@@ -38,12 +38,13 @@ cargo run --release -p rotf-export -- --all
 ```
 
 `--character` writes one robot into `exported/<pack>`; `--all` writes the whole roster (20 packs,
-about 1 GB). `--out <folder>` picks another folder. Each robot's folder has a `README.txt`
+about 2 GB). `--out <folder>` picks another folder. Each robot's folder has a `README.txt`
 describing its files.
 
 To check a native port against the reference, `--character <name> --run <script.json>` plays a
 script of inputs through it and writes every update's place, state, clip and events as JSON lines
-(`docs/FORMAT.md`, "Reference runs"; an example script is `export/runs/basics.json`).
+(`docs/FORMAT.md`, "Reference runs"; the example scripts are `export/runs/basics.json`,
+`weapons.json` and `fight.json`).
 
 The exported files are made from the game and belong to its owners. Keep them on your own
 machine. A mod you share should tell its users to run `rotf-export` themselves.

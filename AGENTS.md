@@ -128,9 +128,11 @@ system does for a scripted input:
    `Input` is the pad, already mapped (stick in world space, triggers 0 to 1, buttons).
    `world` is anything that implements `sim::World`: it answers floor heights, wall pushes and
    ray hits. `sim::Arena` is a flat test world.
-5. The rest of a frame (the camera, the weapons, animation, effects and sound reading the state)
-   is in rotf-robots' `game/src/player.rs` (`tick`), `animation.rs`, `camera.rs`, `weapons.rs`,
-   `effects.rs` and `sound.rs`. The order they run in is part of the rules a port rebuilds.
+5. The whole update with the pad, the aim, the camera, the weapons (`arsenal`) and scouts that
+   fight back is `driver::Robot::step`, in the Bevy game's order: what a reference run plays.
+   What only draws or sounds the state (animation blending, effects, the sound mixer) is in
+   rotf-robots' `game/src/animation.rs`, `effects.rs` and `sound.rs`. The order they run in is
+   part of the rules a port rebuilds.
 
 The game steps at 0.032 s; animation clips tick at 1/60 s. Space is right-handed, x right,
 y forward, z up, metres. Quaternions in clips are for row-vector matrices: conjugate them for

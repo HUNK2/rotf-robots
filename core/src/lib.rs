@@ -20,6 +20,8 @@ pub mod ai_node;
 pub mod ai_bind;
 pub mod ai_tactics;
 pub mod aim;
+pub mod arsenal;
+pub mod driver;
 pub mod animblend;
 pub mod animrules;
 pub mod audio_mix;

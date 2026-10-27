@@ -89,6 +89,8 @@ Never branch on it: branch on `format_version`.
 | `animation_rules` | object | Within each animation set, which clip plays and which follows it (below). |
 | `mechanics` | object | Each mechanic's numbers for this robot, for the formulas in MECHANICS.md (below). |
 | `effects` | object | The particle effects of his pack and the things on his models that a name starts (below). |
+| `turbo_blur` | object | The turbo's screen blur (below). |
+| `giant` | object | *Optional.* Devastator's gun pods and vortex (below). Only his file has it. |
 | `attributes_file` | string | The file name of `<pack>_attributes.json`. |
 | `not_exported` | array of strings | Prose: what the game has that is not in the export. |
 
@@ -119,8 +121,8 @@ One entry per `.glb`, robot first, then the vehicle, then the other pieces.
 | Key | Type | What it is |
 | --- | --- | --- |
 | `file` | string | The file's name. |
-| `kind` | string | `robot`, `vehicle`, `weapon`, `grenade`, `missile`, `turret` or `melee`. |
-| `weapons` | array of strings | The weapons this file is the model of. Weapons of one list share a model (Bumblebee's cannon and launcher are one object). |
+| `kind` | string | `robot`, `vehicle`, `weapon`, `grenade`, `missile`, `turret`, `melee`, `debris` (a piece a round's blast throws), `pod` or `vortex` (Devastator's). |
+| `weapons` | array of strings | The weapons this file is the model of. Weapons of one list share a model (Bumblebee's cannon and launcher are one object). A `debris` file names the round it belongs to. |
 | `animations` | integer | How many clips this file holds. |
 
 ### `clips`
@@ -242,6 +244,37 @@ event's `index` counts.
 | `sounds` | object | Sound events by role: any of `fire`, `overheat`, `refused`, `ring_off`, `idle`, `charge_start`, `charge_loop`, `charge_full`, `charge_fire`. Missing roles are left out. |
 | `numbers_from` | string | The name of the weapon's data block in the game. |
 | `numbers` | object or null | That block as the game stores it, every field by the game's own name (damage, heat, ranges...). It is the game's data, not part of this format: its keys can be anything the game has. |
+| `round` | object or null | What its shots show, sound and light from the muzzle to where they end (below). null for a weapon whose data has none. |
+| `alt_round` | object or null | The same for its alternative round (a charged shot's, Megatron's car beam's), when it has one. |
+| `muzzle_light` | object or null | The light a shot flashes at the muzzle: a flash light (below). |
+
+#### A round
+
+Templates are particle effects by name, each one in `effects.templates`.
+
+| Key | Type | What it is |
+| --- | --- | --- |
+| `muzzle_flash` | string or null | The template started at the barrel for each shot. |
+| `impact` | object | What a round does where it lands: `by_surface` (each with `surfaces`, `sound`, `effect`: the entry for a surface is the first that lists it, else the first that lists the default surface) and `scorch` (the surface-damage marks it leaves: `radius`, `frames`, `noise_ratio`, `chaos`, `thresholds`, `softness`). |
+| `trail` | string or null | The template the projectile trails. |
+| `emitters` | array | The projectile model's own emitters: `node_index` (a node of its missile or grenade file, in order), `bind_position`, `template`, `auto_start`, `use_rotation`, `use_scale`, `delete_when_done`, `instant_kill`, `spawn_chance`. |
+| `flight_lights` | array | Lights the projectile carries for as long as it flies, in its own space (a light, below). |
+| `flight_sounds` | array of strings | Sound events that play from the projectile while it flies. |
+| `blast` | string or null | The template started where the projectile ends. |
+| `blast_scorch` | array | The blast's surface-damage marks, as `impact.scorch`. |
+| `blast_sounds` | array of strings | Sound events of the blast. |
+| `blast_light` | object or null | The blast's flash light (below). |
+| `blast_rumble` | object or null | The pad rumble the blast starts: `kind`, `duration` (seconds), `strength` (0 to 1), `scale_type` (1: weaker with the player's distance, between `distance_near` and `distance_far` metres). |
+| `after_blast` | array | Smoke that stays after the blast: `template`, `offset` from the end point, `use_rotation`, `use_scale`, and `on` and `off` (each two numbers: the seconds it turns on and off between). |
+| `wave` | object or null | The ground wave the round lets go (Grindor's and Jetfire's energon cannons): `emitter`, `light` (a flash light), `rumble`, `life` (seconds), `check_ground_height`, `init_check_ground_radius`, `radius` and `sounds`. |
+| `debris` | array | The pieces the blast throws: `file` (its `debris` model), `at`, `turn` (x, y, z, w), `scale` and `damage_point` in the projectile's space, `mesh_nodes`, `emitters`, and `throw`: the game's numbers for how it flies, spins and dies (`speed`, `speed_min`, `rot_speed`, `rot_speed_min`, `spread`, `start_angle`, `radius_xy`, `radius_z`, `force_speed`, `die_condition`, `die_time`, `die_type`, `spin_type`, `linear_damping`, `angular_damping`, `inflict_damage`; the reference's `debris.rs` runs them). |
+
+A **light** has `kind` (`omni`, `spot` or `capsule`), `position` and `direction` in its object's
+space, `colour` and `colour2` (rgb, may pass 1), `range`, `range2`, `attenuate`, `attenuate2`,
+`hotspot` and `falloff` (full cone angles, radians), `affect_diffuse`, `affect_specular` and
+`ambient_only`. A **flash light** is a light that removes itself: `light`, `time` (seconds it
+lives) and `fade_start` (from `fade_start` to `time` its colour fades to nothing; -1: no fade).
+The reference's `point_light.rs` has the formulas.
 
 **Hanging a weapon.** Every bone in the glTF has a child node named `<bone>.frame`. The skins bind
 to those, as the game's drawing does. To hang a weapon on a node, put the weapon file's root's
@@ -948,7 +981,7 @@ A camera's settings, each as the data names it (angles in degrees, scales in per
 
 | Key | Type | What it is |
 | --- | --- | --- |
-| `templates` | object | Every particle effect of his pack, by name: `textures` (each element's picture, a path, or null) and `data` (the `ParticleTemplate` as the game stores it, its actions' and domains' `id` as their four letters, its renderers' `Texture` as the path). |
+| `templates` | object | Every particle effect of his pack, and every one his weapons' rounds name, by name: `textures` (each element's picture, a path, or null) and `data` (the `ParticleTemplate` as the game stores it, its actions' and domains' `id` as their four letters, its renderers' `Texture` as the path). |
 | `on_models` | array | The things on his models that a name, a clip or the model's start sets off (below). |
 
 Each entry of `on_models` has `kind` and `model` (`robot` or `vehicle`), and a `node` it rides:
@@ -963,6 +996,33 @@ Each entry of `on_models` has `kind` and `model` (`robot` or `vehicle`), and a `
 | `climb_step` | `limb` | The node a `climb_step` event's limb probes from. |
 | `skid_mark` | `tyre`, `point_length`, `point_width`, `colour`, `material` | A tyre's skid mark. No `node`'s place is used: the points go at the tyre's. |
 | `ribbon` | `trigger`, `links`, `material`, `trails`, `subdivisions`, `trigger_speed`, `enabled` | A trail drawn through its `links` (nodes). It has no `node`. |
+| `collision_effects` | `mask`, `types`, `min_speed`, `max_speed`, `align_to_normal`, `soft`, `hard`, `soft_sounds`, `hard_sounds` | What the model's knocks against the world start (the car's sparks and scrapes): `soft` and `hard` each name a template for `impact`, `roll` and `scrape`, and the sounds likewise. Only a contact between `min_speed` and `max_speed` (metres a second) counts. No `node`: they go where the contact is, turned to its normal when `align_to_normal`. The rules: `collisionfx.rs`. |
+| `collision_sounds` | `mask`, `types`, `min_speed`, `max_speed`, `align_to_normal`, `hard`, `soft`, `bottom` | The knocks' sounds: each of `hard`, `soft` and `bottom` (a knock on the underside) has `impact`, `roll` and `scrape`, each null or `event`, `once` (it plays once, then never again) and `attached` (it follows the model). |
+
+### `turbo_blur`
+
+The screen blur while the car's turbo runs. It is the level's setting; the Bevy game's arena takes
+`level`'s, and so does this.
+
+| Key | Type | What it is |
+| --- | --- | --- |
+| `level` | string | The level it was read from. |
+| `blur_amount`, `max_blur`, `stretch` | number | The blur's deviation, its most, and how far it stretches along the screen's centre lines. |
+| `blend_in_seconds`, `blend_out_seconds` | number | How long it takes to come and to go (-1: at once). |
+| `mask` | string | The mask picture: where on the screen it blurs. |
+
+The passes and their numbers are the reference's `speedblur.rs`. If the level could not be read,
+the block is `{"error": ...}`.
+
+### `giant`
+
+Devastator's guns and vortex are the boss mission's objects, given to him as the Bevy game gives
+them.
+
+| Key | Type | What it is |
+| --- | --- | --- |
+| `pods` | array | Each kind of gun pod: `weapon`, `kind` (`gatling`, `missile` or `bug_bomb`), `file` (its `pod` model, put on each mount), `mounts` (each a `bone` of his and the `barrels` on it, in the bone's space), `fire_sound`, `round`, `alt_round` and `muzzle_light` as for `weapons`. |
+| `vortex` | object or null | His vortex: `file` (its `vortex` model) and `clip` (the clip in that file that grows, spins and shrinks it), `damage`, `flags`, `knock_back_speed`, `knock_back_angle_degrees`, `sound` and `sound_delay` (seconds after it starts). How it is put on his head and when it starts: `docs/devastator.md` and the reference's `giant.rs`. |
 
 ## `<pack>_attributes.json`
 
@@ -994,9 +1054,16 @@ update by update. `export/runs/` has example scripts.
 
 | Key | Type | What it is |
 | --- | --- | --- |
-| `format_version` | integer | 1. A script of another version is refused. |
-| `start` | object | Optional. `pos` (three numbers, metres) and `yaw_degrees` where he starts; the origin, facing +y, if left out. |
-| `arena` | object | Optional. `boxes`, each with `min` and `max` (three numbers), and `targets`, each with `pos`: inert dummies his size, with no health limit, for the attacks to hit. The ground is the flat plane at height 0. |
+A run is the whole of one robot's update as the Bevy game runs it (the reference's `driver.rs`):
+the pad, the aim in weapon mode, the movement, the camera, his weapons, and the scouts that fight
+him, hits going both ways. Run files have their own version, `format_version` **2**, apart from
+the JSON files' version.
+
+| Key | Type | What it is |
+| --- | --- | --- |
+| `format_version` | integer | 2. A script of another version is refused. |
+| `start` | object | Optional. `pos` (three numbers, metres) and `yaw_degrees` where he starts; the origin, facing +y, if left out. The camera starts behind him. |
+| `arena` | object | Optional. `boxes`, each with `min` and `max` (three numbers); `targets`, each with `pos`: inert dummies his size, with no health limit, numbered from 1; `scouts`, each with `pos`: the game's scouts, which run their own brain and shoot and strike him, numbered after the targets (an Autobot scout for a Decepticon, the Decepticon scout for the others: the game lets no hit pass between two of one side); and `passive_scouts` (true: they stand and hold their fire). The ground is the flat plane at height 0. |
 | `steps` | list | The input, in order. |
 
 Each step holds its input for `updates` updates (1 if left out). Every key is optional:
@@ -1004,21 +1071,20 @@ Each step holds its input for `updates` updates (1 if left out). Every key is op
 | Key | Type | What it is |
 | --- | --- | --- |
 | `updates` | integer | How many updates the step lasts. |
-| `stick` | two numbers | The move stick in world space, x and y, length up to 1. |
-| `steer` | number | The stick's left and right as the pad gives it, which steers the car. Defaults to `stick`'s x. |
-| `pad_stick` | two numbers | The stick as the pad gives it, which climbing reads. Defaults to `stick`. |
-| `look` | two numbers | The camera stick, which the helicopter turns and climbs by. |
-| `vehicle` | number | The vehicle trigger, 0 to 1: held, the car or flying form and the throttle. |
+| `stick` | two numbers | The left stick as the pad gives it, x and y, length up to 1. On foot it is taken relative to the camera (up is away from it); in the car its x steers; on a wall up climbs. |
+| `look` | two numbers | The right stick: it turns the camera, the aim in weapon mode, and the helicopter. |
+| `vehicle` | number | The right trigger, 0 to 1: the change of form and the throttle; in weapon mode, the fire. |
+| `weapon_mode` | boolean | The left trigger held: weapon mode on foot, the slide in the car. |
 | `brake` | number | The brake, 0 to 1. |
-| `drift` | boolean | The slide button held. |
-| `aim` | two numbers | Weapon mode: the direction he aims along the ground. Left out, he is not aiming. |
+| `switch` | boolean | The weapon switch held (going down switches to the next weapon; Devastator's next pod). |
 | `hold` | list | Buttons held through the step, by `control.buttons` names. |
 | `press` | list | Buttons pressed: down through the step, and going down on its first update only. |
 
 The buttons are the game's, not the pad's. One pad button can raise several: the melee button
 raises `AttackFast`, `Dodge` and `AttackVehicle` together, as the game's default binding does, so a
-melee tap is `"press": ["AttackFast", "Dodge", "AttackVehicle"]`. `Jump` and `VehicleTurbo` go in
-as the reference's own jump and turbo inputs.
+melee tap is `"press": ["AttackFast", "Dodge", "AttackVehicle"]`, and held in the car it fires the
+car's gun. `Jump` goes in as the jump, which in the car is the turbo; `AttackSpecial` is the
+special.
 
 ### The header line
 
@@ -1028,6 +1094,9 @@ as the reference's own jump and turbo inputs.
 | `character`, `pack`, `attributes` | string | Who ran: the display name, the pack and the `characterAttributes` block. |
 | `update_seconds` | number | 0.032, the game's update. |
 | `updates` | integer | How many lines follow. |
+| `armed` | boolean | He has ranged weapons (`weapon` is filled in on each line). |
+| `scout` | string | Which scout the arena's scouts are (`DComScout` or `APrtScout`). |
+| `scouts` | list | Each scout as it starts: `target` (its number), `pos`, `health`. |
 | `missing` | list | Values the reference looked for in the game data and did not find. Devastator's names the sets and clips he does not have (no car, jump, dash or climb); the other robots' is empty. |
 
 ### An update line
@@ -1048,20 +1117,33 @@ as the reference's own jump and turbo inputs.
 | `triggers`, `untriggers` | list | Trigger and Untrigger messages his clips sent this update, by the name of what they start or stop (the effects of that name on him). |
 | `shakes` | list | Camera shakes started this update, by name. |
 | `rumbles` | list | Pad rumbles started: `kind`, `duration` (seconds) and `strength`. |
-| `hits` | list | Hits his attacks landed: `target` (the arena target's number, from 1), `damage`, `point`, `body` (the collision body that hit), `knock_back_speed`, `knock_back_angle_degrees`, `flags`. |
+| `hits` | list | Hits his melee landed: `target` (a target's or scout's number), `damage`, `point`, `body` (the collision body that hit), `knock_back_speed`, `knock_back_angle_degrees`, `flags`. |
+| `camera` | object | What the camera gives this update, before shakes: `eye`, `forward` (a unit vector), `fov_degrees`, `roll_degrees` (how far the picture leans with the car). The follow, weapon and driving cameras, the flyers' included. |
+| `aim` | three numbers or null | In weapon mode, the unit vector he aims along; null outside it. |
+| `weapon` | object or null | His weapons (null if he has none): `in_hand` (its name), `out` (the gun is out), `heat` (0 to its maximum, 100 for most), `overheated_seconds` (left in an overheat), `fired` (a round left this update), `muzzle` (where his rounds leave, the car gun's first barrel in the car), `lock` (`candidate` and `locked`: the launcher's target numbers or null), `projectiles` (each in flight: `number`, `weapon`, `grenade`, `pos`), `struck` (what his rounds hit this update: `target`, `damage`, `flags`) and `sounds` (what the weapons asked the sound player for this update, in order: `play`, `start` with its `handle` and `heat`, `key_off`, `stop`, `projectile_start`, `projectile_stop`, `projectile_end`, `impact` with its `surface`, `clip_command`). |
+| `taken` | list | What hit him this update: `from` (the scout's number), `damage` (the health it took), `flags`. |
+| `scouts` | list | Each scout after this update: `target`, `pos`, `health`, `dead`. |
 
 Numbers are written as the shortest decimal that gives back the same 32-bit float.
 
-What a run does not cover yet: the guns and their aim (the weapons are run by the Bevy game around
-the reference), the cameras, Devastator's vortex and pods, levels, and anything fighting back.
+Where a run's muzzle differs from the Bevy game's: the run poses his skeleton with the clip the
+movement plays and the weapon layer over it, and hangs his rounds on the node the weapon hangs
+from; the Bevy game reads them off the drawn model, which also blends clips, lays the aim and the
+hit reactions over the pose and plants the feet. So a round can leave a few centimetres away.
+Where it goes is the same: along the camera's line. A run has no sniping, no mouse, no level, and
+no camera shake on the view.
+
+`export/runs/` has `basics.json` (moving, the jump, melee, the car), `weapons.json` (weapon mode,
+the gun to its overheat, the second weapon's lock-on and missiles, the aim turned, the car's gun)
+and `fight.json` (a scout that fights back, melee, the gun, the special).
 
 ## Not in the export
 
 The game has these, and the export does not. `not_exported` lists them too.
 
 - The voice lines the chatter names that its bank lacks (six of Bumblebee's 115).
-- Lights (the muzzle flash's) and the vehicle's knock effects (`CollisionFX`).
-- The level's own: its reverb, its turbo screen blur (`Environment_SpeedBlur`), its sun.
+- Sound events the game's data names that no sound file holds (Jetfire's `ANIM_JETFR_BOMB_DROP_RINGOFF`).
+- The level's own: its reverb, its sun. (The turbo's screen blur is in `turbo_blur`.)
 - The clip fields the game reads but the port does not (`chance`, `minWalkSpd` and `maxWalkSpd`,
   `minStrafeAng` and `maxStrafeAng`, `walkFlags`, `group_type`): how they pick between clips is
   not read.
@@ -1085,6 +1167,13 @@ The game has these, and the export does not. `not_exported` lists them too.
   that drives them.
 - **1**, added (2026-10-27): `mechanics.climb` and the climb constants, with MECHANICS.md
   "Climbing".
+- **1**, added (2026-10-27): each weapon's `round`, `alt_round` and `muzzle_light`; the `debris`,
+  `pod` and `vortex` files; `collision_effects` and `collision_sounds` in `effects.on_models`, and
+  the rounds' templates in `effects.templates`; `turbo_blur`; Devastator's `giant`.
+- **Runs 2** (2026-10-27): reference runs are the whole update (`driver.rs`): the stick is the
+  pad's, relative to the camera; `weapon_mode` and `switch` replace `aim`, `drift`, `steer` and
+  `pad_stick`; the arena has `scouts`; each line has `camera`, `aim`, `weapon`, `taken` and
+  `scouts`. Run scripts of version 1 are refused.
 - **1**, added (2026-10-27): `mechanics.dodge`, `melee`, `weapons` and `damage`, and the
   constants of the flight boundary, melee, weapon mode and the hit reaction, with MECHANICS.md's
   sections on them.

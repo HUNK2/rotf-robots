@@ -80,6 +80,8 @@ pub fn character(install: &Path, spec: &Spec, data: &CharacterData, pieces: &[Pi
         Some(Mount::Car(_)) => json!("vehicle"),
         None => Value::Null,
     };
+    // Each weapon's muzzle light (`point_light::load_flash_lights`). [data]
+    let flash_lights = tf2_core::point_light::load_flash_lights(install, &spec.pack).unwrap_or_default();
     let weapons: Vec<Value> = data
         .weapons
         .iter()
@@ -124,6 +126,9 @@ pub fn character(install: &Path, spec: &Spec, data: &CharacterData, pieces: &[Pi
                 ]),
                 "numbers_from": names.name(def.attribute),
                 "numbers": root_by_hash(names, def.attribute).map_or(Value::Null, |n| value(n, names, 0)),
+                "round": crate::rounds::row(data, def.name).map(|r| crate::rounds::round(r, pieces, names)),
+                "alt_round": crate::rounds::row(data, tf2_core::character::alt_projectile_key(def.name)).map(|r| crate::rounds::round(r, pieces, names)),
+                "muzzle_light": flash_lights.iter().find(|(name, _)| *name == def.name).map(|(_, f)| crate::rounds::flash(f)),
             })
         })
         .collect();
@@ -215,7 +220,7 @@ pub fn character(install: &Path, spec: &Spec, data: &CharacterData, pieces: &[Pi
         "attributes_file": format!("{}_attributes.json", spec.pack),
         "not_exported": [
             "the voice lines a bank lacks (chatter lines with no sample in audio\\eng\\CHATTER.fsb)",
-            "lights (the muzzle flash's) and the vehicle's knock effects (CollisionFX): core/src/point_light.rs and collisionfx.rs",
+            "sound events the game's data names that no sound file holds (Jetfire's ANIM_JETFR_BOMB_DROP_RINGOFF)",
             "the clip fields the port does not read (chance, minWalkSpd, maxWalkSpd, minStrafeAng, maxStrafeAng, walkFlags, group_type): how they pick between clips is not read",
             "what each control state class does in code beyond its data (the dodge's direction, the drive and fly states' own steps): docs/state-machine.md and core/src/sim.rs",
             "flight's moving surfaces (flaps, rotors), the wheels' spin and the suspension: the game moves them in code",
@@ -587,4 +592,45 @@ pub fn value(node: Node, names: &Names, depth: u32) -> Value {
         Some(label) => json!({ "_link": names.name(label) }),
         None => Value::Null,
     }
+}
+
+/// Devastator's `giant` block: his gun pods (each kind's weapon, the bones it is mounted on with
+/// their barrels, its model and its rounds) and his vortex funnel, the boss mission's objects as
+/// the Bevy game gives them to him. [assumed port design] The rules: `core/src/giant.rs`,
+/// `docs/devastator.md`.
+pub fn giant(pods: &[tf2_core::giant::Pods], vortex: Option<&tf2_core::giant::VortexDef>, pieces: &[Piece], names: &Names) -> Value {
+    let file_of = |kind: PieceKind, weapon: u32| pieces.iter().find(|p| p.kind == kind && p.weapons.contains(&weapon)).map(|p| format!("{}.glb", p.file));
+    let pods: Vec<Value> = pods
+        .iter()
+        .map(|p| {
+            let def = &p.def;
+            let row = |key: u32| p.effects.iter().find(|r| r.name == key).map(|r| crate::rounds::round(r, pieces, names));
+            json!({
+                "weapon": names.name(def.name),
+                "kind": (["gatling", "missile", "bug_bomb"].get(p.kind).copied().unwrap_or("unknown")),
+                "file": file_of(PieceKind::Pod, def.name),
+                "mounts": p.mounts.iter().map(|m| json!({
+                    "bone": names.name(m.bone),
+                    "barrels": m.barrels.iter().map(|b| nums(&b.to_array())).collect::<Vec<_>>(),
+                })).collect::<Vec<_>>(),
+                "fire_sound": (def.fire_sound != 0).then(|| names.name(def.fire_sound)),
+                "round": row(def.name),
+                "alt_round": row(tf2_core::character::alt_projectile_key(def.name)),
+                "muzzle_light": p.flash.as_ref().map(crate::rounds::flash),
+            })
+        })
+        .collect();
+    json!({
+        "pods": pods,
+        "vortex": vortex.map(|v| json!({
+            "file": pieces.iter().find(|p| p.kind == PieceKind::Vortex).map(|p| format!("{}.glb", p.file)),
+            "clip": v.clip.as_ref().map(|_| "Vortex"),
+            "damage": num(v.damage),
+            "flags": v.flags,
+            "knock_back_speed": num(v.knock_back_speed),
+            "knock_back_angle_degrees": num(v.knock_back_angle),
+            "sound": (v.sound != 0).then(|| names.name(v.sound)),
+            "sound_delay": num(v.sound_delay),
+        })),
+    })
 }

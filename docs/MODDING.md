@@ -184,18 +184,21 @@ Each task gives its **inputs** (the export, the formulas, the notes, the referen
   reference `damage.rs`.
 - **Build:** taking a hit, the throw, the statuses, the reaction clips and regeneration, on the
   host's health and damage events.
-- **Check:** runs do not cover hits taken yet. Use the Bevy game (`--scouts` gives him enemies) and
-  compare health and reactions.
+- **Check:** `export/runs/fight.json`: a scout shoots and strikes him. Compare `taken` (damage and
+  flags), `health`, and the `state` and `clip` of each reaction.
 
 ### 11. Weapons and aim
 
 - **Inputs:** MECHANICS.md "Weapons"; `mechanics.weapons`, `weapons` and `weapons[].numbers` in
   `<pack>.json`; [weapon-mode.md](weapon-mode.md), [weapon-kinds.md](weapon-kinds.md),
-  `weapon-*.md`; reference `weapons.rs`, `gun.rs`, `aim.rs`, `lockon.rs`.
+  `weapon-*.md`; reference `arsenal.rs` (the weapon manager, which holds the rest together),
+  `weapons.rs`, `gun.rs`, `aim.rs`, `lockon.rs`, and `driver.rs` for the order of an update.
 - **Build:** weapon mode's movement and aim, firing and heat, each gun's round, missiles and the
-  lock-on, grenades. Rounds leave from the weapon model's barrel nodes (`weapons[].barrel_nodes`).
-- **Check:** runs do not cover the guns yet. `cargo run -p tf2-core --example combat_check` and the
-  Bevy game are the reference meanwhile.
+  lock-on, grenades, the car's gun. Rounds leave from the weapon model's barrel nodes
+  (`weapons[].barrel_nodes`) and fly along the camera's line. What a round shows, sounds and lights
+  is `weapons[].round`, `alt_round` and `muzzle_light`.
+- **Check:** `export/runs/weapons.json` and `fight.json`: compare `aim` and each line's `weapon`
+  (`in_hand`, `heat`, `fired`, `lock`, `projectiles`, `struck`, `sounds`).
 
 ### 12. The special
 
@@ -203,8 +206,9 @@ Each task gives its **inputs** (the export, the formulas, the notes, the referen
   `special-*.md`; reference `special_weapon.rs`, `turret.rs`, `repair.rs`.
 - **Build:** its clocks, what its trigger sets off, and the robot's own: Optimus's shield, the
   weapon specials, the deployed turrets (`turret_file`, `turret_missile_file`), CombatRepair's heal.
-- **Check:** a run pressing `AttackSpecial`: `clip`, `triggers` and timing; the Bevy game for what
-  the special then does.
+- **Check:** `fight.json` ends on `AttackSpecial`: `clip`, `triggers` and timing, and for the
+  weapon specials and turrets the `weapon` block's `fired`, `projectiles` and `struck`. Devastator's
+  pods and vortex are in `<pack>.json`'s `giant` and fire in his runs.
 
 ### 13. The cameras
 
@@ -213,8 +217,8 @@ Each task gives its **inputs** (the export, the formulas, the notes, the referen
 - **Build:** the follow, driving and weapon cameras step by step on the host's camera, the shakes
   (a run's `shakes`) and the pad rumble (`rumbles`). A flyer uses the driving camera with its
   flight flag, on its own camera settings.
-- **Check:** runs do not record the camera yet. `cargo run -p tf2-core --example camera_run` and the
-  Bevy game.
+- **Check:** every run's `camera` (`eye`, `forward`, `fov_degrees`, `roll_degrees`): on foot in
+  `basics.json`, weapon mode and the car in `weapons.json`; a flyer's in its own runs.
 
 ### 14. Sound
 
@@ -222,49 +226,55 @@ Each task gives its **inputs** (the export, the formulas, the notes, the referen
   [sound.md](sound.md); reference `sound.rs`, `chatter.rs`.
 - **Build:** each sound event as the game plays it (its samples, volume, pitch and distance rules)
   on the host's audio, what plays when, the engine's gearbox sound and the battle chatter.
-- **Check:** the clip events from task 1 start the right events; listen against the Bevy game.
+- **Check:** the clip events from task 1 start the right events; the weapons' sound calls are each
+  run line's `weapon.sounds`; listen against the Bevy game.
 
 ### 15. Effects
 
 - **Inputs:** MECHANICS.md "Effects"; `effects` in `<pack>.json`; [particles.md](particles.md);
   reference `particles.rs`, `ribbon.rs`, `skidmark.rs`, `fxstate.rs`.
 - **Build:** what starts each effect (a run's `triggers` and `untriggers` name them), the particle
-  update, its sources, domains and actions, how a particle is drawn, skid marks and ribbons, on the
-  host's particle system.
+  update, its sources, domains and actions, how a particle is drawn, skid marks and ribbons, the
+  car's knocks (`collision_effects`, `collision_sounds`), the weapons' rounds (muzzle flashes,
+  trails, impacts, blasts, lights, debris: `weapons[].round`) and the turbo's screen blur
+  (`turbo_blur`), on the host's particle system and lights.
 - **Check:** the effects start and stop on the updates a run's `triggers` and `untriggers` give;
   look against the Bevy game.
 
 ## Checking a port
 
 - **Reference runs.** `cargo run --release -p rotf-export -- --character <name> --run
-  <script.json>` plays a script of inputs through the reference and writes `<pack>_run.jsonl`: one
-  line per 0.032 s update with his place, velocity, facing, motion mode, control state, clip and
-  tick, and the triggers, shakes, rumbles and hits of that update ([FORMAT.md](FORMAT.md),
-  "Reference runs"). Feed the same inputs to the port, log the same values, and compare update by
+  <script.json>` plays a script of pad inputs through the reference, the whole update as the Bevy
+  game runs it, and writes `<pack>_run.jsonl`: one line per 0.032 s update with his place,
+  velocity, facing, motion mode, control state, clip and tick, the camera, the aim, his weapons
+  (heat, rounds, lock-on, projectiles, hits, sound calls), what hit him, the scouts, and the
+  triggers, shakes, rumbles and melee hits of that update ([FORMAT.md](FORMAT.md), "Reference
+  runs"). Feed the same inputs to the port, log the same values, and compare update by
   update. A host at another rate compares at the same times. The first update that differs is where
   to look; later differences usually follow from it.
 - **Write a script per task.** `export/runs/basics.json` runs, jumps, does the three-hit combo,
-  drives and changes back. A script for one task holds only that task's inputs, for example:
+  drives and changes back; `weapons.json` fires both weapons and the car's gun at scouts that hold
+  their fire; `fight.json` fights a scout that fights back. A script for one task holds only that
+  task's inputs, for example:
 
   ```json
-  { "format_version": 1,
+  { "format_version": 2,
     "arena": { "targets": [ { "pos": [0, 4, 0] } ] },
     "steps": [ { "updates": 10 },
                { "press": ["AttackFast", "Dodge", "AttackVehicle"] },
                { "updates": 40 } ] }
   ```
 
-- **What runs do not cover yet:** the guns and their aim, the cameras, hits taken, Devastator's
-  vortex and pods, levels, and anything fighting back. For those the Bevy game and the windowless
-  examples (`control_check`, `vehicle_check`, `fly_check`, `combat_check`, `melee_check`,
-  `camera_run`) are the reference.
+- **What runs do not cover:** levels (the ground is flat, with boxes), sniping, and camera shake on
+  the view. A run's muzzle can sit a few centimetres from the Bevy game's (FORMAT.md says why).
 - **The Bevy game** ([rotf-robots](https://github.com/HUNK2/rotf-robots)) is the reference you can
   play: `cargo run --release -p bumblebee -- --character <name>`. Its `--shot out.png --after 2`
   captures one frame without playing; its `game/README.md` lists the other capture flags.
 
 ## How sure the reference is
 
-Bumblebee's movement, car, cameras, climbing and strafing were compared with recordings of the
+The reference for a port is the Bevy game and the core it runs: match them. How close they are to
+the original game is a separate question. Bumblebee's movement, car, cameras, climbing and strafing were compared with recordings of the
 original game. Everything else, and every other robot, is checked only by tests and captures. The
 tags in the formulas and the code say which parts are read from the game (`[game]`, `[data]`),
 measured on it (`[trace]`), guessed (`[assumed]`) or placeholders (`[stand-in]`). What the export
@@ -276,7 +286,3 @@ leaves out is in [FORMAT.md](FORMAT.md), "Not in the export", and in each `<pack
 13 distinct robots (7 that drive, 6 that fly) and 5 reskins. `cargo run --release -p rotf-export
 -- --list` prints them with the names `--character` takes. Port Bumblebee first if the choice is
 yours: he is the most complete and the only one compared with recordings.
-
-## Coming
-
-- **More in the reference runs:** the guns and their aim, the cameras, and targets that fight back.

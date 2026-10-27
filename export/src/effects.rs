@@ -15,10 +15,13 @@ use crate::model::Shared;
 use crate::names::Names;
 use crate::run::num;
 
-/// The `effects` block. `pack` is the robot's own pack's data files.
-pub fn effects(data: &CharacterData, pack: &[DataFile], shared: &mut Shared, names: &Names) -> Value {
+/// The `effects` block. `pack` is the robot's own pack's data files; `others` are the shared
+/// files, from which only the templates in `wanted` (those his rounds name) are taken.
+pub fn effects(data: &CharacterData, pack: &[DataFile], others: &[DataFile], wanted: &[u32], shared: &mut Shared, names: &Names) -> Value {
     let mut templates = Map::new();
-    for node in things(pack, "ParticleTemplate") {
+    let own = things(pack, "ParticleTemplate");
+    let more = things(others, "ParticleTemplate").into_iter().filter(|node| node.label().is_some_and(|l| wanted.contains(&l)));
+    for node in own.into_iter().chain(more) {
         let Some(label) = node.label() else { continue };
         let name = names.name(label);
         if templates.contains_key(&name) {
@@ -158,5 +161,37 @@ fn on_model(object: &ObjectDef, model: &str, names: &Names, out: &mut Vec<Value>
             "trigger_speed": num(r.trigger_speed),
             "enabled": r.enabled,
         }));
+    }
+    // The knocks of the model against the world (CollisionFX, CollisionSFX): by how hard and how it
+    // touches (impact, roll, scrape), within its speeds. [data] The rules: `collisionfx.rs`.
+    let filter = |d: &tf2_core::collisionfx::Def| json!({
+        "mask": d.mask,
+        "types": d.types,
+        "min_speed": num(d.min_speed),
+        "max_speed": num(d.max_speed),
+        "align_to_normal": d.align,
+    });
+    let by_kind = |row: [Value; 3]| { let [impact, roll, scrape] = row; json!({"impact": impact, "roll": roll, "scrape": scrape}) };
+    for d in &object.collision_fx {
+        let mut entry = filter(d);
+        entry["kind"] = json!("collision_effects");
+        entry["model"] = json!(model);
+        entry["soft"] = by_kind(d.particles[0].each_ref().map(|t| t.as_ref().map_or(Value::Null, |t| name(t.name))));
+        entry["hard"] = by_kind(d.particles[1].each_ref().map(|t| t.as_ref().map_or(Value::Null, |t| name(t.name))));
+        entry["soft_sounds"] = by_kind(d.sounds[0].map(name));
+        entry["hard_sounds"] = by_kind(d.sounds[1].map(name));
+        out.push(entry);
+    }
+    for d in &object.collision_sounds {
+        let mut entry = filter(&d.filter);
+        entry["kind"] = json!("collision_sounds");
+        entry["model"] = json!(model);
+        let choice = |c: &tf2_core::collisionfx::SoundChoice| if c.id == 0 { Value::Null } else {
+            json!({"event": names.name(c.id), "once": c.once, "attached": c.attached})
+        };
+        for (row, key) in d.choices.iter().zip(["hard", "soft", "bottom"]) {
+            entry[key] = by_kind(row.each_ref().map(choice));
+        }
+        out.push(entry);
     }
 }

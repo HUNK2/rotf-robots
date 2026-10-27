@@ -1,0 +1,22 @@
+{
+  "format_version": 2,
+  "about": "A scout that fights back: he stands in its fire, runs at it, three melee taps, steps back and shoots it down in weapon mode, then the special. Updates are 0.032 s.",
+  "start": { "pos": [0, 0, 0], "yaw_degrees": 0 },
+  "arena": { "scouts": [ { "pos": [0, 25, 0] } ] },
+  "steps": [
+    { "updates": 60 },
+    { "updates": 45, "stick": [0, 1] },
+    { "press": ["AttackFast", "Dodge", "AttackVehicle"] },
+    { "updates": 14 },
+    { "press": ["AttackFast", "Dodge", "AttackVehicle"] },
+    { "updates": 14 },
+    { "press": ["AttackFast", "Dodge", "AttackVehicle"] },
+    { "updates": 30 },
+    { "updates": 70, "stick": [0, -1] },
+    { "updates": 20, "weapon_mode": true },
+    { "updates": 120, "weapon_mode": true, "vehicle": 1.0 },
+    { "updates": 30 },
+    { "press": ["AttackSpecial"] },
+    { "updates": 120 }
+  ]
+}

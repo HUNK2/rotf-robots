@@ -16,6 +16,7 @@ pub mod control;
 pub mod describe;
 pub mod effects;
 pub mod rules;
+pub mod rounds;
 pub mod run;
 pub mod glb;
 pub mod mechanics;
@@ -88,6 +89,11 @@ pub enum PieceKind {
     Missile,
     Turret,
     Melee,
+    /// Devastator's gun pods and his vortex funnel, the boss mission's objects in his pack.
+    Pod,
+    /// A piece a round's blast throws (`debris::DebrisPiece`).
+    Debris,
+    Vortex,
 }
 
 impl PieceKind {
@@ -100,6 +106,9 @@ impl PieceKind {
             PieceKind::Missile => "missile",
             PieceKind::Turret => "turret",
             PieceKind::Melee => "melee",
+            PieceKind::Pod => "pod",
+            PieceKind::Debris => "debris",
+            PieceKind::Vortex => "vortex",
         }
     }
 }
@@ -132,7 +141,37 @@ pub fn export(install: &Path, spec: &Spec, out: &Path) -> Result<Written, String
         sound_events.extend(tf2_core::energon_wave::sound_events(install));
     }
     let mut names = Names::load(install, files, &sound_events);
-    let pieces = pieces(&data, &spec.pack, &names);
+    // Devastator's guns and vortex are the boss mission's objects (`giant::read_pods`,
+    // `giant::read_vortex`), as the Bevy game gives them to him. [assumed port design]
+    let (pods, vortex) = if tf2_core::giant::is_giant(&data) {
+        (tf2_core::giant::read_pods(install), tf2_core::giant::read_vortex(install))
+    } else {
+        (Vec::new(), None)
+    };
+    let vortex_clip = vortex.as_ref().and_then(|v| v.clip.as_ref()).map(|clip| model::ClipOut {
+        name: "Vortex".into(),
+        clip,
+        looping: false,
+        additive: false,
+        attack: None,
+        extras: serde_json::json!({ "length_ticks": describe::num(clip.length) }),
+    });
+    let mut pieces = pieces(&data, &spec.pack, &names);
+    for pod in &pods {
+        if let Some(object) = &pod.object {
+            pieces.push(Piece { file: format!("{}_pod_{}", spec.pack, file_safe(&names.name(pod.def.name))), kind: PieceKind::Pod, object: &object.0, clips: Vec::new(), weapons: vec![pod.def.name] });
+        }
+    }
+    if let Some(v) = &vortex {
+        pieces.push(Piece { file: format!("{}_vortex", spec.pack), kind: PieceKind::Vortex, object: &v.object, clips: vortex_clip.into_iter().collect(), weapons: Vec::new() });
+    }
+    // The pieces the pods' rounds' blasts throw (his own rounds' are `pieces`').
+    for row in pods.iter().flat_map(|p| p.effects.iter()) {
+        for (k, piece) in row.debris.iter().enumerate() {
+            let file = format!("{}_debris_{}_{k}", spec.pack, file_safe(&names.name(row.name)));
+            pieces.push(Piece { file, kind: PieceKind::Debris, object: &piece.object, clips: Vec::new(), weapons: vec![row.name] });
+        }
+    }
     for piece in &pieces {
         for node in &piece.object.nodes {
             names.add(&node.name);
@@ -166,7 +205,32 @@ pub fn export(install: &Path, spec: &Spec, out: &Path) -> Result<Written, String
         Ok(tuning) => mechanics::mechanics(&tuning, &data, &names, pack_files, &spec.attributes),
         Err(e) => serde_json::json!({ "error": e }),
     };
-    json["effects"] = effects::effects(&data, &names.files()[..pack_files], &mut shared, &names);
+    let wanted = rounds::templates(data.weapon_effects.iter().chain(pods.iter().flat_map(|p| p.effects.iter())));
+    json["effects"] = effects::effects(&data, &names.files()[..pack_files], &names.files()[pack_files..], &wanted, &mut shared, &names);
+    // The turbo's screen blur: the level's (`Environment_SpeedBlur`); the Bevy game's arena takes
+    // us_west_town's, and so does this. [data] The passes: `core/src/speedblur.rs`.
+    json["turbo_blur"] = match tf2_core::speedblur::load(install, "us_west_town") {
+        Ok((p, mask)) => {
+            let file = "textures/turbo_blur_mask.png";
+            let saved = texture::rgba(&mask).ok_or_else(|| "the mask did not decode".to_owned()).and_then(|rgba| {
+                std::fs::create_dir_all(out.join("textures")).map_err(|e| e.to_string())?;
+                image::save_buffer(out.join(file), &rgba, mask.width, mask.height, image::ExtendedColorType::Rgba8).map_err(|e| e.to_string())
+            });
+            serde_json::json!({
+                "level": "us_west_town",
+                "blur_amount": describe::num(p.blur_amount),
+                "max_blur": describe::num(p.max_blur),
+                "stretch": describe::num(p.stretch),
+                "blend_in_seconds": describe::num(p.blend_in),
+                "blend_out_seconds": describe::num(p.blend_out),
+                "mask": saved.map_or_else(|e| serde_json::json!({ "error": e }), |()| serde_json::json!(file)),
+            })
+        }
+        Err(e) => serde_json::json!({ "error": e }),
+    };
+    if !pods.is_empty() || vortex.is_some() {
+        json["giant"] = describe::giant(&pods, vortex.as_ref(), &pieces, &names);
+    }
     let json_file = format!("{}.json", spec.pack);
     let attributes = describe::attributes(spec, &names);
     let sounds = sounds::write(install, &sound_events[0], &sound_events[1..], &json, &attributes, out);
@@ -228,6 +292,13 @@ pub fn pieces<'a>(data: &'a CharacterData, pack: &str, names: &Names) -> Vec<Pie
     for melee in &data.melee_weapons {
         if let Some(object) = &melee.object {
             add(&mut out, PieceKind::Melee, melee.name, object, clips_of(None, &melee.clips), vec![melee.name]);
+        }
+    }
+    // The pieces each round's blast throws, in the round's order (`rounds::round`'s `debris`).
+    for row in &data.weapon_effects {
+        for (k, piece) in row.debris.iter().enumerate() {
+            let file = format!("{pack}_debris_{}_{k}", file_safe(&names.name(row.name)));
+            out.push(Piece { file, kind: PieceKind::Debris, object: &piece.object, clips: Vec::new(), weapons: vec![row.name] });
         }
     }
     // A clip of the robot's sets that moves no node of the robot goes with the first object it

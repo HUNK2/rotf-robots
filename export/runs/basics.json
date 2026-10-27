@@ -1,6 +1,6 @@
 {
-  "format_version": 1,
-  "about": "Stand, run north, jump, three melee taps, into the car and drive, then out to a run. Updates are 0.032 s.",
+  "format_version": 2,
+  "about": "The stick is the pad's, up is away from the camera. Stand, run north, jump, three melee taps, into the car and drive, then out to a run. Updates are 0.032 s.",
   "start": { "pos": [0, 0, 0], "yaw_degrees": 0 },
   "steps": [
     { "updates": 15 },

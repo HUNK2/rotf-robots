@@ -18,8 +18,13 @@ use crate::run::num;
 
 /// Every thing of the game's type `kind` in `files`, as the game stores it, each once.
 pub(crate) fn things<'a>(files: &'a [DataFile], kind: &str) -> Vec<Node<'a>> {
-    fn walk<'a>(node: Node<'a>, kind: &str, depth: u32, out: &mut Vec<Node<'a>>) {
-        if depth > 24 {
+    // Each stored object is walked once: the data reaches the same object by many links, and some
+    // lie deep (Grindor's energon cannon's blast template), so the walk is not cut off by depth.
+    // A struct and its first field share a place, so the type is part of what is seen.
+    fn walk<'a>(node: Node<'a>, kind: &str, seen: &mut std::collections::HashSet<(usize, Option<&'a str>)>, out: &mut Vec<Node<'a>>) {
+        if let Some(at) = node.offset()
+            && !seen.insert((at, node.type_name()))
+        {
             return;
         }
         if node.type_name() == Some(kind) {
@@ -27,15 +32,15 @@ pub(crate) fn things<'a>(files: &'a [DataFile], kind: &str) -> Vec<Node<'a>> {
             return;
         }
         for (_, field) in node.fields() {
-            walk(field, kind, depth + 1, out);
+            walk(field, kind, seen, out);
         }
         for item in node.items() {
-            walk(item, kind, depth + 1, out);
+            walk(item, kind, seen, out);
         }
     }
     let mut out = Vec::new();
     for file in files {
-        walk(file.root(), kind, 0, &mut out);
+        walk(file.root(), kind, &mut std::collections::HashSet::new(), &mut out);
     }
     out
 }

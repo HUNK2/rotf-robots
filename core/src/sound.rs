@@ -271,6 +271,11 @@ impl Handle {
     pub fn number(self) -> u64 {
         self.0
     }
+
+    /// A handle with this number, for a sound player outside the mixer (a reference run's).
+    pub fn from_number(number: u64) -> Self {
+        Self(number)
+    }
 }
 
 /// One thing a mixer was told, kept while its `tap` is on, so another mixer can be told the same

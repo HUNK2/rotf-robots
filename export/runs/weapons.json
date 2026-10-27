@@ -1,0 +1,25 @@
+{
+  "format_version": 2,
+  "about": "Weapon mode at two scouts that hold their fire: the gun until it is hot, a switch to the second weapon (Bumblebee's launcher) held to lock on and fire, the aim turned right and back, then into the car and its gun. Updates are 0.032 s.",
+  "start": { "pos": [0, 0, 0], "yaw_degrees": 0 },
+  "arena": {
+    "scouts": [ { "pos": [0, 30, 0] }, { "pos": [2, 45, 0] } ],
+    "passive_scouts": true
+  },
+  "steps": [
+    { "updates": 15 },
+    { "updates": 30, "weapon_mode": true },
+    { "updates": 150, "weapon_mode": true, "vehicle": 1.0 },
+    { "updates": 30, "weapon_mode": true },
+    { "weapon_mode": true, "switch": true },
+    { "updates": 30, "weapon_mode": true },
+    { "updates": 90, "weapon_mode": true, "vehicle": 1.0 },
+    { "updates": 20, "weapon_mode": true },
+    { "updates": 20, "weapon_mode": true, "look": [0.6, 0] },
+    { "updates": 20, "weapon_mode": true, "look": [-0.6, 0] },
+    { "updates": 30 },
+    { "updates": 90, "vehicle": 1.0 },
+    { "updates": 60, "vehicle": 1.0, "hold": ["AttackFast", "Dodge", "AttackVehicle"] },
+    { "updates": 30 }
+  ]
+}
