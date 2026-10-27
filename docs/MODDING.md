@@ -161,5 +161,7 @@ and captures.
 
 - **More in the reference runs.** Runs cover movement, the change of form, the car, flight, melee
   and the clips. Still to come: the guns and their aim, the cameras, and targets that fight back.
-- **Guides per host engine.** How each part of a robot maps onto one engine's own systems, written
-  against that engine's real tools and checked there.
+- **One universal guide, written for agents.** This file is the porting guide for every host
+  engine: there are no per-engine guides. It is to be shaped for an AI agent doing the port --
+  each part of a robot as a task with its inputs (the export, the formulas, the reference), what
+  to build from the host's own systems, and the reference run that checks it.
