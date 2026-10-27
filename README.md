@@ -15,7 +15,8 @@ Unity, Godot, Blender, or a host game. Nothing here uses Bevy or any other engin
 - **`tf2-core`**: the game's file-format readers and the robots' mechanics (movement, the change
   of form, the car, flight, climbing, fighting, weapons, damage, cameras), as a Rust library
   with no engine types.
-- **`docs/`**: the research notes behind both, and `docs/MODDING.md`, the porting guide.
+- **`docs/`**: the research notes behind both, and `docs/MODDING.md`, the porting guide: one for every host
+  engine, written as tasks for the AI agent doing the port.
 
 The Bevy game that plays the robots is [rotf-robots](https://github.com/HUNK2/rotf-robots). It
 uses this repository's `tf2-core` and is the reference for how the robots should play.
