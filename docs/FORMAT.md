@@ -154,6 +154,9 @@ it moves (the vehicle's idle in `DriveSet` goes with the vehicle file). Names re
 | `root_turn_degrees` | array of numbers | *Optional; with `root_travel`.* The root's turn about z at each tick, in degrees, positive toward -x (to the left). |
 | `unkeyed_nodes` | integer | *Optional; vehicle clips only.* How many of the vehicle's nodes this clip has no key for (see `vehicle`). |
 | `unkeyed_node_names` | array of strings | *Optional; with `unkeyed_nodes`.* Those nodes, by name. |
+| `attack_bodies` | array | *Optional; robot clips that switch hitting bodies on.* Each collision body a `attack_body` event can switch on: `node`, `foot` (it is a foot's), `body` (`shape` `sphere` with `radius`, `box` with `half_extents`, or `cylinder` with `radius` and `half_height`) and `frames`: the body's place and turn in the robot's own frame (game axes, metres, feet at the origin) at each whole tick from 0 to the clip's length, as `[x, y, z, qx, qy, qz, qw]`. A port tests these against targets without posing the skeleton. |
+| `attack_nodes` | array | *Optional; with `attack_bodies`.* The nodes the melee weapons hang on: `node` and `frames`, as above. |
+| `blasts` | array | *Optional.* The explosions the clip's `trigger` events set off (the ground punch's), as `mechanics.special.blasts` lists them, with `centres`: the blast's node in the robot's own frame at each whole tick. |
 | `events` | array | The clip's events in tick order (below). |
 
 **Root motion.** The glTF keeps the root in place, as the game draws it. The character's movement
@@ -234,6 +237,9 @@ event's `index` counts.
 | `hangs_on` | string or null | `robot` or `vehicle`: which model has `start_node`. null when neither has it; then the weapon hangs nowhere until a clip's `weapon_attach` names a node. |
 | `barrel_nodes` | array of strings | The weapon model's barrel nodes (`FireDummy`, `FireDummy01`...). A firing's projectiles leave from each in turn. |
 | `barrels` | array of [x, y, z] | The barrel nodes' rest translations as the weapon's data stores them (game axes, metres). The `.glb`'s nodes of the same names are the place to fire from. |
+| `muzzle` | [x, y, z] | The first fire dummy's place (the weapon's `minFireDummyIndex`) in the space of the node the weapon hangs on, game axes, metres: where the reference's runs place `weapon.muzzle`. Taken through that node's transform, scale included (a hand attachment is scaled down). |
+| `explosion`, `alt_explosion` | object or null | The explosion its projectile sets off where it lands (and the alternate projectile's), as `mechanics.special.blasts` lists blasts. null for a weapon without one. |
+| `overheat_key_off` | boolean | The overheat's held sound is keyed off (left to ring out) rather than stopped. |
 | `missile_file` | string or null | The missile's model. |
 | `grenade_file` | string or null | The grenade's model. |
 | `turret_file` | string or null | The thrown turret's model. |
@@ -255,7 +261,7 @@ Templates are particle effects by name, each one in `effects.templates`.
 | Key | Type | What it is |
 | --- | --- | --- |
 | `muzzle_flash` | string or null | The template started at the barrel for each shot. |
-| `impact` | object | What a round does where it lands: `by_surface` (each with `surfaces`, `sound`, `effect`: the entry for a surface is the first that lists it, else the first that lists the default surface) and `scorch` (the surface-damage marks it leaves: `radius`, `frames`, `noise_ratio`, `chaos`, `thresholds`, `softness`). |
+| `impact` | object | What a round does where it lands: `by_surface` (each with `surfaces`, `sound`, `effect`, `effect_flags` as `character_sounds`' presets: the entry for a surface is the first that lists it, else the first that lists the default surface) and `scorch` (the surface-damage marks it leaves: `radius`, `frames`, `noise_ratio`, `chaos`, `thresholds`, `softness`). |
 | `trail` | string or null | The template the projectile trails. |
 | `emitters` | array | The projectile model's own emitters: `node_index` (a node of its missile or grenade file, in order), `bind_position`, `template`, `auto_start`, `use_rotation`, `use_scale`, `delete_when_done`, `instant_kill`, `spawn_chance`. |
 | `flight_lights` | array | Lights the projectile carries for as long as it flies, in its own space (a light, below). |
@@ -426,7 +432,7 @@ Sound events the robot's data names outside its clips. Each is a key of `sounds.
 
 `by_surface` holds `step`, `melee_hit`, `tyre_skid` and `tyre_road` (each a list of presets) and
 `climb` (one such list per limb, in `climb_step`'s order of limbs). A preset is
-an object with `surfaces` (a list of surface names), `sound` (an event or null) and `effect` (an effect or null). The preset for a
+an object with `surfaces` (a list of surface names), `sound` (an event or null), `effect` (an effect or null) and `effect_flags` (bit 0: the effect turns so that its z lies along the surface's normal; bit 8: it is tied to what was struck). The preset for a
 surface is the first that lists it; if none does, it is the first that lists the default surface.
 `note` says this in prose.
 
@@ -437,7 +443,7 @@ The sound events, as FMOD Designer stores them in the game, and the samples they
 | Key | Type | What it is |
 | --- | --- | --- |
 | `folder` | string | `"sounds"`: where the WAVs are. |
-| `files` | array | The event files read: each has `file` and `all_events`. With `all_events`, every event of that file was taken; otherwise only the events the robot names. |
+| `files` | array | The event files read: each has `file` and `all_events`. With `all_events`, every event of that file was taken; otherwise only the events the robot names, and the three the game's code plays by name for every robot (`UI_LOCK_ON`, `UI_LOCKED_ON`, `UI_REGEN_START`). |
 | `shared_level` | string | The level whose copy of the shared events (footsteps, jumps, punches) was taken. Every level has its own copy. |
 | `not_found` | array of strings | Events the clips name that no event file holds. The game plays nothing for them. |
 | `note` | string | Prose. |
@@ -451,6 +457,8 @@ An **event**:
 | --- | --- |
 | `file` | The event file in the install that holds it. |
 | `category` | FMOD's category (`FX/FOLEY/...`). |
+| `category_volume` | The volumes of the categories on its path, multiplied (master first). |
+| `doppler_level` | Its 3D Doppler level (times the system's scale, 0.3: MECHANICS.md "Sound"). |
 | `volume`, `volume_random` | Its volume as FMOD stores it (1 is full) and the random part. |
 | `pitch_octaves`, `pitch_random_octaves` | Its pitch in octaves (0 plays the sample as recorded) and the random part. |
 | `positional` | It is placed in the world (3D). |
@@ -475,6 +483,8 @@ A layer's **sound**:
 | `start`, `length` | Its stretch of the layer's parameter, as shares. |
 | `one_shot` | It plays once rather than looping. |
 | `volume`, `fine_tune`, `fade_in`, `fade_out` | Its own settings. |
+| `fade_curve` | The shape of its fades: 0 smooth step, 1 linear, 2 equal power, 3..7 exponential (MECHANICS.md "Sound"). |
+| `auto_pitch`, `auto_pitch_reference`, `auto_pitch_at_min` | With `auto_pitch`, its pitch follows the layer's parameter `x` (a share): `at_min + (1 - at_min) * x / reference` (the engine's loops rise with the rpm this way). |
 | `definition` | The sound definition's name. *The keys from here on are left out when the definition is missing.* |
 | `play_mode` | How it picks its sample: `sequential`, `random`, `random_no_repeat`, `shuffle`, `shuffle_global`, `programmer` or `unknown`. |
 | `definition_volume`, `definition_volume_floor` | The definition's volume range. |
@@ -489,6 +499,7 @@ A **sample**:
 | `index`, `name` | Its place and name in the bank. |
 | `rate`, `channels`, `frames`, `seconds` | The WAV's format and length. |
 | `loop` | `[start, end]` in frames (end exclusive), or null when the sample does not loop. |
+| `loop_range` | `[start, end]` in frames: what a sound that is not a one-shot plays round, whatever `loop` says (the bank's loop points, or the whole sample without them). |
 
 ### `control`
 
@@ -835,6 +846,7 @@ says where each goes.
 | `bullet_slow_speed_percent` | The caps' scale while slowed by bullets. |
 | `front_axle_length`, `rear_axle_length`, `long_axle_length` | Where the wheels hang: the two axles' widths and the distance between them. |
 | `front_wheel_radius`, `rear_wheel_radius`, `wheel_friction` | The tyres. |
+| `render_wheel_radius`, `min_render_wheel_offset`, `max_render_wheel_offset` | The drawn tyres: in the drive mode a grounded tyre is moved along the body's up by how far it sits from its contact (less this radius), within the two offsets (`008601d0`). |
 | `suspension_length`, `suspension_k`, `suspension_damp`, `suspension_wt_scale` | The springs, and how much the rest length moves with weight transfer. |
 | `mass`, `inertia`, `body_half_size`, `body_offset_z`, `avatar_height` | The body: mass, its inertia about x, y and z, the box's half size, its centre's height above his root, and the height the wheel rays work from. |
 | `angular_vel_damp_x`, `angular_vel_damp_y`, `max_angular_vel` | The body's turning: the damping of pitch and roll each update, and the limits about x, y and z. |
@@ -937,7 +949,7 @@ or null when the pack lacks it.
 | `trigger`, `vehicle_trigger` | The name it sends to himself as a Trigger on foot and in the vehicle form, or null. |
 | `vehicle_clip` | The vehicle model's clip it plays in the vehicle form, or null. |
 | `weapon`, `vehicle_weapon` | Each form's weapon: `weapon` (a name in `weapons`, or null) and `from_animation` (fired by the clip's `special_fire` events, not at the start). |
-| `blasts` | The explosions its triggers set off: `trigger`, `vehicle` (on the vehicle model), `node`, `follows_node`, `delay`, `radius`, `start_scale`, `grow_seconds`, `damage`, `min_damage`, `fall_off`, `ground_pound_override`, `damages_player`, `damages_self`, `damage_flags` (hex), `knock_back_speed`, `knock_back_angle_degrees`, `stun_seconds`, `slow_seconds`, `dot_seconds`, `heat`, `camera_shake` (a name of `cameras.shakes`, or null) and `rumble` (`kind`, `duration`, `strength`, `scale_type`, `distance_near`, `distance_far`, or null). |
+| `blasts` | The explosions its triggers set off: `trigger`, `vehicle` (on the vehicle model), `node`, `follows_node`, `delay`, `radius`, `start_scale`, `grow_seconds`, `damage`, `min_damage`, `fall_off`, `ground_pound_override`, `damages_player`, `damages_self`, `damage_flags` (hex), `knock_back_speed`, `knock_back_angle_degrees`, `stun_seconds`, `slow_seconds`, `dot_seconds`, `heat`, `camera_shake` (a name of `cameras.shakes`, or null), `rumble` (`kind`, `duration`, `strength`, `scale_type`, `distance_near`, `distance_far`, or null) and `centres` (where its node is at rest in the robot's or the car's own frame: where the blast starts when nothing drawn gives the node's place). |
 | `factors`, `multiplayer_factors` | Types 0 and 1: `shield`, `flight_shield` (on the damage he takes), `melee`, `flight_melee` (on the damage his melee does). |
 | `scout_speed_factor` | Type 2: the clips' rate while it runs. |
 | `starscream_special_multiplier` | Type 6: his missiles' damage while it runs. |
@@ -983,19 +995,22 @@ A camera's settings, each as the data names it (angles in degrees, scales in per
 | --- | --- | --- |
 | `templates` | object | Every particle effect of his pack, and every one his weapons' rounds name, by name: `textures` (each element's picture, a path, or null) and `data` (the `ParticleTemplate` as the game stores it, its actions' and domains' `id` as their four letters, its renderers' `Texture` as the path). |
 | `on_models` | array | The things on his models that a name, a clip or the model's start sets off (below). |
+| `materials` | array | The materials the `ribbon` and `skid_mark` entries name (theirs are not the models'), written as the top-level `materials` are, each with `id`: the name those entries give it. |
+| `hard_surfaces` | array | The surfaces (by name, as the sound presets name them) that are hard: a knock on one starts a `collision_effects` entry's `hard` effect, on any other its `soft` one. |
 
-Each entry of `on_models` has `kind` and `model` (`robot` or `vehicle`), and a `node` it rides:
+Each entry of `on_models` has `kind` and `model` (`robot` or `vehicle`; for a `ribbon` also
+`melee` or `projectile`, below), and a `node` it rides:
 
 | `kind` | Fields | What it is |
 | --- | --- | --- |
-| `effect` | `trigger`, `template`, `upright`, `follows_node`, `mesh`, `timeout` (`delete`, `fade` seconds, or null) | An effect started by a Trigger to its name. |
+| `effect` | `trigger`, `template`, `upright`, `follows_node`, `triggerable`, `mesh`, `timeout` (`delete`, `fade` seconds, or null), *optional* `file` | An effect started by a Trigger to its name. With `triggerable`, a Trigger while its effect still runs (started and not stopped) starts nothing. `file` is the glb of the spawner's own object (`<pack>_spawner_<mesh>.glb`, its clip `None.spawn` played once from its start), put at the node upright each time; `timeout` removes it, fading from `fade` seconds on. |
 | `emitter` | `template`, `auto_start`, `use_rotation`, `use_scale`, `delete_when_done`, `spawn_chance` | An effect that runs from the model's start when `auto_start`. |
 | `sound` | `trigger`, `event`, `waits_for_trigger`, `once`, `retrigger`, `key_off_on_untrigger` | A sound player started by a Trigger to its name. |
 | `spawned_sound` | `trigger`, `events` | Sounds played where a spawner puts its object. |
 | `footstep` | `side`, `height` | Where a `footstep` event's ground probe starts: the node less `height`. |
 | `climb_step` | `limb` | The node a `climb_step` event's limb probes from. |
 | `skid_mark` | `tyre`, `point_length`, `point_width`, `colour`, `material` | A tyre's skid mark. No `node`'s place is used: the points go at the tyre's. |
-| `ribbon` | `trigger`, `links`, `material`, `trails`, `subdivisions`, `trigger_speed`, `enabled` | A trail drawn through its `links` (nodes). It has no `node`. |
+| `ribbon` | `trigger`, `links`, `material`, `trails`, `subdivisions`, `trigger_speed`, `enabled` | A trail drawn through its `links` (nodes). It has no `node`. With `model` `melee` it is on a melee weapon's object (`weapon`: its name) and hears the character's messages; with `projectile` it is on the model a weapon's round flies as (`weapon`, `grenade`), and `points` are the links' rest places in that model's space, which the projectile's frame carries. |
 | `collision_effects` | `mask`, `types`, `min_speed`, `max_speed`, `align_to_normal`, `soft`, `hard`, `soft_sounds`, `hard_sounds` | What the model's knocks against the world start (the car's sparks and scrapes): `soft` and `hard` each name a template for `impact`, `roll` and `scrape`, and the sounds likewise. Only a contact between `min_speed` and `max_speed` (metres a second) counts. No `node`: they go where the contact is, turned to its normal when `align_to_normal`. The rules: `collisionfx.rs`. |
 | `collision_sounds` | `mask`, `types`, `min_speed`, `max_speed`, `align_to_normal`, `hard`, `soft`, `bottom` | The knocks' sounds: each of `hard`, `soft` and `bottom` (a knock on the underside) has `impact`, `roll` and `scrape`, each null or `event`, `once` (it plays once, then never again) and `attached` (it follows the model). |
 
@@ -1079,6 +1094,7 @@ Each step holds its input for `updates` updates (1 if left out). Every key is op
 | `switch` | boolean | The weapon switch held (going down switches to the next weapon; Devastator's next pod). |
 | `hold` | list | Buttons held through the step, by `control.buttons` names. |
 | `press` | list | Buttons pressed: down through the step, and going down on its first update only. |
+| `damage` | object | A hit with no attacker, landing before the step's first update (for his side of a hit without an enemy's brain): `amount`, `flags` (the game's damage flags, a number), `direction` (three numbers: the way the hit pushes), `knockback_speed`, `knockback_angle_degrees`, `stun_time`, `slow_time`, `dot_time`. Every key but `flags` may be left out (0). |
 
 The buttons are the game's, not the pad's. One pad button can raise several: the melee button
 raises `AttackFast`, `Dodge` and `AttackVehicle` together, as the game's default binding does, so a
@@ -1110,6 +1126,7 @@ special.
 | `speed` | number | Forward speed along his facing on the ground, metres a second; negative when the car reverses. |
 | `mode` | string | The motion mode moving him: `Stand`, `Move`, `Strafe`, `Jump(<kind>)`, `Drive`, `Fly`, `Unfold`, `Hover`, `Climb`, `Action`. |
 | `gait` | string | What the stick asks for on the ground: `Idle`, `Walk`, `Run`. |
+| `gearbox` | object or null | The car's gearbox behind the engine sound, while he has one: `gear` (from 0), `rpm`, `load` (MECHANICS.md "The gearbox"). |
 | `vehicle` | boolean | In the vehicle form. |
 | `health` | number | His health. |
 | `state`, `overlay` | string or null | The control state and the overlay state, by `control.states` names. |
@@ -1120,7 +1137,8 @@ special.
 | `hits` | list | Hits his melee landed: `target` (a target's or scout's number), `damage`, `point`, `body` (the collision body that hit), `knock_back_speed`, `knock_back_angle_degrees`, `flags`. |
 | `camera` | object | What the camera gives this update, before shakes: `eye`, `forward` (a unit vector), `fov_degrees`, `roll_degrees` (how far the picture leans with the car). The follow, weapon and driving cameras, the flyers' included. |
 | `aim` | three numbers or null | In weapon mode, the unit vector he aims along; null outside it. |
-| `weapon` | object or null | His weapons (null if he has none): `in_hand` (its name), `out` (the gun is out), `heat` (0 to its maximum, 100 for most), `overheated_seconds` (left in an overheat), `fired` (a round left this update), `muzzle` (where his rounds leave, the car gun's first barrel in the car), `lock` (`candidate` and `locked`: the launcher's target numbers or null), `projectiles` (each in flight: `number`, `weapon`, `grenade`, `pos`), `struck` (what his rounds hit this update: `target`, `damage`, `flags`) and `sounds` (what the weapons asked the sound player for this update, in order: `play`, `start` with its `handle` and `heat`, `key_off`, `stop`, `projectile_start`, `projectile_stop`, `projectile_end`, `impact` with its `surface`, `clip_command`). |
+| `melee` | list | Each of his melee weapons (`melee_weapons`) after this update: `shown`, `node` (the node it hangs on), `object` (its model's clip) and `tick`. |
+| `weapon` | object or null | His weapons (null if he has none): `in_hand` (its name), `out` (the gun is out), `arm` (the weapon layer on his arm: `clip`, the index of a `WeaponPartialSet` clip in the set's order, `tick` and `weight`; null when none plays), `heat` (0 to its maximum, 100 for most), `overheated_seconds` (left in an overheat), `fired` (a round left this update), `muzzle` (where his rounds leave, the car gun's first barrel in the car), `lock` (`candidate` and `locked`: the launcher's target numbers or null), `projectiles` (each in flight: `number`, `weapon`, `grenade`, `pos`), `struck` (what his rounds hit this update: `target`, `damage`, `flags`) and `sounds` (what the weapons asked the sound player for this update, in order: `play`, `start` with its `handle` and `heat`, `key_off`, `stop`, `projectile_start`, `projectile_stop`, `projectile_end`, `impact` with its `surface`, `clip_command`). |
 | `taken` | list | What hit him this update: `from` (the scout's number), `damage` (the health it took), `flags`. |
 | `scouts` | list | Each scout after this update: `target`, `pos`, `health`, `dead`. |
 
@@ -1137,13 +1155,65 @@ no camera shake on the view.
 the gun to its overheat, the second weapon's lock-on and missiles, the aim turned, the car's gun)
 and `fight.json` (a scout that fights back, melee, the gun, the special).
 
+## The HUD
+
+`rotf-export --hud <folder>` writes the HUD's pictures and `hud.json`, for an engine that cannot
+play the game's Flash movie (`UI\Flash\hud.gfx`). It needs no `--character`. Everything is placed
+on the game's 1280 x 720 stage; the reference (`core/src/hud.rs`, `core/src/reticle.rs`) scales
+the stage to the screen's height about its middle.
+
+| Key | What it is |
+| --- | --- |
+| `scale` | Pixels of a meter's picture to a stage pixel (2). |
+| `reticle` | The reticle's textures by file name (`reticle.rs` `Texture::file`): `file` (the PNG) and `size`. `reticle.rs` says which quads are drawn where. |
+| `icons` | The meters' icons by their export name (`Ability_Damage` ... by `mechanics.special.icon`, 0 to 4; `SC_Turbo_Icon_1` the turbo's): `file`, `size`. |
+| `meters` | `health`, `turbo` and `ability`, below. |
+
+Each meter has `rect` (where its pictures cover the stage: left, top, right, bottom), `across`,
+`frames` and `check`. A meter's value only slides its bar's mask, so:
+
+- `across` true (the health bar): each of `frames` (one per frame of the bar's `low_loop`, from 1)
+  has `full` and `empty`, and `bar` (where the bar lies on the stage). The meter at value v is
+  `full` left of x = bar left + v x bar width, and `empty` right of it. `sheen` is the bar's sheen,
+  which plays by itself: `ticks` (a picture per tick of its loop) at `rate` a second, drawn over.
+- `across` false (the cooldowns): each of `frames` (one per frame of the meter's animation clip,
+  which `ready` and `activate` play) has `below` and `above`, what lies under and over the bar.
+  `fills` holds the bar alone at the values k / n (n + 1 pictures), drawn between them at the
+  nearest step.
+
+`check` is how close the export laid the pictures back together, against the movie drawn whole,
+at a few values: `worst` (0 to 255) and `share_off` (pixels off by more than 2).
+
+## The environment
+
+`rotf-export --environment <file.json> [--level <level>]` writes a level's look: its `Environment`
+(`core/src/formats/environment.rs`, `docs/shaders.md` "The environment"), the numbers as the game's
+loader keeps them. It needs no `--character`. The level defaults to `us_west_town`, the one the
+reference's test arena borrows (the Bevy game's `world.rs`); the arena lights the robot's own
+surfaces with constants of its own (`surface.rs` `LIGHT`, `AMBIENT_SKY`, `AMBIENT_GROUND`), not
+with this sun and ambient, because the arena is not a level.
+
+| Key | What it is |
+| --- | --- |
+| `level`, `name` | The level, and the environment's name in its zone. |
+| `sun` | `to_sun` (the way to the sun, game space), `colour` and `range` (the light's colour is `colour` times `range`). |
+| `fill_lights` | The other directional lights (`to_light`, `colour`, `range`), which the game sums into the ambient's nine irradiance terms. |
+| `ambient` | The ambient colour, 0 to 1. |
+| `fog` | `colour`, `hotspot`, `range`, `falloff`, `height` (metres). The reference's arena fog is linear from `hotspot` to `range`. |
+| `bloom` | `enabled`, `threshold`, `brightness`, `saturation`, `tint`, `blur`. |
+| `colour_filter` | `brightness`, `contrast`, `saturation`, `lightness` (127.5 is the middle of each), `tint`, `shadows`, `midtones`, `highlights` (each r, g, b, saturation), and `lut` (the colour lookup's source path, as the data names it; the picture is not written). |
+| `iris` | The exposure that follows the picture: `enabled`, `target`, `min`, `max`, `bloom_gain`, `speed`, `responsiveness`, `lum_power`, `gate`. |
+| `shadow` | The sun's shadow: `range` (metres) and `map_size`. |
+| `ssao`, `dof` | `enabled` and their numbers (`dof.values`: blur amount, max blur, near and far focus, near and far falloff, kernel tap). |
+
 ## Not in the export
 
 The game has these, and the export does not. `not_exported` lists them too.
 
 - The voice lines the chatter names that its bank lacks (six of Bumblebee's 115).
 - Sound events the game's data names that no sound file holds (Jetfire's `ANIM_JETFR_BOMB_DROP_RINGOFF`).
-- The level's own: its reverb, its sun. (The turbo's screen blur is in `turbo_blur`.)
+- The level's own reverb. (Its sun, fog and colour filter are in `--environment`; the turbo's
+  screen blur is in `turbo_blur`.)
 - The clip fields the game reads but the port does not (`chance`, `minWalkSpd` and `maxWalkSpd`,
   `minStrafeAng` and `maxStrafeAng`, `walkFlags`, `group_type`): how they pick between clips is
   not read.
@@ -1180,3 +1250,19 @@ The game has these, and the export does not. `not_exported` lists them too.
 - **1**, added (2026-10-27): `mechanics.special`, `cameras` and `sound`, the camera constants,
   `effects`, `sounds.voices` and each event's `rolloff`, with MECHANICS.md's "The special", "The
   cameras", "Sound" and "Effects".
+- **1**, changed (2026-10-27): in `effects.templates`, each element's `localspace` and its
+  renderer's `BlendMode`, `UVBlending`, `PlaceInWorld` and `Shape` are the stored numbers (they
+  were written as names from an unrelated list, such as `"true"` or `"FULL_BODY_ANIM_CHANNEL"`).
+  Added: `effect_flags` on every surface preset, and `triggerable` on the `effect` entries of
+  `effects.on_models`.
+- **1**, added (2026-10-28): `effects.materials` (the trails' and skid marks' materials), and
+  `ribbon` entries for the melee weapons (`model` `melee`) and the projectiles (`model`
+  `projectile`, with `weapon`, `grenade` and `points`).
+- **1**, added (2026-10-28): `effects.hard_surfaces`; `file` on `effect` entries and the
+  `<pack>_spawner_<mesh>.glb` files; `rotf-export --hud` with its `hud.json`
+  ("The HUD").
+- **1**, added (2026-10-28): `rotf-export --environment` ("The environment"). Changed: the
+  material parameters the reference's surface shaders read are written by name
+  (`specular_color`, `specular_power`, `reflection_color`, `paint_color0`, `paint_pow1`,
+  `normal_map_heightscale`, the textures' `_x` `_y` `_z` `_t` placements...; `docs/shaders.md`
+  has what each does), where they were `#` and the hash before.

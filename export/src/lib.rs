@@ -15,6 +15,8 @@
 pub mod control;
 pub mod describe;
 pub mod effects;
+pub mod environment;
+pub mod hud;
 pub mod rules;
 pub mod rounds;
 pub mod run;
@@ -94,6 +96,8 @@ pub enum PieceKind {
     /// A piece a round's blast throws (`debris::DebrisPiece`).
     Debris,
     Vortex,
+    /// An effect spawner's own object (the punches' shock ring, a special's dome).
+    Spawner,
 }
 
 impl PieceKind {
@@ -109,6 +113,7 @@ impl PieceKind {
             PieceKind::Pod => "pod",
             PieceKind::Debris => "debris",
             PieceKind::Vortex => "vortex",
+            PieceKind::Spawner => "spawner",
         }
     }
 }
@@ -207,6 +212,22 @@ pub fn export(install: &Path, spec: &Spec, out: &Path) -> Result<Written, String
     };
     let wanted = rounds::templates(data.weapon_effects.iter().chain(pods.iter().flat_map(|p| p.effects.iter())));
     json["effects"] = effects::effects(&data, &names.files()[..pack_files], &names.files()[pack_files..], &wanted, &mut shared, &names);
+    // An effect whose spawner's object was written names its glb.
+    if let Some(entries) = json["effects"]["on_models"].as_array_mut() {
+        for entry in entries.iter_mut().filter(|e| e["kind"] == "effect") {
+            let Some(mesh) = entry["mesh"].as_str() else { continue };
+            let file = spawner_file(&spec.pack, mesh);
+            if pieces.iter().any(|p| p.kind == PieceKind::Spawner && p.file == file) {
+                entry["file"] = serde_json::json!(format!("{file}.glb"));
+            }
+        }
+    }
+    // The hard surfaces: a knock on one starts the `hard` collision effect, else the `soft`. [data]
+    if let Ok(tuning) = run::tuning(install, spec) {
+        let mut hard: Vec<String> = tuning.surface_hardness.iter().filter(|(_, hard)| **hard).map(|(id, _)| names.name(*id)).collect();
+        hard.sort();
+        json["effects"]["hard_surfaces"] = serde_json::json!(hard);
+    }
     // The turbo's screen blur: the level's (`Environment_SpeedBlur`); the Bevy game's arena takes
     // us_west_town's, and so does this. [data] The passes: `core/src/speedblur.rs`.
     json["turbo_blur"] = match tf2_core::speedblur::load(install, "us_west_town") {
@@ -294,6 +315,27 @@ pub fn pieces<'a>(data: &'a CharacterData, pack: &str, names: &Names) -> Vec<Pie
             add(&mut out, PieceKind::Melee, melee.name, object, clips_of(None, &melee.clips), vec![melee.name]);
         }
     }
+    // Each effect spawner's own object, once per mesh, with the clip it plays from its start as
+    // `None.spawn`: `<pack>_spawner_<mesh>`, which the `effect` entries name in `file`.
+    let mut spawners: Vec<&str> = Vec::new();
+    for object in std::iter::once(&data.robot).chain(&data.vehicle) {
+        for e in &object.effects {
+            let (Some(proxy), Some(mesh)) = (e.proxy.as_deref(), e.mesh.as_deref()) else { continue };
+            if proxy.renders.is_empty() || spawners.contains(&mesh) {
+                continue;
+            }
+            spawners.push(mesh);
+            let clips = e.clip.as_ref().map(|clip| ClipOut {
+                name: "None.spawn".to_owned(),
+                clip,
+                looping: false,
+                additive: false,
+                attack: None,
+                extras: serde_json::json!({ "rotf_id": "spawn", "looping": false, "speed": 1, "length_ticks": describe::num(clip.length) }),
+            });
+            out.push(Piece { file: spawner_file(pack, mesh), kind: PieceKind::Spawner, object: proxy, clips: clips.into_iter().collect(), weapons: Vec::new() });
+        }
+    }
     // The pieces each round's blast throws, in the round's order (`rounds::round`'s `debris`).
     for row in &data.weapon_effects {
         for (k, piece) in row.debris.iter().enumerate() {
@@ -311,6 +353,11 @@ pub fn pieces<'a>(data: &'a CharacterData, pack: &str, names: &Names) -> Vec<Pie
         out[to].clips.push(clip);
     }
     out
+}
+
+/// The glb of an effect spawner's object, by its mesh's name (`<file>.<mesh>`).
+pub fn spawner_file(pack: &str, mesh: &str) -> String {
+    format!("{pack}_spawner_{}", file_safe(mesh))
 }
 
 fn file_safe(name: &str) -> String {
@@ -363,7 +410,8 @@ fn readme(spec: &Spec) -> String {
          \x20                    animation named <set>.<id> (glTF 2.0)\n\
          {pack}_vehicle.glb    the vehicle form and its own clips (VehicleModel.<id>)\n\
          {pack}_weapon_*.glb   each weapon's model and its clips; _missile_, _grenade_, _turret_\n\
-         \x20                    the projectile and thrown models; _melee_ the melee weapons\n\
+         \x20                    the projectile and thrown models; _melee_ the melee weapons;\n\
+         \x20                    _spawner_ the effects' own objects (a punch's shock ring)\n\
          {pack}.json           what glTF cannot hold: every clip's events (sounds, effects, the\n\
          \x20                    change of form, weapon moves, attack windows), its attack and its\n\
          \x20                    root travel; where each weapon hangs; render sets; the collision\n\

@@ -10,10 +10,12 @@ use tf2_core::formats::hash::crc32;
 use tf2_core::formats::lxb::DataFile;
 use tf2_core::formats::pack::{self, Pack};
 
-/// The material parameters the port's code reads by name (`game/src/assets.rs`, `surface.rs`): the
-/// names the JSON can give a material's parameters. The others are written by hash.
-pub const MATERIAL_PARAMETERS: [&str; 22] = [
+/// The material parameters the port's code reads by name (`game/src/assets.rs`, `surface.rs`,
+/// `fx.rs`): the names the JSON can give a material's parameters. The others are written by hash.
+pub const MATERIAL_PARAMETERS: [&str; 56] = [
+    "alphaboost",
     "alpharef",
+    "ambient_boost",
     "blendmode",
     "bloom_texture",
     "cullmode",
@@ -21,20 +23,52 @@ pub const MATERIAL_PARAMETERS: [&str; 22] = [
     "diffuse_color",
     "diffuse_mix_texture",
     "diffuse_texture1_opacity",
+    "diffuse_texture1_t",
     "diffuse_texture1_texture",
+    "diffuse_texture1_x",
+    "diffuse_texture1_y",
+    "diffuse_texture1_z",
+    "diffuse_texture2_opacity",
     "diffuse_texture2_texture",
     "diffuse_texture3_texture",
+    "distortion_distance",
     "edge_color",
+    "edge_power",
     "fresnel_texture",
+    "intransfalloff",
+    "motion_distort",
+    "motion_speed",
+    "motion_strength",
     "normal_map_dxt5_nm",
+    "normal_map_heightscale",
+    "normal_map_t",
     "normal_map_texture",
     "normal_map_texture0",
     "normal_map_texture1",
     "normal_map_texture2",
     "normal_map_texture3",
+    "normal_map_x",
+    "normal_map_y",
+    "normal_map_z",
     "normal_mapb_texture",
+    "outtransfalloff",
+    "paint_color0",
+    "paint_color1",
+    "paint_color2",
+    "paint_pow1",
+    "paint_pow2",
+    "reflection_color",
+    "reflection_falloff",
+    "reflection_falloffpower",
     "reflectionmap_texture",
+    "specular_color",
+    "specular_map_t",
     "specular_map_texture",
+    "specular_map_x",
+    "specular_map_y",
+    "specular_map_z",
+    "specular_power",
+    "zfeather_distance",
 ];
 
 pub struct Names {

@@ -44,12 +44,16 @@ pub fn character(install: &Path, spec: &Spec, data: &CharacterData, pieces: &[Pi
     let vehicle_file = pieces.iter().find(|p| p.kind == PieceKind::Vehicle).map(|p| format!("{}.glb", p.file));
     let held = |weapon: u32| file_of(PieceKind::Weapon, weapon).or_else(|| file_of(PieceKind::Melee, weapon));
     let mut clips: Vec<Value> = Vec::new();
+    let robot_rig = tf2_core::pose::Rig::new(&data.robot);
     for piece in pieces {
         let file = format!("{}.glb", piece.file);
         let nodes: HashSet<&str> = piece.object.nodes.iter().map(|n| n.name.as_str()).collect();
         let left_out = written.iter().find(|(f, _)| *f == file).map_or(&[][..], |(_, s)| &s.other_model_clips[..]);
         for clip in &piece.clips {
             let mut entry = clip_entry(clip, &file, &nodes, !left_out.contains(&clip.name), vehicle_file.as_deref(), &held, names);
+            if piece.kind == PieceKind::Robot {
+                attack_bodies_entry(&mut entry, &robot_rig, &data.robot, clip, names);
+            }
             // The vehicle's animator leaves a node its clip has no channel for where the clip
             // before left it [game 00544e00]; glTF puts it back at rest. (Starscream's `V_Idle`
             // leaves 16 of the jet's nodes unkeyed: alone, it shows the jet folded small.)
@@ -99,11 +103,16 @@ pub fn character(install: &Path, spec: &Spec, data: &CharacterData, pieces: &[Pi
                 "hangs_on": hangs,
                 "barrel_nodes": (0..def.barrel_count).filter_map(|k| FIRE_DUMMIES.get(def.first_barrel + k)).map(|&h| names.name(h)).collect::<Vec<_>>(),
                 "barrels": def.barrels[..def.barrel_count.min(3)].iter().map(|b| nums(&b.to_array())).collect::<Vec<_>>(),
+                "muzzle": nums(&def.muzzle.to_array()),
                 "missile_file": file_of(PieceKind::Missile, def.name),
                 "grenade_file": file_of(PieceKind::Grenade, def.name),
                 "turret_file": file_of(PieceKind::Turret, def.name),
                 "turret_missile_file": file_of(PieceKind::Missile, tf2_core::character::turret_gun_key(def.name)),
                 "always_appear": def.always_appear,
+                // The explosion its round makes where it ends (a missile's, a grenade's), and the
+                // alternate round's (`chargeMaxProjectileObj`), with no trigger, node or rumble.
+                "explosion": def.explosion.as_ref().map_or(Value::Null, |e| crate::mechanics::explosion(e, names)),
+                "alt_explosion": def.alt_explosion.as_ref().filter(|_| def.alt_projectile).map_or(Value::Null, |e| crate::mechanics::explosion(e, names)),
                 "object_clips": named(&[
                     ("idle", def.idle_clip),
                     ("exit", def.exit_clip),
@@ -124,6 +133,9 @@ pub fn character(install: &Path, spec: &Spec, data: &CharacterData, pieces: &[Pi
                     ("charge_full", def.charge_full_sound),
                     ("charge_fire", def.charge_fire_sound),
                 ]),
+                // As the overheat lock runs out its kept sound is keyed off (true) or stopped
+                // with its fade (`fireOverHeatKeyOff`).
+                "overheat_key_off": def.overheat_key_off,
                 "numbers_from": names.name(def.attribute),
                 "numbers": root_by_hash(names, def.attribute).map_or(Value::Null, |n| value(n, names, 0)),
                 "round": crate::rounds::row(data, def.name).map(|r| crate::rounds::round(r, pieces, names)),
@@ -270,6 +282,7 @@ fn character_sounds(data: &CharacterData, names: &Names) -> Value {
                     "surfaces": info.materials.iter().map(|&m| names.name(m)).collect::<Vec<_>>(),
                     "sound": event(info.sound),
                     "effect": info.effect.map(|e| names.name(e)),
+                    "effect_flags": info.effect_flags,
                 })
             })
             .collect::<Vec<_>>()
@@ -337,6 +350,42 @@ fn clip_entry(clip: &ClipOut, file: &str, nodes: &HashSet<&str>, in_file: bool, 
     }
     entry.insert("events".into(), Value::Array(events(clip.clip, nodes, vehicle_file, held, names)));
     Value::Object(entry)
+}
+
+/// The bodies the clip's `attack_hit` events switch on and the nodes they name, posed tick by
+/// tick by the clip alone in the robot's own frame (`melee::attack_bodies_and_mounts`, what the
+/// reference's hit test uses), and the explosions its `trigger` events set off with their node's
+/// path (`melee::clip_blasts`: the ground punch's blasts). A frame is the place (x, y, z) and the
+/// turn (x, y, z, w) at each whole tick from 0 to the clip's length.
+fn attack_bodies_entry(entry: &mut Value, rig: &tf2_core::pose::Rig, robot: &tf2_core::formats::scene::ObjectDef, clip: &ClipOut, names: &Names) {
+    use tf2_core::formats::scene::Shape;
+    let frame = |a: &glam::Affine3A| {
+        let (_, turn, place) = a.to_scale_rotation_translation();
+        Value::Array([place.x, place.y, place.z, turn.x, turn.y, turn.z, turn.w].map(fine).to_vec())
+    };
+    let (bodies, mounts) = tf2_core::melee::attack_bodies_and_mounts(rig, robot, clip.clip, clip.looping);
+    if !mounts.is_empty() {
+        entry["attack_bodies"] = Value::Array(bodies.iter().map(|b| {
+            let shape = match b.frames.first().map(|f| f.shape) {
+                Some(Shape::Sphere { radius }) => json!({ "shape": "sphere", "radius": num(radius) }),
+                Some(Shape::Cuboid { half }) => json!({ "shape": "box", "half_extents": nums(&half) }),
+                Some(Shape::Cylinder { radius, half_height }) => json!({ "shape": "cylinder", "radius": num(radius), "half_height": num(half_height) }),
+                None => Value::Null,
+            };
+            json!({ "node": names.name(b.node), "foot": b.foot, "body": shape, "frames": b.frames.iter().map(|f| frame(&f.at)).collect::<Vec<_>>() })
+        }).collect());
+        entry["attack_nodes"] = Value::Array(mounts.iter().map(|m| {
+            json!({ "node": names.name(m.node), "frames": m.frames.iter().map(frame).collect::<Vec<_>>() })
+        }).collect());
+    }
+    let blasts = tf2_core::melee::clip_blasts(rig, robot, clip.clip, clip.looping);
+    if !blasts.is_empty() {
+        entry["blasts"] = Value::Array(blasts.iter().map(|b| {
+            let mut v = crate::mechanics::blast(b, names);
+            v["centres"] = Value::Array(b.centres.iter().map(|c| Value::Array(c.to_array().map(fine).to_vec())).collect());
+            v
+        }).collect());
+    }
 }
 
 fn attack_entry(a: &AttackRef) -> Value {
@@ -480,8 +529,13 @@ pub fn events(clip: &Clip, nodes: &HashSet<&str>, vehicle_file: Option<&str>, he
 /// parameter names its file under `textures/` (written here if the glTF did not need it: the
 /// specular and reflection maps).
 fn materials(shared: &mut Shared, names: &Names) -> Vec<Value> {
-    let library = shared.library;
     let ids = shared.materials.clone();
+    materials_of(&ids, shared, names)
+}
+
+/// The materials `ids` name, written as `materials` writes them.
+pub fn materials_of(ids: &[u32], shared: &mut Shared, names: &Names) -> Vec<Value> {
+    let library = shared.library;
     ids.iter()
         .filter_map(|id| library.materials.get(id))
         .map(|m| {

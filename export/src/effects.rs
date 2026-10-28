@@ -32,6 +32,22 @@ pub fn effects(data: &CharacterData, pack: &[DataFile], others: &[DataFile], wan
             .unwrap_or_default();
         let mut data = value(node, names, 0);
         codes(&mut data);
+        // These small whole numbers are stored as enums whose type the generic writer names from an
+        // unrelated table ("true", "FULL_BODY_ANIM_CHANNEL"): written as the stored numbers, which
+        // are what the reference reads (`Node::int`).
+        if let (Some(elements), Some(nodes)) = (data["elements"].as_array_mut(), node.get("elements")) {
+            for (element, e) in elements.iter_mut().zip(nodes.items()) {
+                if let Some(v) = e.get("localspace").and_then(|v| v.int()) {
+                    element["localspace"] = json!(v);
+                }
+                let Some(r) = e.get("renderer") else { continue };
+                for field in ["BlendMode", "UVBlending", "PlaceInWorld", "Shape"] {
+                    if let Some(v) = r.get(field).and_then(|v| v.int()) {
+                        element["renderer"][field] = json!(v);
+                    }
+                }
+            }
+        }
         // The renderer's `Texture` is the asset's id and build path as stored: the written file instead.
         if let Some(elements) = data["elements"].as_array_mut() {
             for (element, texture) in elements.iter_mut().zip(&textures) {
@@ -47,7 +63,55 @@ pub fn effects(data: &CharacterData, pack: &[DataFile], others: &[DataFile], wan
     if let Some(vehicle) = &data.vehicle {
         on_model(vehicle, "vehicle", names, &mut on_models);
     }
-    json!({ "templates": templates, "on_models": on_models })
+    // The melee weapons' trails: the character's trail messages reach the weapon's object too
+    // (the Bevy game's trails.rs). [game 00723393]
+    for melee in &data.melee_weapons {
+        let Some(object) = &melee.object else { continue };
+        for mut entry in ribbons(object, names) {
+            entry["model"] = json!("melee");
+            entry["weapon"] = json!(names.name(melee.name));
+            on_models.push(entry);
+        }
+    }
+    // The trails of the projectiles in flight, by the weapon whose round flies as that model: the
+    // links' rest places in the projectile's own space, which its frame carries (trails.rs
+    // `run_projectiles`). [data]
+    for (i, weapon) in data.weapons.iter().enumerate() {
+        for (object, grenade) in [(&data.missile_objects[i], false), (&data.grenade_objects[i], true)] {
+            let Some(object) = object else { continue };
+            for (mut entry, r) in ribbons(object, names).into_iter().zip(&object.ribbons) {
+                let points: Option<Vec<Value>> = r.links.iter().map(|l| object.nodes.iter().find(|n| n.name_hash == *l).map(|n| json!(n.bind[3].map(num)))).collect();
+                entry["model"] = json!("projectile");
+                entry["weapon"] = json!(names.name(weapon.name));
+                entry["grenade"] = json!(grenade);
+                entry["points"] = points.map_or(Value::Null, Value::Array);
+                on_models.push(entry);
+            }
+        }
+    }
+    // The materials the trails and skid marks draw with (their own, not the models').
+    let mut ids: Vec<u32> = Vec::new();
+    let objects = std::iter::once(&data.robot)
+        .chain(&data.vehicle)
+        .chain(data.melee_weapons.iter().filter_map(|m| m.object.as_ref()))
+        .chain(data.missile_objects.iter().flatten())
+        .chain(data.grenade_objects.iter().flatten());
+    for object in objects {
+        for id in object.ribbons.iter().map(|r| r.material).chain(object.skid_marks.iter().map(|m| m.material)) {
+            if !ids.contains(&id) {
+                ids.push(id);
+            }
+        }
+    }
+    // Each keyed by the name the entries' `material` gives it (its hash when the name is not known).
+    let materials: Vec<Value> = ids
+        .iter()
+        .flat_map(|&id| crate::describe::materials_of(&[id], shared, names).into_iter().map(move |mut m| {
+            m["id"] = json!(names.name(id));
+            m
+        }))
+        .collect();
+    json!({ "templates": templates, "on_models": on_models, "materials": materials })
 }
 
 /// An action's or a domain's `id` is four letters stored as a number (`Brst`, `SrcA`, `1dBx`): written
@@ -68,6 +132,27 @@ fn codes(v: &mut Value) {
     }
 }
 
+/// An object's `RibbonTrail`s, without `model`.
+fn ribbons(object: &ObjectDef, names: &Names) -> Vec<Value> {
+    let name = |hash: u32| if hash == 0 { Value::Null } else { json!(names.name(hash)) };
+    object
+        .ribbons
+        .iter()
+        .map(|r| {
+            json!({
+                "kind": "ribbon",
+                "trigger": name(r.name),
+                "links": r.links.iter().map(|l| names.name(*l)).collect::<Vec<_>>(),
+                "material": name(r.material),
+                "trails": r.trails,
+                "subdivisions": r.subdivisions,
+                "trigger_speed": num(r.trigger_speed),
+                "enabled": r.enabled,
+            })
+        })
+        .collect()
+}
+
 /// The things of one model that answer to a name, or run by themselves.
 fn on_model(object: &ObjectDef, model: &str, names: &Names, out: &mut Vec<Value>) {
     let node = |index: usize| object.nodes.get(index).map_or(Value::Null, |n| json!(n.name));
@@ -81,6 +166,7 @@ fn on_model(object: &ObjectDef, model: &str, names: &Names, out: &mut Vec<Value>
             "template": name(e.template.name),
             "upright": e.upright,
             "follows_node": e.attach,
+            "triggerable": e.triggerable,
             "mesh": e.mesh,
             "timeout": e.timeout.map(|(delete, fade)| json!({ "delete": num(delete), "fade": num(fade) })),
         }));
@@ -149,18 +235,9 @@ fn on_model(object: &ObjectDef, model: &str, names: &Names, out: &mut Vec<Value>
             "limb": tf2_core::formats::anim::CLIMB_SIDES.iter().position(|s| s == side).map_or(Value::Null, |i| json!(crate::describe::LIMBS[i])),
         }));
     }
-    for r in &object.ribbons {
-        out.push(json!({
-            "kind": "ribbon",
-            "model": model,
-            "trigger": name(r.name),
-            "links": r.links.iter().map(|l| names.name(*l)).collect::<Vec<_>>(),
-            "material": name(r.material),
-            "trails": r.trails,
-            "subdivisions": r.subdivisions,
-            "trigger_speed": num(r.trigger_speed),
-            "enabled": r.enabled,
-        }));
+    for mut entry in ribbons(object, names) {
+        entry["model"] = json!(model);
+        out.push(entry);
     }
     // The knocks of the model against the world (CollisionFX, CollisionSFX): by how hard and how it
     // touches (impact, roll, scrape), within its speeds. [data] The rules: `collisionfx.rs`.

@@ -31,6 +31,8 @@ struct Source {
     file: String,
     dir: PathBuf,
     fev: Fev,
+    /// Each event's header words beyond what `Fev` keeps (its Doppler level), in event order.
+    heads: Vec<tf2_core::sound::EventHead>,
     all: bool,
 }
 
@@ -51,19 +53,26 @@ pub const SHARED_LEVEL: &str = r"levels\us_city_00\eng\mission.fev";
 /// The bank of the battle chatter's voice lines.
 pub const CHATTER_BANK: &str = r"audio\eng\CHATTER.fsb";
 
+/// Events the game's code plays by name for every robot, which no data names: the launcher's
+/// lock-on cues (`lockon.rs`) and the health starting to come back (MECHANICS.md "Sound").
+/// [game]
+pub const CODE_NAMED: [&str; 3] = ["UI_LOCK_ON", "UI_LOCKED_ON", "UI_REGEN_START"];
+
 /// Writes the sounds of `own` (the character's .fev) and the events of `shared` that the
-/// character's JSON or its attributes name.
+/// character's JSON or its attributes name, or the code does (`CODE_NAMED`).
 pub fn write(install: &Path, own: &Path, shared: &[PathBuf], character: &Value, attributes: &Value, out: &Path) -> Written {
     let mut named = BTreeSet::new();
     strings(character, &mut named);
     strings(attributes, &mut named);
+    named.extend(CODE_NAMED.iter().map(|s| s.to_string()));
     let mut problems = Vec::new();
     let mut sources = Vec::new();
     for (path, all) in std::iter::once((own, true)).chain(shared.iter().map(|p| (p.as_path(), false))) {
-        match std::fs::read(path).map_err(|e| e.to_string()).and_then(|d| Fev::parse(&d)) {
-            Ok(fev) => sources.push(Source {
+        match std::fs::read(path).map_err(|e| e.to_string()).and_then(|d| Fev::parse(&d).map(|fev| (d, fev))) {
+            Ok((data, fev)) => sources.push(Source {
                 file: relative(install, path),
                 dir: path.parent().map_or_else(PathBuf::new, Path::to_path_buf),
+                heads: tf2_core::sound::event_heads(&data, &fev),
                 fev,
                 all,
             }),
@@ -153,9 +162,18 @@ impl Writer<'_> {
                 json!({ "parameter": layer.parameter.and_then(parameter), "sounds": sounds, "envelopes": envelopes })
             })
             .collect();
+        // [game] the volumes of the categories on the event's path multiply in (master, then each
+        // step down), as `Mixer::render` takes them.
+        let under = |path: &str| path.is_empty() || event.category == path
+            || event.category.strip_prefix(path).is_some_and(|tail| tail.starts_with('/'));
+        let category_volume: f32 = source.fev.categories.iter().filter(|c| under(&c.path)).map(|c| c.volume).product();
+        let index = source.fev.events.iter().position(|e| std::ptr::eq(e, event));
+        let head = index.and_then(|i| source.heads.get(i)).copied().unwrap_or_default();
         json!({
             "file": source.file,
             "category": event.category,
+            "category_volume": num(category_volume),
+            "doppler_level": num(head.doppler),
             "volume": num(event.volume),
             "volume_random": num(event.volume_randomisation),
             "pitch_octaves": num(event.pitch * 4.0),
@@ -193,6 +211,10 @@ impl Writer<'_> {
             "fine_tune": num(sound.fine_tune),
             "fade_in": num(sound.fade_in),
             "fade_out": num(sound.fade_out),
+            "fade_curve": sound.fade_curve,
+            "auto_pitch": sound.auto_pitch,
+            "auto_pitch_reference": num(sound.auto_pitch_reference),
+            "auto_pitch_at_min": num(sound.auto_pitch_at_min),
         });
         let Some(def) = source.fev.definitions.get(sound.definition) else {
             self.problems.push(format!("{}: a sound names definition {} of {}", source.file, sound.definition, source.fev.definitions.len()));
@@ -276,6 +298,9 @@ impl Writer<'_> {
                 "frames": frames,
                 "seconds": num(frames as f32 / sample.rate.max(1) as f32),
                 "loop": if sample.looping { json!([sample.loop_range.start, sample.loop_range.end]) } else { Value::Null },
+                // What a sound that is not a one-shot plays round, whatever the sample's own loop
+                // flag: the bank's loop points, or the whole sample without them (`Mixer::render`).
+                "loop_range": [sample.loop_range.start, sample.loop_range.end],
             }),
         );
         Some(file)

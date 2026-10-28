@@ -63,7 +63,7 @@ impl Default for EventHead {
 
 /// Finds each event's header in the file's bytes (`u32 kind | u32 length | name\0 | 33
 /// words`) and reads the words `EventHead` wants. An event not found keeps the defaults.
-fn event_heads(data: &[u8], fev: &Fev) -> Vec<EventHead> {
+pub fn event_heads(data: &[u8], fev: &Fev) -> Vec<EventHead> {
     let word = |at: usize| data.get(at..at + 4).map(|b| u32::from_le_bytes(b.try_into().unwrap()));
     let mut from = 0;
     fev.events.iter().map(|event| {

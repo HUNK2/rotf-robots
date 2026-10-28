@@ -93,6 +93,7 @@ pub fn impact(p: &ImpactPreset, names: &Names) -> Value {
             "surfaces": info.materials.iter().map(|&m| names.name(m)).collect::<Vec<_>>(),
             "sound": (info.sound != 0).then(|| names.name(info.sound)),
             "effect": info.effect.map(|e| names.name(e)),
+            "effect_flags": info.effect_flags,
         })).collect::<Vec<_>>(),
         "scorch": p.ssd.iter().map(scorch).collect::<Vec<_>>(),
     })

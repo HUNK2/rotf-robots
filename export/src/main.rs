@@ -4,6 +4,14 @@
 //!   cargo run --release -p rotf-export -- --character <name> [--out <folder>] [--game-dir <install>]
 //!   cargo run --release -p rotf-export -- --all [--out <folder>] [--game-dir <install>]
 //!   cargo run --release -p rotf-export -- --character <name> --run <script.json> [--out <file>]
+//!   cargo run --release -p rotf-export -- --hud <folder>
+//!   cargo run --release -p rotf-export -- --environment <file.json> [--level <level>]
+//!
+//! `--environment` writes a level's look (its sun, ambient, fog, bloom, colour filter; `docs/FORMAT.md`,
+//! "The environment"); the level defaults to the one the reference's test arena borrows.
+//!
+//! `--hud` writes the HUD's pictures (the reticle's textures, the meters cut as `hud.json` says;
+//! `docs/FORMAT.md`, "The HUD").
 //!
 //! `--run` plays the script through the reference and writes one JSON line per update
 //! (`docs/FORMAT.md`, "Reference runs"); `--out` defaults to `<pack>_run.jsonl`.
@@ -63,6 +71,26 @@ fn main() {
         if !failed.is_empty() {
             fail(format!("{} failed: {}", failed.len(), failed.join(", ")));
         }
+        return;
+    }
+    if let Some(out) = flag(&args, "--hud").map(PathBuf::from) {
+        let doc = rotf_export::hud::export(&install, &out).unwrap_or_else(|e| fail(format!("The HUD: {e}")));
+        let count = |key: &str| doc[key].as_object().map_or(0, |o| o.len());
+        println!("The HUD -> {}: {} reticle textures, {} icons", out.display(), count("reticle"), count("icons"));
+        for (name, meter) in doc["meters"].as_object().into_iter().flatten() {
+            println!("  {name}: {} frames, laid back together within {} of 255 ({:.3} % of pixels off by more than 2)",
+                meter["frames"].as_array().map_or(0, |f| f.len()), meter["check"]["worst"], meter["check"]["share_off"].as_f64().unwrap_or(0.0) * 100.0);
+        }
+        println!("Made from your own copy of the game: keep these files to yourself (README.txt).");
+        return;
+    }
+    if let Some(out) = flag(&args, "--environment").map(PathBuf::from) {
+        let level = flag(&args, "--level").unwrap_or_else(|| rotf_export::environment::ARENA_LEVEL.to_owned());
+        let doc = rotf_export::environment::export(&install, &level).unwrap_or_else(|e| fail(format!("The environment: {e}")));
+        let text = serde_json::to_string_pretty(&doc).unwrap_or_else(|e| fail(format!("The environment: {e}")));
+        std::fs::write(&out, text).unwrap_or_else(|e| fail(format!("{}: {e}", out.display())));
+        println!("{level}'s environment -> {}", out.display());
+        println!("Made from your own copy of the game: keep these files to yourself (README.txt).");
         return;
     }
     let Some(name) = flag(&args, "--character") else {

@@ -117,12 +117,25 @@ fn name_or_null(names: &Names, hash: u32) -> Value {
 }
 
 /// One explosion a trigger sets off, for the special's and the punches' blasts.
-fn blast(b: &ClipBlast, names: &Names) -> Value {
-    let e = &b.explosion;
+pub(crate) fn blast(b: &ClipBlast, names: &Names) -> Value {
+    let mut v = explosion(&b.explosion, names);
+    v["trigger"] = json!(names.name(b.name));
+    v["node"] = json!(names.name(b.node));
+    v["follows_node"] = json!(b.attach);
+    v["rumble"] = b.rumble.map_or(Value::Null, |r| json!({
+        "kind": r.kind,
+        "duration": num(r.duration),
+        "strength": num(r.strength),
+        "scale_type": r.scale_type,
+        "distance_near": num(r.distance_near),
+        "distance_far": num(r.distance_far),
+    }));
+    v
+}
+
+/// An explosion's numbers (a blast's, or the one a weapon's round makes where it ends).
+pub(crate) fn explosion(e: &tf2_core::formats::scene::ExplosionDef, names: &Names) -> Value {
     json!({
-        "trigger": names.name(b.name),
-        "node": names.name(b.node),
-        "follows_node": b.attach,
         "delay": num(e.delay),
         "radius": num(e.radius),
         "start_scale": num(e.start_scale),
@@ -141,14 +154,6 @@ fn blast(b: &ClipBlast, names: &Names) -> Value {
         "dot_seconds": num(e.dot_time),
         "heat": num(e.heat),
         "camera_shake": name_or_null(names, e.camera_shake),
-        "rumble": b.rumble.map_or(Value::Null, |r| json!({
-            "kind": r.kind,
-            "duration": num(r.duration),
-            "strength": num(r.strength),
-            "scale_type": r.scale_type,
-            "distance_near": num(r.distance_near),
-            "distance_far": num(r.distance_far),
-        })),
     })
 }
 
@@ -167,6 +172,9 @@ fn special(t: &Tuning, names: &Names, attributes: Option<Node>, pack: &[DataFile
             spawners.iter().filter(move |b| b.name == script).map(move |b| {
                 let mut v = blast(b, names);
                 v["vehicle"] = json!(car);
+                // Where its node is at rest in the robot's (or the car's) own frame: where the
+                // blast starts when nothing drawn gives the node's place.
+                v["centres"] = Value::Array(b.centres.iter().map(|c| json!([num(c.x), num(c.y), num(c.z)])).collect());
                 v
             })
         })
@@ -561,6 +569,9 @@ fn car(t: &Tuning) -> Value {
         "long_axle_length": num(d.long_axle_length),
         "front_wheel_radius": num(d.front_wheel_radius),
         "rear_wheel_radius": num(d.rear_wheel_radius),
+        "render_wheel_radius": num(d.render_wheel_radius),
+        "min_render_wheel_offset": num(d.min_render_wheel_offset),
+        "max_render_wheel_offset": num(d.max_render_wheel_offset),
         "wheel_friction": num(d.wheel_friction),
         "suspension_length": num(d.suspension_length),
         "suspension_k": num(d.suspension_k),

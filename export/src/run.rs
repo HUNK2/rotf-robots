@@ -179,7 +179,12 @@ pub fn run(install: &Path, spec: &Spec, script: &Value) -> Result<Vec<Value>, St
         "scouts": robot.scouts.iter().map(|e| json!({"target": e.state.actor.id, "pos": v3(e.state.pos), "health": num(e.state.health)})).collect::<Vec<_>>(),
         "missing": t.missing,
     })];
+    let damages = damages(script)?;
     for (i, pad) in pads.iter().enumerate() {
+        // A scripted hit lands before the update, as a hit sent between two updates does.
+        if let Some(packet) = damages.get(i).copied().flatten() {
+            robot.state.receive_damage(packet, &t);
+        }
         let sound = Recorder { names: &names, calls: RefCell::new(Vec::new()), next: RefCell::new(0) };
         let update = robot.step(pad, &mut arena, Some(&sound), UPDATE_SECONDS);
         out.push(line(i, &robot, &update, &names, sound.calls.into_inner()));
@@ -201,6 +206,7 @@ fn line(i: usize, robot: &Robot, update: &Update, names: &Names, sounds: Vec<Val
         json!({
             "in_hand": names.name(name),
             "out": arsenal.gun.out,
+            "arm": arsenal.gun.arm.map_or(Value::Null, |a| json!({"clip": a.clip, "tick": num(a.tick), "weight": num(a.weight())})),
             "heat": num(heat),
             "overheated_seconds": num(overheated),
             "fired": update.fired.is_some(),
@@ -228,9 +234,11 @@ fn line(i: usize, robot: &Robot, update: &Update, names: &Names, sounds: Vec<Val
         "mode": format!("{:?}", s.mode),
         "gait": format!("{:?}", s.gait),
         "vehicle": s.is_vehicle(),
+        "gearbox": s.vehicle_gearbox.as_ref().map(|g| json!({"gear": g.gear, "rpm": num(g.rpm), "load": num(g.load)})),
         "health": num(s.health),
         "state": s.control_state(t),
         "overlay": s.overlay_state(t),
+        "melee": s.melee.iter().map(|a| json!({"shown": a.shown, "node": names.name(a.node), "object": a.object.map(|o| names.name(o.id)), "tick": a.object.map(|o| num(o.tick))})).collect::<Vec<_>>(),
         "clip": clip,
         "camera": {"eye": v3(view.eye), "forward": v3(view.forward), "fov_degrees": num(view.fov), "roll_degrees": num(view.roll.to_degrees())},
         "aim": update.aim.map_or(Value::Null, v3),
@@ -310,6 +318,38 @@ fn pads(script: &Value) -> Result<Vec<Pad>, String> {
             }
             out.push(pad);
         }
+    }
+    Ok(out)
+}
+
+/// The scripted hits, one per update (none for most): a step's `damage` lands on its first
+/// update, with no attacker: `{"amount", "flags" (the game's damage flags, a number),
+/// "direction" [x, y, z], "knockback_speed", "knockback_angle_degrees", "stun_time",
+/// "slow_time", "dot_time"}`. For checking his side of a hit without an enemy's brain.
+fn damages(script: &Value) -> Result<Vec<Option<tf2_core::damage::Packet>>, String> {
+    let steps = script.get("steps").and_then(Value::as_array).ok_or("steps: a list")?;
+    let mut out = Vec::new();
+    for (n, step) in steps.iter().enumerate() {
+        let updates = step.get("updates").and_then(Value::as_u64).unwrap_or(1) as usize;
+        let packet = match step.get("damage") {
+            Some(d) => {
+                let num = |key: &str| d.get(key).and_then(Value::as_f64).unwrap_or(0.0) as f32;
+                Some(tf2_core::damage::Packet {
+                    amount: num("amount"),
+                    flags: d.get("flags").and_then(Value::as_u64).ok_or_else(|| format!("steps[{n}].damage.flags: a number"))? as u32,
+                    direction: d.get("direction").and_then(vec3).unwrap_or(Vec3::ZERO),
+                    knockback_speed: num("knockback_speed"),
+                    knockback_angle: num("knockback_angle_degrees").to_radians(),
+                    stun_time: num("stun_time"),
+                    slow_time: num("slow_time"),
+                    dot_time: num("dot_time"),
+                    ..Default::default()
+                })
+            }
+            None => None,
+        };
+        out.push(packet);
+        out.extend(std::iter::repeat_n(None, updates.saturating_sub(1)));
     }
     Ok(out)
 }
