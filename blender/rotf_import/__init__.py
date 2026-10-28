@@ -34,7 +34,7 @@ from mathutils import Matrix, Quaternion
 bl_info = {
     "name": "RotF robot import",
     "author": "HUNK2",
-    "version": (0, 1, 0),
+    "version": (0, 2, 0),
     "blender": (4, 4, 0),
     "location": "File > Import > RotF robot (.json); 3D view sidebar > RotF",
     "description": "Import a robot written by rotf-export, ready to animate",

@@ -41,9 +41,15 @@ it). The game also asks for the folder the first time it starts and saves the an
 `TF2_GAME_DIR` environment variable, the saved folder, the registry, then the program's own
 folder and the working folder.
 
+## Download
+
+The [Releases page](https://github.com/HUNK2/rotf-robots/releases) has a Windows build: unzip it and
+run `bumblebee.exe` to play, or `rotf-export.exe` to export a robot (its `README.txt` has the keys
+and options). The Blender add-on is there too, as `rotf_import-<version>.zip`.
+
 ## Playing
 
-Install Rust (stable) and run, from this folder:
+To build it yourself instead, install Rust (stable) and run, from this folder:
 
 ```
 cargo run --release -p bumblebee

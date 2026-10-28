@@ -906,6 +906,7 @@ mod tests {
     /// (Breakaway's and Starscream's legs on the arena's wedges, the user's report, 2026-10-25).
     #[test]
     fn a_foot_lifted_off_a_slope_does_not_snap_the_body() {
+        if crate::install::missing() { return; }
         let (rig, base, parents) = fixture();
         let ramp = Ramp { min: Vec2::splat(-10.0), max: Vec2::splat(10.0), base: 0.0, height: 8.0, slope: Vec2::new(0.3, 0.0) };
         let arena = Arena { ramps: vec![ramp], ..Default::default() };

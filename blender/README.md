@@ -12,9 +12,10 @@ Build the add-on's zip from this folder:
 blender --command extension build --source-dir rotf_import
 ```
 
-It writes `rotf_import-0.1.0.zip`. (Zipping by hand works too, with `blender_manifest.toml` and
-`__init__.py` at the top of the zip.) Then in Blender: Edit > Preferences > Get Extensions > the
-menu at the top right > Install from Disk, and pick the zip.
+It writes `rotf_import-<version>.zip`; each release also has that zip on the Releases page.
+(Zipping by hand works too, with `blender_manifest.toml` and `__init__.py` at the top of the
+zip.) Then in Blender: Edit > Preferences > Get Extensions > the menu at the top right > Install
+from Disk, and pick the zip.
 
 ## Use
 

@@ -1,7 +1,7 @@
 schema_version = "1.0.0"
 
 id = "rotf_import"
-version = "0.1.0"
+version = "0.2.0"
 name = "RotF robot import"
 tagline = "Import a robot written by rotf-export, ready to animate"
 maintainer = "HUNK2"

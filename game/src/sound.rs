@@ -1925,7 +1925,7 @@ mod tests {
     #[test]
     fn installed_weapon_equip_stow_and_both_switch_directions_render_audio() {
         use tf2_core::gun::{Clips, Gun, SoundCommand};
-        let (sound, _, data) = offline();
+        let Some((sound, _, data)) = offline() else { return };
         let clips = Clips {
             arm: &data.animations.sets["WeaponPartialSet"],
             entries: &data.animations.incoming["WeaponPartialSet"],
@@ -1965,7 +1965,7 @@ mod tests {
     #[test]
     fn weapon_auto_stop_is_scoped_to_its_clip_player() {
         use tf2_core::gun::SoundCommand;
-        let (sound, _, _) = offline();
+        let Some((sound, _, _)) = offline() else { return };
         let cue = SoundCue::Play { id: tf2_core::sound::event_id("ANIM_BUMB_WEPN_R2W_A"), auto_stop: true, held: false };
         sound.weapon_clip_command(SoundCommand::Cue { layer: 1, cue });
         let handle = sound.playing().weapon_clips[1][0];
@@ -1977,7 +1977,11 @@ mod tests {
         assert!(sound.playing().weapon_clips[1].is_empty());
     }
 
-    fn offline() -> (SoundOut, Tuning, CharacterData) {
+    /// Bumblebee's sounds read from the install; None (the test skips) without it.
+    fn offline() -> Option<(SoundOut, Tuning, CharacterData)> {
+        if tf2_core::install::missing() {
+            return None;
+        }
         let game = tf2_core::install::dir();
         let data = tf2_core::character::load(game, "bumblebee").unwrap();
         let tuning = tf2_core::tuning::load(game, "Bumblebee").unwrap();
@@ -1990,12 +1994,12 @@ mod tests {
         library.add_programmer_bank(&game.join(r"audio\eng\CHATTER.fsb"), tf2_core::sound::event_id("ProgrammerSoundPlayer"), &ids).unwrap();
         let speaker = chatter::Speaker::new(data.chatter.clone(), chatter::Tuning::load(game).unwrap());
         let playing = Playing::new(&data, &tuning, Some(speaker));
-        (SoundOut { library: Arc::new(library), playing: Arc::new(Mutex::new(playing)), stopped: Default::default() }, tuning, data)
+        Some((SoundOut { library: Arc::new(library), playing: Arc::new(Mutex::new(playing)), stopped: Default::default() }, tuning, data))
     }
 
     #[test]
     fn regeneration_is_an_edge_and_chatter_waits_before_playing_then_resets() {
-        let (sound, tuning, _) = offline();
+        let Some((sound, tuning, _)) = offline() else { return };
         let mut state = State::new(&tuning);
         let tick = |state: &State| sound.tick(state, &tuning, Vec3::Y * -10.0, Vec3::Y, sim::GAME_UPDATE);
         state.damage_timers.regenerating = true;
@@ -2028,7 +2032,7 @@ mod tests {
 
     #[test]
     fn collision_scraping_loop_expires_and_unfolding_clears_contact_audio() {
-        let (sound, tuning, _) = offline();
+        let Some((sound, tuning, _)) = offline() else { return };
         sound.playing().chatter = None;
         let mut state = State::new(&tuning);
         state.mode = sim::Mode::Drive;
@@ -2054,7 +2058,7 @@ mod tests {
 
     #[test]
     fn a_footstep_requires_its_named_foot_to_probe_ground_and_consumes_the_cue() {
-        let (sound, tuning, data) = offline();
+        let Some((sound, tuning, data)) = offline() else { return };
         let arena = crate::world::layout(&tuning);
         let mut world = vec![bevy::math::Affine3A::IDENTITY; data.robot.nodes.len()];
         let foot = &data.robot.footsteps[0];
@@ -2079,7 +2083,7 @@ mod tests {
     /// other's with its fade, and leaves players of other names alone.
     #[test]
     fn untrigger_keys_off_or_stops_the_named_players_only() {
-        let (sound, _, _) = offline();
+        let Some((sound, _, _)) = offline() else { return };
         // A loop with a primary parameter (a key-off of an event without one does nothing, as in the game).
         let id = tf2_core::sound::event_id("ANIM_SHARED_WIND_LP");
         let def = |script, key_off| tf2_core::formats::scene::SoundPlayerDef { node: 0, script, id,
@@ -2101,7 +2105,7 @@ mod tests {
 
     #[test]
     fn retrigger_replaces_the_components_handle_without_stopping_an_unrelated_cue() {
-        let (sound, _, _) = offline();
+        let Some((sound, _, _)) = offline() else { return };
         let id = tf2_core::sound::event_id("WPN_BUMBLEBEE_SPEC_FIRE");
         let mut definition = tf2_core::formats::scene::SoundPlayerDef { node: 0, script: 1, id, wait_for_trigger: true, once: false, retrigger: true, key_off_on_untrigger: false };
         sound.trigger_event(false, 0, &definition);
@@ -2120,7 +2124,7 @@ mod tests {
 
     #[test]
     fn camaro_boost_sound_follows_fx_messages_and_stops_on_mode_exit() {
-        let (sound, tuning, data) = offline();
+        let Some((sound, tuning, data)) = offline() else { return };
         sound.playing().chatter = None;
         let mut state = State::new(&tuning);
         state.mode = sim::Mode::Drive;
@@ -2147,7 +2151,7 @@ mod tests {
 
     #[test]
     fn component_sound_follows_its_bone_turn_without_moving_other_forms_or_cues() {
-        let (sound, _, _) = offline();
+        let Some((sound, _, _)) = offline() else { return };
         let definition = tf2_core::formats::scene::SoundPlayerDef { node: 1,
             script: 1, id: tf2_core::sound::event_id("WPN_BUMBLEBEE_SPEC_FIRE"),
             wait_for_trigger: true, once: false, retrigger: true, key_off_on_untrigger: false };
@@ -2178,7 +2182,7 @@ mod tests {
 
     #[test]
     fn missiles_keep_independent_flight_handles_and_explode_once_at_their_endpoint() {
-        let (sound, _, data) = offline();
+        let Some((sound, _, data)) = offline() else { return };
         let weapon = data.weapons.iter().find(|w| w.kind == tf2_core::weapons::Kind::Launcher).unwrap().name;
         let first_point = Vec3::new(1.0, 5.0, 3.0);
         let second_point = Vec3::new(-4.0, 10.0, 3.0);
@@ -2212,7 +2216,7 @@ mod tests {
 
     #[test]
     fn spawned_sound_uses_the_animated_bone_and_consumes_its_trigger() {
-        let (sound, _, data) = offline();
+        let Some((sound, _, data)) = offline() else { return };
         let (node, script, ids) = &data.robot.spawn_sound_players[0];
         let point = Vec3::new(3.0, 6.0, 2.0);
         let mut world = vec![bevy::math::Affine3A::IDENTITY; data.robot.nodes.len()];
@@ -2227,7 +2231,7 @@ mod tests {
 
     #[test]
     fn climbing_sound_requires_the_limbs_wall_probe_and_consumes_the_cue() {
-        let (sound, _, data) = offline();
+        let Some((sound, _, data)) = offline() else { return };
         let mut world = vec![bevy::math::Affine3A::IDENTITY; data.robot.nodes.len()];
         let side = tf2_core::formats::anim::CLIMB_SIDES[0];
         let node = data.robot.climb_steps.iter().find(|(_, s)| *s == side).unwrap().0;
@@ -2271,7 +2275,7 @@ mod tests {
     /// louder on the right, and it moves with the enemy (`follow`). [game 007c3870 -> 005987e0]
     #[test]
     fn another_characters_cue_is_placed_at_it_and_follows_it() {
-        let (sound, _, _) = offline();
+        let Some((sound, _, _)) = offline() else { return };
         let mut clip = Clip { length: 30.0, ..Default::default() };
         let id = tf2_core::sound::event_id("AUTOBOT_SM_STEP_DEFAULT");
         assert!(sound.library.has(id));
@@ -2298,7 +2302,7 @@ mod tests {
     fn an_enemys_gun_loop_is_kept_through_a_burst_and_ends_after_it() {
         // The Decepticon scout's gun (`WPN_SWIND_GUN_FIRE`), from its own pack and event file.
         let game = tf2_core::install::dir();
-        let (_, player_tuning, data) = offline();
+        let Some((_, player_tuning, data)) = offline() else { return };
         let scout = tf2_core::combat::Scout::load(game).unwrap();
         let (library, errors) = Library::load(&[game.join(r"characters\eng\dcomscout.fev")]);
         assert!(errors.is_empty(), "{errors:?}");
@@ -2352,7 +2356,7 @@ mod tests {
     #[test]
     fn a_held_clip_sound_is_reused_while_it_plays() {
         use tf2_core::gun::SoundCommand;
-        let (sound, _, data) = offline();
+        let Some((sound, _, data)) = offline() else { return };
         let id = data.sounds.engine;
         assert!(sound.library.has(id) && sound.library.infinite(id));
         let live = || {
@@ -2381,7 +2385,7 @@ mod tests {
     /// a clip that does not takes over before the Stop: a landing within the fall left it on.
     #[test]
     fn a_loop_left_before_its_stop_cue_ends_unless_the_next_clip_cues_it() {
-        let (sound, _, _) = offline();
+        let Some((sound, _, _)) = offline() else { return };
         let id = tf2_core::sound::event_id("ANIM_SHARED_WIND_LP");
         assert!(sound.library.has(id) && sound.library.infinite(id));
         let event = |time, cue| tf2_core::formats::anim::SoundEvent { time, cue, rerun: false };
@@ -2415,7 +2419,7 @@ mod tests {
     /// owner's autoStop sounds, and a character that is gone stops its loops. [assumed]
     #[test]
     fn stop_cues_and_clip_changes_are_scoped_to_their_owner() {
-        let (sound, _, data) = offline();
+        let Some((sound, _, data)) = offline() else { return };
         // A loop, so that only a stop ends it.
         let id = data.sounds.engine;
         assert!(sound.library.has(id) && sound.library.infinite(id));

@@ -65,6 +65,18 @@ cargo clippy --workspace --all-targets -- -D warnings         # must stay clean
 - `core/fixtures/`: physics values recorded from the running game, replayed by tests.
 - `docs/`: the research notes, cited from the code as `docs/<name>.md`. `docs/README.md`
   explains how to read them.
+- `dist/`: what a release is made of: the download's `README.txt`, the release notes, the
+  licence-notice template (cargo-about) and `package.ps1`, which packs the built programs.
+- `.github/workflows/`: `ci.yml` (clippy and tests on every push; the runner has no install, so
+  the install's tests skip) and `release.yml` (below).
+
+## Releasing
+
+Set the version in `core/`, `export/` and `game/Cargo.toml` and in the Blender add-on
+(`blender_manifest.toml`, `bl_info`), update `dist/RELEASE-NOTES.md`, commit, then push a tag
+`v<version>`. The release workflow tests, builds, packs (`dist/package.ps1`) and opens the release
+as a draft; the user checks it and publishes it. Never attach anything the exporter wrote, or any
+other file from the game.
 
 ## How a frame of the game runs
 

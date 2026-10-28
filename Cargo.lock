@@ -1888,7 +1888,7 @@ dependencies = [
 
 [[package]]
 name = "bumblebee"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "bevy",
  "cpal",
@@ -4547,7 +4547,7 @@ dependencies = [
 
 [[package]]
 name = "rotf-export"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "glam",
  "gltf",
@@ -5003,7 +5003,7 @@ dependencies = [
 
 [[package]]
 name = "tf2-core"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "flate2",
  "glam",

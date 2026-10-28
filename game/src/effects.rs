@@ -1602,6 +1602,7 @@ mod tests {
 
     #[test]
     fn installed_gun_smoke_drains_when_its_clip_is_interrupted() {
+        if tf2_core::install::missing() { return; }
         let data = tf2_core::character::load(tf2_core::install::dir(), "bumblebee").unwrap();
         let mut world = World::new();
         let owner = world.spawn_empty().id();

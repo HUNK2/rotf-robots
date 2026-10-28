@@ -1,0 +1,41 @@
+# A tag `v<version>` (the version in game/Cargo.toml) builds the Windows release and opens it as a
+# DRAFT on the Releases page, with dist/RELEASE-NOTES.md as its text: check it and publish it by hand.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    env:
+      CARGO_TERM_COLOR: always
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-about
+      - name: The tag matches the version
+        shell: pwsh
+        run: |
+          $version = (Select-String -Path game/Cargo.toml -Pattern '^version = "(.+)"').Matches[0].Groups[1].Value
+          if ("v$version" -ne "${{ github.ref_name }}") { throw "tag ${{ github.ref_name }} but game/Cargo.toml says $version" }
+      - name: Tests
+        run: cargo test --workspace --locked --no-fail-fast
+      - name: Build
+        run: cargo build --release --locked -p bumblebee -p rotf-export
+      - name: Package
+        shell: pwsh
+        run: ./dist/package.ps1
+      - name: Draft the release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" --draft --title "${{ github.ref_name }}" --notes-file dist/RELEASE-NOTES.md (Get-ChildItem work/release/*.zip).FullName work/release/SHA256SUMS.txt

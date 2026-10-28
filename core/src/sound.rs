@@ -2244,6 +2244,7 @@ mod tests {
 
     #[test]
     fn the_debug_view_shows_each_instance_its_place_level_and_stop() {
+        if crate::install::missing() { return; }
         let (library, problems) = Library::load(&[game_dir().join(r"characters\eng\optimus.fev")]);
         assert!(problems.is_empty(), "{problems:?}");
         let id = event_id("WPN_OPTIMUS_LASER_FIRE_L");

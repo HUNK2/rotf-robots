@@ -670,7 +670,7 @@ fn main() {
     let mut app = App::new();
     app.add_plugins(DefaultPlugins.set(WindowPlugin {
         primary_window: Some(Window {
-            title: "Transformers RotF data test (Bevy)".into(),
+            title: "rotf-robots: the robots of Transformers: Revenge of the Fallen".into(),
             resolution: (1280, 720).into(),
             // `--no-vsync`: frames as fast as they come, so `--fps` gives the true frame time (a performance aid).
             present_mode: if args.iter().any(|a| a == "--no-vsync") { bevy::window::PresentMode::AutoNoVsync } else { bevy::window::PresentMode::AutoVsync },
