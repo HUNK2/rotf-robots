@@ -160,7 +160,7 @@ pub fn round(r: &WeaponEffects, pieces: &[crate::Piece], names: &Names) -> Value
 }
 
 /// The effects row named `key` (a weapon's name, or its alternative round's key), if he has one.
-pub fn row<'a>(data: &'a CharacterData, key: u32) -> Option<&'a WeaponEffects> {
+pub fn row(data: &CharacterData, key: u32) -> Option<&WeaponEffects> {
     data.weapon_effects.iter().find(|r| r.name == key)
 }
 

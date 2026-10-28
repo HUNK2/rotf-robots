@@ -1301,7 +1301,7 @@ out by its own times. It belongs to the level, not the robot, and is not exporte
 ## Sound
 
 Reference: `core/src/sound.rs` (the event player, `Gearbox`, `tyre_sounds`), `core/src/chatter.rs`,
-and the Bevy game's `game/src/sound.rs` ([rotf-robots](https://github.com/HUNK2/rotf-robots)), which
+and the Bevy game's `game/src/sound.rs`, which
 decides when each sound plays; `docs/sound.md`. The events and samples are `sounds`, the names
 `character_sounds`, the numbers `sound`. The gearbox replays recorded updates exactly [trace];
 nothing else has been heard against the original.

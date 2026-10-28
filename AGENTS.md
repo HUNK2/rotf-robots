@@ -1,10 +1,11 @@
 # Guide for AI coding agents
 
 Read this before changing anything. It is written for agents (Codex, Claude Code and others)
-helping a modder bring the robots of *Transformers: Revenge of the Fallen* (PC, 2009) into another
-game, working in this repository or with its output. People can read it too.
+working on the Bevy game that plays the robots of *Transformers: Revenge of the Fallen* (PC,
+2009), or helping a modder bring them into another game with this repository or its output.
+People can read it too.
 
-For the step-by-step port, read `docs/MODDING.md` after this file.
+For the step-by-step port into another game, read `docs/MODDING.md` after this file.
 
 ## The rules (not negotiable)
 
@@ -26,14 +27,18 @@ For the step-by-step port, read `docs/MODDING.md` after this file.
 
 ## Build, test, check
 
-From the repository root (Rust stable, Windows is the tested platform). No engine is built here,
-so a build takes about a minute.
+From the repository root (Rust stable, Windows is the tested platform). The core and the
+exporter build in about a minute; the game compiles Bevy, and its first build takes minutes (run
+it in the background if you can).
 
 ```
 cargo run --release -p rotf-export -- --list                  # the roster, as --character takes it
 cargo run --release -p rotf-export -- --character bumblebee   # one robot into exported/bumblebee
 cargo run --release -p rotf-export -- --all                   # every robot into exported/
-cargo test --workspace                                        # the core's and the exporter's tests
+cargo run --release -p bumblebee                              # play (finds the install itself)
+cargo run --release -p bumblebee -- --check bumblebee         # load a robot's pack, no window
+cargo test -p tf2-core -p rotf-export                         # the core's and the exporter's tests
+cargo test -p bumblebee                                       # the game's tests
 cargo clippy --workspace --all-targets -- -D warnings         # must stay clean
 ```
 
@@ -47,6 +52,8 @@ cargo clippy --workspace --all-targets -- -D warnings         # must stay clean
 
 ## How the repository is laid out
 
+- `game/` (crate `bumblebee`): the Bevy 0.19 program: input, drawing, shaders, sound output, the
+  arena. It is one *host* of the core, and the only complete example of driving it.
 - `export/` (crate `rotf-export`): the exporter. `src/model.rs` writes the glTF files,
   `src/describe.rs` the JSON, `src/sounds.rs` the sound events and WAVs, `src/lib.rs` ties a
   robot's pieces together. Its tests (`export/tests/`) read every written file back.
@@ -59,10 +66,12 @@ cargo clippy --workspace --all-targets -- -D warnings         # must stay clean
 - `docs/`: the research notes, cited from the code as `docs/<name>.md`. `docs/README.md`
   explains how to read them.
 
-The Bevy game that plays the robots is a separate repository,
-[rotf-robots](https://github.com/HUNK2/rotf-robots). It depends on this one's `tf2-core` at a
-pinned commit and is the only complete example of driving the core. Paths written `game/...`
-below are in that repository.
+## How a frame of the game runs
+
+`game/src/player.rs` (`tick`) turns the controls into `sim::Input` and calls `sim::step`. The
+camera, the weapons, animation, effects and sound then read the new state, in
+`game/src/camera.rs`, `weapons.rs`, `animation.rs`, `effects.rs` and `sound.rs`. A robot is
+loaded in `game/src/charmenu.rs` (`load`). The order these run in matters.
 
 ## The exported files
 
@@ -123,7 +132,7 @@ system does for a scripted input:
 2. `character::load(install, "bumblebee")` reads its pack: models, animations, weapons.
 3. The tuning is completed from the animations (`Locomotion::from_animations`,
    `Actions::from_animations`, `RuleSet::from_animations`). `core/examples/control_check.rs` does
-   the short version, rotf-robots' `game/src/charmenu.rs` (`load`) the full one.
+   the short version, `game/src/charmenu.rs` (`load`) the full one.
 4. `sim::State::new(&tuning)`, then every frame `sim::step(&mut state, &input, &tuning, &world, dt)`.
    `Input` is the pad, already mapped (stick in world space, triggers 0 to 1, buttons).
    `world` is anything that implements `sim::World`: it answers floor heights, wall pushes and
@@ -131,7 +140,7 @@ system does for a scripted input:
 5. The whole update with the pad, the aim, the camera, the weapons (`arsenal`) and scouts that
    fight back is `driver::Robot::step`, in the Bevy game's order: what a reference run plays.
    What only draws or sounds the state (animation blending, effects, the sound mixer) is in
-   rotf-robots' `game/src/animation.rs`, `effects.rs` and `sound.rs`. The order they run in is
+   `game/src/animation.rs`, `effects.rs` and `sound.rs`. The order they run in is
    part of the rules a port rebuilds.
 
 The game steps at 0.032 s; animation clips tick at 1/60 s. Space is right-handed, x right,

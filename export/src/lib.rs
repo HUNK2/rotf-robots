@@ -419,7 +419,7 @@ fn readme(spec: &Spec) -> String {
          \x20                    state, its clip, and what button or condition leaves it for which);\n\
          \x20                    each animation set's rules for which clip plays and follows;\n\
          \x20                    the character's attributes as the game stores them.\n\
-         \x20                    Its format: docs/FORMAT.md in github.com/HUNK2/rotf-robots-sdk\n\
+         \x20                    Its format: docs/FORMAT.md in github.com/HUNK2/rotf-robots\n\
          textures/            the textures as PNG; textures/dds/ the same as the game stores them\n\
          sounds/              every sample the character's sound events play, as WAV, by bank;\n\
          \x20                    the events themselves (layers, parameters, picks) are the JSON's\n\
@@ -435,7 +435,7 @@ fn readme(spec: &Spec) -> String {
          Animations: the game's own keys (it plays clips at 60 ticks a second). The root stays put,\n\
          as the game draws it: the travel is the character's movement, given per tick in the JSON.\n\
          Additive clips (and the weapon set's .aim_down / .aim_up) are written laid over the rest pose.\n\
-         In Blender, the add-on in blender/ of github.com/HUNK2/rotf-robots-sdk imports the JSON with\n\
+         In Blender, the add-on in blender/ of github.com/HUNK2/rotf-robots imports the JSON with\n\
          all of this applied. Without it, set the scene to 60 fps before importing the glb files,\n\
          so a frame is a game tick.\n\
          The vehicle's clips: a node a clip does not key keeps the previous clip's pose in the game,\n\

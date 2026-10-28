@@ -33,7 +33,7 @@ Read `AGENTS.md` at the repository root first: its rules hold for the port too.
    controller, animation graph, vehicle system, damage and scripting, so he works with its
    physics, AI, saves and multiplayer. The rest of this guide is about this kind.
 3. **A change to the robots themselves.** Work in this repository, check with its tests and with
-   the Bevy game ([rotf-robots](https://github.com/HUNK2/rotf-robots)), and send a pull request.
+   the Bevy game (`game/`), and send a pull request.
 
 ## How to work
 
@@ -267,7 +267,7 @@ Each task gives its **inputs** (the export, the formulas, the notes, the referen
 
 - **What runs do not cover:** levels (the ground is flat, with boxes), sniping, and camera shake on
   the view. A run's muzzle can sit a few centimetres from the Bevy game's (FORMAT.md says why).
-- **The Bevy game** ([rotf-robots](https://github.com/HUNK2/rotf-robots)) is the reference you can
+- **The Bevy game** (`game/` in this repository) is the reference you can
   play: `cargo run --release -p bumblebee -- --character <name>`. Its `--shot out.png --after 2`
   captures one frame without playing; its `game/README.md` lists the other capture flags.
 

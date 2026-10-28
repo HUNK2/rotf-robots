@@ -222,7 +222,7 @@ pub fn character(install: &Path, spec: &Spec, data: &CharacterData, pieces: &[Pi
                 "clips_hold_unkeyed_nodes": "a vehicle clip with unkeyed_nodes leaves those nodes where the clip before it left them, as the game plays it; glTF returns them to rest. Play the change of form (Trans_R2V_A, then Trans_R2V_B) before V_Idle, or hold the last clip's pose for those nodes.",
                 "wheels": wheels,
                 "steering_nodes": steering,
-                "note": "the game moves these in code every frame, on top of the vehicle's clip: each tyre spins by its wheel's travel and is lowered by its wheel's suspension to the ground, and the steering nodes turn with the steering (rotf-robots' game/src/animation.rs). The clips alone leave the tyres where the change of form puts them, off the ground.",
+                "note": "the game moves these in code every frame, on top of the vehicle's clip: each tyre spins by its wheel's travel and is lowered by its wheel's suspension to the ground, and the steering nodes turn with the steering (the Bevy game's game/src/animation.rs). The clips alone leave the tyres where the change of form puts them, off the ground.",
             })
         }),
         "collision": collision(pieces, names),

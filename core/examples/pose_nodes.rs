@@ -28,7 +28,7 @@ fn main() {
         Err(_) => rig.pose(clip, r.looping, tick),
     };
     for (i, node) in data.robot.nodes.iter().enumerate() {
-        if args.len() > 4 && !args[4..].iter().any(|n| *n == node.name) {
+        if args.len() > 4 && !args[4..].contains(&node.name) {
             continue;
         }
         let t = pose[i].translation;

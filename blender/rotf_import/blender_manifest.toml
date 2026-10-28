@@ -6,7 +6,7 @@ name = "RotF robot import"
 tagline = "Import a robot written by rotf-export, ready to animate"
 maintainer = "HUNK2"
 type = "add-on"
-website = "https://github.com/HUNK2/rotf-robots-sdk"
+website = "https://github.com/HUNK2/rotf-robots"
 tags = ["Import-Export", "Animation"]
 
 # Slotted actions (one action drives every node of a file) came in 4.4.
