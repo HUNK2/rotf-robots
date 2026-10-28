@@ -150,43 +150,8 @@ enum Pending {
     SpawnOn { owner: Entity, entity: Entity, id: u32, template: Template, track: bool, turn: bool, with_clip: bool },
 }
 
-/// What a weapon asks for as it fires (`weapons::Arsenal::fx`).
-#[derive(Clone, Copy, Debug)]
-pub enum WeaponFxKind {
-    Muzzle(usize),
-    /// A round landed on a surface of this material, with the hit's normal (zero when not known).
-    Impact(u32, Vec3),
-    /// A missile left: its trail, kept under the missile's number.
-    Trail(u32),
-    BulletTrail {end:Vec3,speed:f32},
-    Blast,
-    /// A ground wave was let go (`Arsenal::let_wave_go`), kept under its number
-    /// (`Arsenal::wave_frame`): its object's emitter and light ride it.
-    Wave(u32),
-    /// A piece its blast object threw, by its number and its index in the round's row
-    /// (`WeaponEffects::debris`): its own emitters ride it (`Arsenal::projectile_frame`).
-    Debris(u32, usize),
-    /// A projectile ended: its Destructable's `destroyEffectSpawn` smoke (`TimedParticle`s).
-    AfterBlast,
-    /// The charged shot (`WeaponFxSpec`): the charge's emitter starts on the object's
-    /// `ChargeDummy` when the charge begins; its rate follows the level; the full charge's
-    /// effect takes its place; the release stops both. [game 007addc0, 007b0520, 007af210]
-    ChargeStart,
-    ChargeLevel(f32),
-    ChargeFull,
-    ChargeStop,
-    /// The flame: its stream starts on the object's `FireDummy`; each dummy's looping effect
-    /// starts when its sphere comes on (by its node number); all stop at the release or the
-    /// overheat. [game 0074d110, 0074e9b0]
-    FlameStream,
-    FlameBall(usize),
-    FlameStop,
-    /// The flame's ray met a body this update: its `impactEffect` is put at `at`, turned so its
-    /// +z is the body's normal (`along`). [game 0074c200, `align_z_matrix` 0056e7b0]
-    FlameImpact,
-    /// The ray met nothing (or the flame went out): the impact emitter stops. [game 0074b130: with no hit the flame sends the impact's TriggerableParticle message code 2 (stop, through 007479f0) once, on the change from on to off (flag at +0x8 set); 0057dca0 case 2 is 0057e000, which stops the emitter so its particles live out. Read 2026-10-20]
-    FlameImpactLost,
-}
+/// What a weapon asks for as it fires (`tf2_core::arsenal`).
+pub use tf2_core::arsenal::WeaponFxKind;
 
 /// The handles of what a charged shot and a flamethrower keep going, for `Effects::stop_event`.
 /// [data] no `.str` pack under the install (145 packs, levels and shared included, 2026-10-20) holds
@@ -197,16 +162,6 @@ const CHARGE_READY: u32 = 0xc4a2_0002;
 const FLAME_STREAM: u32 = 0xf1a3_0000;
 const FLAME_BALL: u32 = 0xf1a3_0010;
 const FLAME_IMPACT: u32 = 0xf1a3_0100;
-
-#[derive(Clone, Copy, Debug)]
-pub struct WeaponFx {
-    pub kind: WeaponFxKind,
-    /// The weapon's name.
-    pub weapon: u32,
-    pub at: Vec3,
-    /// The way the round flies.
-    pub along: Vec3,
-}
 
 /// What a riding light follows.
 enum LightAnchor {

@@ -474,6 +474,7 @@ pub fn tick(
     let player = &mut **player;
     let t = &tuning.0;
     let sound = sound.as_deref();
+    let weapon_sound = sound.map(|s| s as &dyn tf2_core::arsenal::WeaponSound);
     if let Some(arsenal)=arsenal.as_mut() {arsenal.receive_heat(std::mem::take(&mut player.state.heat_damage));}
     let dt = time.delta_secs().clamp(0.0, LONGEST_STEP);
     if std::mem::take(&mut controls.reset_pressed) || (player.state.restart_requested && !controls.keep_dead) {
@@ -492,7 +493,7 @@ pub fn tick(
             sound.silence();
         }
         if let Some(arsenal) = arsenal.as_mut() {
-            arsenal.reset(sound);
+            arsenal.reset(weapon_sound);
         }
     }
     if std::mem::take(&mut controls.damage_pressed) {
@@ -1007,7 +1008,7 @@ pub fn tick(
             }
         };
         if giant_armed {
-            arsenal.switch_car(controls.switch, sound);
+            arsenal.switch_car(controls.switch, weapon_sound);
         }
         // The special may have started in this step (`sim::start_special`): its weapon's shots
         // that fire at the start. [game]
@@ -1046,7 +1047,7 @@ pub fn tick(
             &t.aim,
             &t.damage,
             state.damage_timers.slowed>0.0,
-            sound,
+            weapon_sound,
             dt,
         );
         // His melee hits restart the hit-mark clock too: the game stamps it for any damaging packet of his. [game 00729120]
@@ -1069,7 +1070,7 @@ pub fn tick(
             Some((clip, set, id, tick))
         });
         arsenal.tick_special_events(special_clip, state.car_mode, &data.0.weapon_animations, dt);
-        arsenal.tick_special(special_muzzle, facing, &arena.0, &arena.0.targets, sound, dt);
+        arsenal.tick_special(special_muzzle, facing, &arena.0, &arena.0.targets, weapon_sound, dt);
         // The deployed turrets (`Arsenal::tick_turrets`). The scouts are (id, team, the point aimed
         // at, alive); the point is the Character branch of 0079e920 (below, at the map). [game]
         // Read 2026-10-20 (0079e920 full body): the turret's target is `0079e920`
@@ -1095,7 +1096,7 @@ pub fn tick(
                 !e.combat.state.dead(), e.scout.tuning.robot_radius))
             .collect();
         let owner = crate::weapons::TurretOwner { alive: player.state.health > 0.0, team: player.state.actor.team };
-        arsenal.tick_turrets(dt, owner, &arena.0, &arena.0.targets, &scouts, sound);
+        arsenal.tick_turrets(dt, owner, &arena.0, &arena.0.targets, &scouts, weapon_sound);
         // A round shakes the pad with the weapon's own values, effect type 1. [game]
         if let Some((duration, strength)) = fired {
             player.state.rumbles.push(tf2_core::rumble::Rumble { kind: 1, duration, strength });

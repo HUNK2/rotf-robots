@@ -350,6 +350,24 @@ pub struct SoundOut {
     /// robot, `charmenu.rs`, starts a new output for the new one).
     stopped: Arc<std::sync::atomic::AtomicBool>,
 }
+/// The weapons (`tf2_core::arsenal`) speak to this output.
+impl tf2_core::arsenal::WeaponSound for SoundOut {
+    fn play_event(&self, id: u32) { SoundOut::play_event(self, id) }
+    fn play_event_at(&self, id: u32, point: Vec3) { SoundOut::play_event_at(self, id, point) }
+    fn start_kept(&self, id: u32, heat: Option<f32>) -> Option<Handle> { SoundOut::start_kept(self, id, heat) }
+    fn is_infinite(&self, id: u32) -> bool { SoundOut::is_infinite(self, id) }
+    fn key_off(&self, handle: Handle) { SoundOut::key_off(self, handle) }
+    fn stop(&self, handle: Handle) { SoundOut::stop(self, handle) }
+    fn projectile_start(&self, number: u32, weapon: u32, point: Vec3) { SoundOut::projectile_start(self, number, weapon, point) }
+    fn projectile_start_sounds(&self, number: u32, ids: &[u32], point: Vec3) { SoundOut::projectile_start_sounds(self, number, ids, point) }
+    fn projectile_move(&self, number: u32, point: Vec3, speed: f32) { SoundOut::projectile_move(self, number, point, speed) }
+    fn projectile_stop(&self, number: u32) { SoundOut::projectile_stop(self, number) }
+    fn projectile_end(&self, number: u32, weapon: u32, point: Vec3) { SoundOut::projectile_end(self, number, weapon, point) }
+    fn weapon_impact(&self, weapon: u32, surface: u32, point: Vec3) { SoundOut::weapon_impact(self, weapon, surface, point) }
+    fn combat_target(&self, present: bool) { SoundOut::combat_target(self, present) }
+    fn weapon_clip_command(&self, command: tf2_core::gun::SoundCommand) { SoundOut::weapon_clip_command(self, command) }
+    fn weapon_object_hidden(&self) { SoundOut::weapon_object_hidden(self) }
+}
 
 impl SoundOut {
     /// Ends this output: its stream is closed within a fifth of a second.

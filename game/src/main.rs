@@ -895,11 +895,17 @@ fn spawn_player(
             commands.entity(model).insert((weapons::TurretModel { name: def.name, weapon: index, slot }, Visibility::Hidden));
         }
     }
-    for (def, object) in data.0.weapons.iter().zip(&data.0.missile_objects) {
-        let Some(object) = object else { continue };
+    // A deployed turret's launcher (Ironhide's) is no weapon of his list: its missiles are named by the
+    // turret's row key (`turret_gun_key`), as the arsenal fires them. [data]
+    let turret_launchers = data.0.weapons.iter().zip(&data.0.turret_parts)
+        .filter(|(_, parts)| parts.missile.is_some())
+        .map(|(def, _)| tf2_core::character::turret_gun_key(def.name));
+    let names: Vec<u32> = data.0.weapons.iter().map(|def| def.name).chain(turret_launchers).collect();
+    for name in names {
+        let Some(object) = data.0.missile_object(name) else { continue };
         for slot in 0..weapons::MISSILE_POOL {
             let (model, _) = builder.spawn(&mut commands, object, "missile");
-            commands.entity(model).insert((weapons::MissileModel { name: def.name, slot, carrying: None }, Visibility::Hidden));
+            commands.entity(model).insert((weapons::MissileModel { name, slot, carrying: None }, Visibility::Hidden));
         }
     }
     // Each melee weapon's model (Optimus's and the Audi's two blades); `weapons::show_axe`

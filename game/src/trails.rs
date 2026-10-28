@@ -111,9 +111,7 @@ pub fn run_projectiles(
     for (number, round, weapon, grenade) in arsenal.projectiles() {
         let Some(frame) = arsenal.projectile_frame(number) else { continue };
         if round != weapon { continue }
-        let Some(index) = data.0.weapons.iter().position(|w| w.name == weapon) else { continue };
-        let objects = if grenade { &data.0.grenade_objects } else { &data.0.missile_objects };
-        let Some(object) = objects.get(index).and_then(Option::as_ref) else { continue };
+        let Some(object) = data.0.projectile_object(weapon, grenade) else { continue };
         for (ribbon, def) in object.ribbons.iter().enumerate() {
             live.push((number, ribbon));
             let entry = shown.entry((number, ribbon)).or_insert_with(|| Shown { trail: Trail::new(def), mesh: None });

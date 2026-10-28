@@ -173,24 +173,7 @@ pub(crate) struct EnemyGun {
     owner: Entity,
     blend: crate::animation::ObjectBlend,
 }
-/// An enemy's collision bodies a gun round strikes (its pack's `Character` primitives: the Head box
-/// on the scout's node 22, its UpperBody and LowerBody boxes), posed by this frame's clip in its own
-/// space, and the yaw it faces. [game 007832b0] [data] Given to the Arsenal by `animate`.
-#[derive(Clone, Debug)]
-pub struct TargetParts {
-    pub id: u32,
-    pub yaw: f32,
-    pub bodies: Vec<tf2_core::weapons::PartBody>,
-}
-
-impl TargetParts {
-    /// The bodies where the enemy stands at `pos` (its feet): turned by its yaw about the up axis
-    /// (`transform.rotation` of the owner, Bevy's y, is the game's z) and moved there.
-    pub fn placed(&self, pos: Vec3) -> Vec<tf2_core::weapons::PartBody> {
-        let place = bevy::math::Affine3A::from_rotation_translation(Quat::from_rotation_z(self.yaw), pos);
-        self.bodies.iter().map(|b| tf2_core::weapons::PartBody { part: b.part, body: b.body.moved(&place) }).collect()
-    }
-}
+pub use tf2_core::arsenal::TargetParts;
 
 /// The place of the node named `hash` in the object's space under `pose`, if the object has it.
 fn posed_node(nodes: &ObjectNodes, pose: &[Transform], hash: u32) -> Option<Vec3> {

@@ -12,8 +12,7 @@
 use bevy::prelude::*;
 use bevy::window::{CursorGrabMode, CursorOptions, PrimaryWindow};
 use tf2_core::aim::Aim;
-use tf2_core::camera::{Camera, Mode, Target, View};
-use tf2_core::flycam;
+use tf2_core::camera::{Camera, Target, View};
 use tf2_core::formats::anim::Clip;
 use tf2_core::shake::{Jolt, Shakes};
 
@@ -112,90 +111,9 @@ pub struct Rig {
     jolt: Jolt,
 }
 
-/// What the camera follows, from the movement's state; `aim` is his aim in weapon mode,
-/// which hands him to the weapon camera and raises the point looked at by the character's
-/// `cameraWeaponTargetHeightOffset`. [game]
+/// What the camera follows, from the movement's state (`tf2_core::camera::follow_target`).
 pub fn target(state: &State, tuning: &Tuning, aim: Option<Vec3>) -> Target {
-    let vehicle = state.is_vehicle();
-    let flying = state.is_flying();
-    let pose = state.car_presentation();
-    let (yaw, pitch, _) = pose.angles();
-    let up = pose.rotation * Vec3::Z;
-    let right = pose.rotation * Vec3::X;
-    let aim = aim.filter(|_| !vehicle);
-    Target {
-        position: pose.pos,
-        height: if vehicle {
-            // [game] 0070abe0: form height plus the bottom of the physics holder
-            // above the character root. Replaces the fixed run1 rise of1.12.
-            let lift = tuning.vehicle_height
-                + (up.z * (tuning.drive.body_offset_z - tuning.vehicle_height * 0.5)).max(0.0);
-            // A flyer's look-at is the lower of its root and its holder's bottom (0071a460).
-            if flying {
-                lift + flycam::look_drop(pose.pos, up.z, tuning.drive.body_offset_z, tuning.vehicle_height)
-            } else {
-                lift
-            }
-        } else {
-            tuning.robot_height
-                + if aim.is_some() {
-                    tuning.weapon_look_height
-                } else {
-                    0.0
-                }
-        },
-        facing: if vehicle {
-            Vec2::new(-yaw.sin(), yaw.cos())
-        } else {
-            state.facing()
-        },
-        velocity: pose.camera_velocity,
-        motion: pose.velocity,
-        vehicle,
-        climbing: state.climb.is_some(),
-        aim,
-        radius: if vehicle {
-            tuning.vehicle_radius
-        } else {
-            tuning.robot_radius
-        },
-        pitch: if vehicle { pitch } else { 0.0 },
-        roll: if vehicle {
-            (-right.z).clamp(-1.0, 1.0).asin()
-        } else {
-            0.0
-        },
-        fighting: state.fight > 0.0,
-        mode: if state.dead() {
-            Mode::Fast
-        }
-        // [game] character dead flag requests7d110862
-        // [game] 0071a5c0: while the movement owner's avatar blend (+0x248) is above zero the
-        // message asks for 5e89f579 in place of the character's own mode; the death request
-        // above still overrides it (00922580, bit 0x200). Only FlyMode's enter starts that
-        // blend for a character the port can play: the car's enter is exempt (owner+0x3fc =
-        // fc2cb442) and the robot's camera never reads the mode. `flight::Fly::avatar_blend`.
-        else if state.fly.as_ref().is_some_and(|fly| flying && fly.avatar_blend > 0.0) {
-            Mode::Transition
-        } else if state.control_state(tuning) == Some("stateGroundPunchWeakFall") {
-            Mode::GroundPunch
-        } else {
-            Mode::Normal
-        },
-        ground_distance: pose
-            .wheels
-            .iter()
-            .map(|w| w.probe_distance)
-            .fold(100.0, f32::min),
-        body_height: vehicle.then_some(up.z * tuning.drive.body_offset_z),
-        // [game] The camera's byte +0x195 is `character_in_flight_mode` (007256e0: the motion
-        // mode type is fb9f3262, FlightMode), copied into the behaviour by the driving camera's
-        // slot 17 (00916030: `+0x195 = *param_2 >> 7`). `sim::Mode::Fly` is that same class, so
-        // this is the flag, not an approximation of it. It gates the elevation and eye rules of
-        // 009145b0 (`core\src\camera.rs`). Wired 2026-10-18; `docs/camera.md` "A flyer's camera
-        // is the driving camera".
-        flying,
-    }
+    tf2_core::camera::follow_target(state, tuning, aim)
 }
 
 impl Rig {

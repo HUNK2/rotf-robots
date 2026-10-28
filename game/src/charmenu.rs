@@ -155,22 +155,7 @@ pub fn load(game_dir: &Path, spec: &CharacterSpec, texture_scale: u32, args: &[S
 /// His weapons: the lists his pack names, his special's from his attributes, and what each
 /// round's end shows and starts.
 pub fn arm(game_dir: &Path, attributes: &str, data: &CharacterData, giant: Option<&tf2_core::giant::Giant>) -> Option<Arsenal> {
-    // Devastator's pack lists no weapons: his are the boss mission's pods (`Arsenal::load_giant`).
-    if let Some(giant) = giant.filter(|g| !g.pods.is_empty()) {
-        return Arsenal::load_giant(game_dir, &giant.pods);
-    }
-    Arsenal::load(game_dir, &data.weapons).map(|mut arsenal| {
-        // His special's weapons, from his attributes (`characterAttributes<X>`): none for
-        // Bumblebee, whose weapon name is 0. [data]
-        if let Err(e) = arsenal.equip_special(game_dir, attributes, &data.weapons, &data.weapon_effects) {
-            eprintln!("special: no weapon ({e})");
-        }
-        // What each round's end shows and starts (its blast rumble, its ground wave). [data]
-        arsenal.set_effects(&data.weapon_effects);
-        // Grindor's cinematic wave's ring (`tf2_core::energon_wave`) [port design].
-        arsenal.set_energon(data.energon.as_ref().map(|d| d.ring.clone()));
-        arsenal
-    })
+    tf2_core::arsenal::arm(game_dir, attributes, data, giant).map(Arsenal)
 }
 
 /// Everything a swap puts in place, made on the loading thread.
