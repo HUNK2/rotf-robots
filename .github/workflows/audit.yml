@@ -1,5 +1,5 @@
-# The dependencies against the RustSec advisory database: on every change to Cargo.lock, and weekly
-# for advisories published since.
+# The dependencies against the RustSec advisory database, whenever Cargo.lock changes (or by hand).
+# New advisories for what is already locked arrive as Dependabot alerts instead.
 name: Audit
 
 on:
@@ -8,8 +8,6 @@ on:
     paths: ['**/Cargo.toml', 'Cargo.lock']
   pull_request:
     paths: ['**/Cargo.toml', 'Cargo.lock']
-  schedule:
-    - cron: '17 4 * * 1'
   workflow_dispatch:
 
 permissions:
