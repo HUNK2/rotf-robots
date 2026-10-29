@@ -571,7 +571,7 @@ a rerun (cause not found; the user's window had just been closed).
   - fixed on the way: `ssd::run` re-uploaded its sphere buffer every frame (a new GPU buffer, its
     materials rebuilt); now only on a change. The spikes stayed.
   - a CPU sample during a run found the machine lightly loaded; the spikes fell near bursts of
-    Firefox and Discord. Rerun with both closed (the user closed them): the spikes stayed (worst 48-53
+    other programs' activity. Rerun with them closed: the spikes stayed (worst 48-53
     ms), at random times, with vsync on too (1-3 bursts of 30-55 ms in 35 s).
   - also ruled out: the textures (`--original-textures`: the same), page faults (the process takes a
     burst of ~120k soft faults about every 13 s, but spread over frames, and the slow frames have 0;
