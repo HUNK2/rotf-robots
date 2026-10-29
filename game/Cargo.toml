@@ -10,7 +10,7 @@ description = "Bumblebee from Transformers: Revenge of the Fallen, rebuilt in Be
 bevy = "0.19"
 tf2-core = { path = "../core" }
 # The same version Bevy's own audio already brings in; the mixer in tf2-core feeds it directly.
-cpal = "0.17"
+cpal = "0.18"
 # The folder picker shown when the install is not found.
 rfd = "0.17.2"
 

@@ -9,8 +9,8 @@ description = "Writes a robot from the user's own install of Transformers: Reven
 [dependencies]
 tf2-core = { path = "../core" }
 # The same versions tf2-core already uses.
-glam = "0.32"
-image = { version = "=0.25.9", default-features = false, features = ["png"] }
+glam = "0.34"
+image = { version = "=0.25.10", default-features = false, features = ["png"] }
 serde_json = "1"
 
 [dev-dependencies]
