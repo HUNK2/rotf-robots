@@ -1,0 +1,22 @@
+# Weekly update pull requests: the Rust crates (grouped, so a Bevy bump is one PR) and the pinned
+# actions. Security fixes come on their own as soon as an advisory lands.
+version: 2
+updates:
+  - package-ecosystem: cargo
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      bevy:
+        patterns: ['bevy*']
+      crates:
+        patterns: ['*']
+        exclude-patterns: ['bevy*']
+    open-pull-requests-limit: 5
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ['*']
