@@ -1,5 +1,4 @@
-# Weekly update pull requests: the Rust crates (grouped, so a Bevy bump is one PR) and the pinned
-# actions. Security fixes come on their own as soon as an advisory lands.
+# Weekly update pull requests: the Rust crates (patch releases, grouped) and the pinned actions. Security fixes come on their own as soon as an advisory lands.
 version: 2
 updates:
   - package-ecosystem: cargo
@@ -12,6 +11,11 @@ updates:
       crates:
         patterns: ['*']
         exclude-patterns: ['bevy*']
+    # Patch releases only: most crates here are 0.x, where a minor release breaks, and Bevy,
+    # glam and cpal have to move together (a new Bevy is a porting job, not an update).
+    ignore:
+      - dependency-name: '*'
+        update-types: ['version-update:semver-major', 'version-update:semver-minor']
     open-pull-requests-limit: 5
   - package-ecosystem: github-actions
     directory: /
