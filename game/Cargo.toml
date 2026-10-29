@@ -7,14 +7,7 @@ license = "MIT"
 description = "Bumblebee from Transformers: Revenge of the Fallen, rebuilt in Bevy. Reads the game install at runtime; ships no game files."
 
 [dependencies]
-# Bevy's defaults with the C zstd decoder in place of `ruzstd` (RUSTSEC-2026-0344): the "3d" set
-# spelled out with `zstd_c` for `zstd_rust`.
-bevy = { version = "0.19", default-features = false, features = [
-    "2d", "ui", "audio", "default_app", "default_platform", "scene", "picking",
-    "bevy_render", "bevy_core_pipeline", "bevy_gizmos_render", "bevy_anti_alias", "bevy_gltf",
-    "bevy_pbr", "bevy_post_process", "gltf_animation", "common_api", "bevy_light",
-    "bevy_mikktspace", "ktx2", "morph_animation", "morph", "smaa_luts", "tonemapping_luts", "zstd_c",
-] }
+bevy = "0.19"
 tf2-core = { path = "../core" }
 # The same version Bevy's own audio already brings in; the mixer in tf2-core feeds it directly.
 cpal = "0.17"

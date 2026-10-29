@@ -1,0 +1,9 @@
+# Advisories accepted for now, each with the reason. Revisit on every Bevy upgrade.
+[advisories]
+ignore = [
+    # ruzstd 0.8 (decompression bomb), through Bevy 0.19's bevy_image. It only decodes the
+    # zstd-compressed KTX2 tonemapping tables built into Bevy itself; the game never loads a KTX2
+    # file from outside. Bevy 0.19 allows no fixed version (the C zstd crate it offers instead has
+    # advisories of its own). Goes away with a Bevy that takes ruzstd >= 0.9.1.
+    "RUSTSEC-2026-0344",
+]
