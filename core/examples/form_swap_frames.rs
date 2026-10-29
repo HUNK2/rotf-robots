@@ -139,7 +139,7 @@ fn main() {
                 }
                 last_local = Some(local);
             }
-        } else if let Some((r, clip)) = playing.as_deref().and_then(&find) {
+        } else if let Some((r, clip)) = playing.as_deref().and_then(find) {
             time += dt * TICKS_PER_SECOND * r.speed * s.special_rate;
             let mut at = time;
             if r.looping {

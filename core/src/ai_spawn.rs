@@ -995,9 +995,14 @@ impl Spawner {
     /// A fresh logical identity across all spawners. [stand-in] for an object handle;
     /// exhaustion is explicit instead of wrapping into a live or reserved id.
     fn next_id(&mut self) -> u32 {
-        NEXT_CHARACTER_ID.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |next| {
-            if next < 0x8000_0000 { Some(next + 1) } else { None }
-        }).expect("spawned character identity space exhausted")
+        let mut next = NEXT_CHARACTER_ID.load(Ordering::Relaxed);
+        loop {
+            assert!(next < 0x8000_0000, "spawned character identity space exhausted");
+            match NEXT_CHARACTER_ID.compare_exchange_weak(next, next + 1, Ordering::Relaxed, Ordering::Relaxed) {
+                Ok(id) => return id,
+                Err(seen) => next = seen,
+            }
+        }
     }
 
     /// Queues the sends of one of the spawner's arrays, entry by entry. [assumed] an `overrideMsgType`

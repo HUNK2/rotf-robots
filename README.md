@@ -100,7 +100,8 @@ tf2-core = { git = "https://github.com/HUNK2/rotf-robots", rev = "<commit>" }
 
 The core is not meant to ship inside a mod: a native port rebuilds the robot from the host game's
 own parts, and the core is what it is built from and checked against (`docs/MODDING.md`). Pin a
-commit if you use it: there are no releases yet and the code still changes.
+commit or a release tag (`tag = "v0.2.0"`) if you use it: the code still changes, and the core is
+not published on crates.io.
 
 ```
 cargo test --workspace
