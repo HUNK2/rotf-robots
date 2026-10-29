@@ -39,5 +39,6 @@ Compress-Archive -Path "$root\blender\rotf_import\__init__.py", "$root\blender\r
 $sums = Get-ChildItem $out -Filter *.zip | ForEach-Object {
     "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower())  $($_.Name)"
 }
-$sums | Set-Content -Encoding ascii "$out\SHA256SUMS.txt"
+# LF line ends: `sha256sum -c` reads a CR as part of the file name.
+[IO.File]::WriteAllText("$out\SHA256SUMS.txt", (($sums -join "`n") + "`n"))
 $sums
