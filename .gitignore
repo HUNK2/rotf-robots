@@ -14,3 +14,4 @@
 *.gltf
 __pycache__/
 *.zip
+!docs/images/*.png

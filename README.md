@@ -17,6 +17,10 @@
 [Porting guide](docs/MODDING.md) ·
 [JSON format](docs/FORMAT.md)
 
+<img src="docs/images/bumblebee-night-city.png" alt="Bumblebee in his Camaro form on a Night City street in Cyberpunk 2077" width="800">
+
+<sub>Bumblebee in Cyberpunk 2077's Night City (Photo Mode).</sub>
+
 </div>
 
 The playable robots rebuilt in Rust: their movement, forms and changes of form, fighting,
